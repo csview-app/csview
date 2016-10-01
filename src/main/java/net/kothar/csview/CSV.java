@@ -6,12 +6,16 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 
 
 public class CSV {
@@ -20,6 +24,14 @@ public class CSV {
 	private String contents;
 	private RandomAccessFile randomAccessFile;
 	private String file;
+	
+	private Cache<Integer, String[]> rowCache;
+	
+	public CSV() {
+		rowCache = CacheBuilder.newBuilder()
+			.maximumSize(500)
+			.build();
+	}
 
 	public void addRowListener(RowListener listener) {
 		rows.addListener(listener);
@@ -68,18 +80,39 @@ public class CSV {
 		System.out.println("Scanned " + rows.size() + " rows");
 	}
 
+	/* We use two buffers to allow the next block to be read
+	 * while processing the first. We could potentially use more
+	 * threads or a dedicated thread for more throughput.
+	 * 
+	 * I suspect we are currently limited by scanning the buffer or adding
+	 * new position to the list, so profiling is needed.
+	 */
+	private byte[] bbuf, bbuf2;
+	
 	private void scanFile() {
 		long pos = 0;
-		byte[] bbuf = new byte[1024 * 1024];
+		bbuf = new byte[1024 * 1024 * 4];
+		bbuf2 = new byte[bbuf.length];
 		ByteBuffer buffer = ByteBuffer.allocate(bbuf.length + 2);
 
 		// Add first row
 		addRow(0);
 
+		long startTime = System.currentTimeMillis();
 		try (FileInputStream input = new FileInputStream(file)) {
-			int read;
-			while ((read = input.read(bbuf)) > 0) {
+			int read = input.read(bbuf);
+			
+			while (read > 0) {
 
+				CompletableFuture<Integer> nextBuffer = CompletableFuture.supplyAsync(() -> {
+					try {
+						return input.read(bbuf2);
+					} catch (Exception e) {
+						e.printStackTrace();
+						return 0;
+					}
+				});
+				
 				// Add new data to buffer
 				buffer.limit(buffer.capacity());
 				buffer.put(bbuf, 0, read);
@@ -102,15 +135,41 @@ public class CSV {
 
 				// Update buffer
 				buffer.compact();
+				
+				// Swap buffers
+				read = nextBuffer.get();
+				byte[] temp = bbuf;
+				bbuf = bbuf2;
+				bbuf2 = temp;
 			}
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
 
-		System.out.println("Scanned " + rows.size() + " rows");
+			System.out.println("Scanned " + rows.size() + " rows");
+			double mb = randomAccessFile.length() / (double) (1 << 20);
+			double sec = (System.currentTimeMillis() - startTime) / 1000D;
+			System.out.println((long) (mb / sec) + " MiB/sec");
+			
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		} catch (ExecutionException e) {
+			e.printStackTrace();
+		} finally {
+			bbuf = null;
+			bbuf2 = null;
+		}
 	}
 
 	public synchronized String[] getRow(int row) {
+		try {
+			return rowCache.get(row, () -> loadRow(row));
+		} catch (ExecutionException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+	
+	private String[] loadRow(int row) {
 		Long from = rows.getPosition(row);
 		Long to = rows.getPosition(row+1);
 

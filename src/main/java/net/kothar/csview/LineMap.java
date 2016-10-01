@@ -2,13 +2,21 @@ package net.kothar.csview;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 import org.apache.commons.collections4.list.TreeList;
 
 public class LineMap {
 	
-	private TreeList<Long> linePositions = new TreeList<>();
+	private List<Long> linePositions = new BlockList<>();
 	private ArrayList<RowListener> listeners = new ArrayList<>();
+	
+	public LineMap() {
+	}
+	
+	public LineMap(List<Long> listImpl) {
+		this.linePositions = listImpl;
+	}
 	
 	public void add(Long position) {
 		if (linePositions.isEmpty() || position > getPosition(size() - 1)) {
@@ -72,29 +80,43 @@ public class LineMap {
 	
 	public static class Test {
 		public static void main(String[] args) {
-			LineMap map = new LineMap();
 			
+			System.out.println("ArrayList");
+			testMap(new LineMap(new ArrayList<>()));
+			printmem();
+			
+			System.out.println("\n\nTreeList");
+			testMap(new LineMap(new TreeList<>()));
+			printmem();
+			
+			System.out.println("\n\nBlockList");
+			testMap(new LineMap(new BlockList<>()));
+			printmem();
+		}
+
+		private static void printmem() {
+			long free = Runtime.getRuntime().freeMemory();
+			long total = Runtime.getRuntime().totalMemory();
+			System.out.println("Memory usage: " + (total - free) + "/" + total);
+			Runtime.getRuntime().gc();
+		}
+
+		private static void testMap(LineMap map) {
 			long start = System.currentTimeMillis();
 			for (long pos = 0; map.size() < 2_000_000; pos += 48) {
 				map.add(pos);
 			}
 			System.out.println("Mapped 2M lines in " + (System.currentTimeMillis() - start)/1000d + "s");
 			
-			System.out.println(map);
-			
 			start = System.currentTimeMillis();
 			map.removeLine(5);
-			System.out.println();
 			System.out.println("Removed line 5 in " + (System.currentTimeMillis() - start) + "ms");
-			System.out.println(map);
-			
+
 			start = System.currentTimeMillis();
-			for (int i = 0; i < 1_000_000; i ++) {
+			for (int i = 0; i < 10_000; i ++) {
 				map.removeLine((int) (Math.random() * map.size()));
 			}
-			System.out.println();
-			System.out.println("Removed 1M random lines in " + (System.currentTimeMillis() - start)/1000d + "s");
-			System.out.println(map);
+			System.out.println("Removed 10K random lines in " + (System.currentTimeMillis() - start)/1000d + "s");
 		}
 	}
 
