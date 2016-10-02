@@ -1,8 +1,10 @@
 package net.kothar.csview;
 
+import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -98,7 +100,7 @@ public class CSV {
 		addRow(0);
 
 		long startTime = System.currentTimeMillis();
-		try (FileInputStream input = new FileInputStream(file)) {
+		try (InputStream input = new BufferedInputStream(new FileInputStream(file))) {
 			int len = input.read(bbuf) - 1;
 			
 			while (len > 0) {
