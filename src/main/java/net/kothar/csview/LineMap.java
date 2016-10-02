@@ -10,6 +10,7 @@ public class LineMap {
 	
 	private List<Long> linePositions = new BlockList<>();
 	private ArrayList<RowListener> listeners = new ArrayList<>();
+	long lastPosition;
 	
 	public LineMap() {
 	}
@@ -19,8 +20,9 @@ public class LineMap {
 	}
 	
 	public void add(Long position) {
-		if (linePositions.isEmpty() || position > getPosition(size() - 1)) {
+		if (linePositions.isEmpty() || position > lastPosition) {
 			linePositions.add(position);
+			lastPosition = position;
 		} else {
 			int line = line(position);
 			if (line < 0) {

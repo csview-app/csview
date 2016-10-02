@@ -4,7 +4,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
@@ -91,53 +90,46 @@ public class CSV {
 	
 	private void scanFile() {
 		long pos = 0;
-		bbuf = new byte[1024 * 1024 * 4];
-		bbuf2 = new byte[bbuf.length];
-		ByteBuffer buffer = ByteBuffer.allocate(bbuf.length + 2);
+		int blockSize = 1024 * 1024 * 4;
+		bbuf = new byte[blockSize + 1];
+		bbuf2 = new byte[blockSize + 1];
 
 		// Add first row
 		addRow(0);
 
 		long startTime = System.currentTimeMillis();
 		try (FileInputStream input = new FileInputStream(file)) {
-			int read = input.read(bbuf);
+			int len = input.read(bbuf) - 1;
 			
-			while (read > 0) {
-
+			while (len > 0) {
+				bbuf2[0] = bbuf[len];
 				CompletableFuture<Integer> nextBuffer = CompletableFuture.supplyAsync(() -> {
 					try {
-						return input.read(bbuf2);
+						return input.read(bbuf2, 1, blockSize);
 					} catch (Exception e) {
 						e.printStackTrace();
 						return 0;
 					}
 				});
 				
-				// Add new data to buffer
-				buffer.limit(buffer.capacity());
-				buffer.put(bbuf, 0, read);
-				buffer.flip();
-
 				// Look for a line terminator
-				for (int i = 0; i < buffer.limit() - 1; i++) {
-					byte b = buffer.get();
+				int i;
+				for (i = 0; i < len; i++) {
+					byte b = bbuf[i];
 					if (b == '\n') {
-						addRow(pos + buffer.position());
+						addRow(pos + i);
 					} else if (b == '\r') {
 						// Peek at the next char
-						if (buffer.get() != '\n') {
-							buffer.position(buffer.position() - 1);
+						if (bbuf[i+1] == '\n') {
+							i++;
 						}
-						addRow(pos + buffer.position());
+						addRow(pos + i);
 					}
 				}
-				pos += buffer.position();
+				pos += i;
 
-				// Update buffer
-				buffer.compact();
-				
 				// Swap buffers
-				read = nextBuffer.get();
+				len = nextBuffer.get();
 				byte[] temp = bbuf;
 				bbuf = bbuf2;
 				bbuf2 = temp;
@@ -216,20 +208,6 @@ public class CSV {
 		}
 
 		return "";
-	}
-
-	private Long getContentLength() {
-		if (contents != null) {
-			return (long) contents.length();
-		} else if (randomAccessFile != null) {
-			try {
-				return randomAccessFile.length();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-
-		return 0L;
 	}
 
 	public synchronized int getRowCount() {
