@@ -12,36 +12,37 @@ public class LongBlockList extends AbstractList<Long> {
 	private static final int DEFAULT_BLOCK_SIZE = 10_000;
 	Block root;
 	int blockSize = DEFAULT_BLOCK_SIZE;
-	int valueLength = 8;
 	
 	class Block {
-		boolean copyOnWrite;
 		ByteBuffer items;
+		int valueLength;
+		long offset;
 		
-		Block parent;
 		Block left;
 		Block right;
 		
 		private int height = 0;
-		private int _size = 0;
+		private int treeSize = 0;
 		
 		public Block() {
+			valueLength = 8;
 			items = ByteBuffer.allocate(blockSize * valueLength);
 			items.limit(0);
-			copyOnWrite = false;
+			offset = 0;
 		}
 		
-		Block(ByteBuffer items, Block parent) {
+		Block(ByteBuffer items, int valueLength, long offset) {
 			this.items = items;
-			this.parent = parent;
-			copyOnWrite = true;
+			this.valueLength = valueLength;
+			this.offset = offset;
+			compact();
 		}
 		
 		int size() {
 			if (items != null) {
 				return items.limit() / valueLength;
 			} else {
-				return _size;
+				return treeSize;
 			}
 		}
 		
@@ -58,14 +59,19 @@ public class LongBlockList extends AbstractList<Long> {
 		}
 
 		void split(int index) {
-			_size = items.limit() / valueLength;
-			items.position(index * valueLength);
-			right = new Block(items.slice(), this);
-			items.flip();
-			left = new Block(items.slice(), this);
+			split(index, index);
+		}
+		
+		void split(int index1, int index2) {
+			items.position(index2 * valueLength);
+			right = new Block(items.slice(), valueLength, offset);
+			
+			items.position(0);
+			items.limit(index1 * valueLength);
+			left = new Block(items, valueLength, offset);
 			
 			items = null;
-			height = 1;
+			updateTree();
 		}
 
 		public Long remove(int index) {
@@ -78,30 +84,34 @@ public class LongBlockList extends AbstractList<Long> {
 				} else if (index == size() - 1) {
 					items.limit(items.limit() - 1);
 				} else {
-					_size = size() - 1;
-					
-					items.position((index + 1) * valueLength);
-					right = new Block(items.slice(), this);
-					
-					items.position(0);
-					items.limit(index * valueLength);
-					left = new Block(items.slice(), this);
-					
-					items = null;
-					height = 1;
+					split(index, index + 1);
 				}
 			} else if (index < left.size()) {
 				value = left.remove(index);
-				update();
+				updateTree();
 			} else {
 				value = right.remove(index - left.size());
-				update();
+				updateTree();
 			}
 			return value;
 		}
 		
-		public void add(Long e) {
-			checkCopy();
+		public void add(int index, Long e) {
+			if (index == size()) {
+				append(e);
+				return;
+			} else if (items != null) {
+				split(index);
+				left.append(e);
+			} else if (index <= left.size()) {
+				left.add(index, e);
+			} else {
+				right.add(index - left.size(), e);
+			}
+			treeSize++;
+		}
+		
+		public void append(Long e) {
 			if (items != null && size() >= blockSize) {
 				split(size() / 2);
 			}
@@ -112,15 +122,15 @@ public class LongBlockList extends AbstractList<Long> {
 				items.position(limit);
 				items.putLong(e);
 			} else {
-				right.add(e);
+				right.append(e);
 				if (!balance()) {
-					update();
+					updateTree();
 				}
 			}
 		}
 
-		private void update() {
-			_size = left.size() + right.size();
+		private void updateTree() {
+			treeSize = left.size() + right.size();
 			height = Math.max(right.height, left.height) + 1;
 		}
 
@@ -135,11 +145,11 @@ public class LongBlockList extends AbstractList<Long> {
 				
 				A.left = a;
 				A.right = b;
-				A.update();
+				A.updateTree();
 				
 				B.left = A;
 				B.right = c;
-				B.update();
+				B.updateTree();
 				return true;
 			} else if (left.height > right.height + 1) {
 				Block A = this;
@@ -151,26 +161,23 @@ public class LongBlockList extends AbstractList<Long> {
 				
 				B.left = b;
 				B.right = c;
-				B.update();
+				B.updateTree();
 				
 				A.left = a;
 				A.right = B;
-				A.update();
+				A.updateTree();
 				return true;
 			}
 			
 			return false;
 		}
 
-		private void checkCopy() {
-			if (copyOnWrite) {
-				ByteBuffer buffer = ByteBuffer.allocate(blockSize * valueLength);
-				items.rewind();
-				buffer.put(items);
-				buffer.flip();
-				items = buffer;
-				copyOnWrite = false;
-			}
+		private void compact() {
+			ByteBuffer buffer = ByteBuffer.allocate(blockSize * valueLength);
+			items.rewind();
+			buffer.put(items);
+			buffer.flip();
+			items = buffer;
 		}
 	}
 
@@ -189,12 +196,11 @@ public class LongBlockList extends AbstractList<Long> {
 	}
 	
 	@Override
-	public boolean add(Long e) {
+	public void add(int index, Long e) {
 		if (root == null) {
 			root = new Block();
 		}
-		root.add(e);
-		return true;
+		root.add(index, e);
 	}
 	
 	@Override
@@ -213,9 +219,12 @@ public class LongBlockList extends AbstractList<Long> {
 			for (long i = 0; i < 100; i++) {
 				list.add(i);
 			}
+			for (long i = 0; i < 100; i++) {
+				list.add((int) (i * 2), i);
+			}
 			
 			for (int i = 0; i < 100; i++) {
-				Long value = list.get(i);
+				Long value = list.get(i * 2);
 				if (value != i) {
 					throw new RuntimeException("List value does not match at " + i + ": got " + value);
 				}
