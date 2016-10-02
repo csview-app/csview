@@ -5,6 +5,11 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import org.eclipse.jface.window.ApplicationWindow;
+import org.eclipse.nebula.widgets.nattable.NatTable;
+import org.eclipse.nebula.widgets.nattable.grid.GridRegion;
+import org.eclipse.nebula.widgets.nattable.layer.DataLayer;
+import org.eclipse.nebula.widgets.nattable.selection.SelectionLayer;
+import org.eclipse.nebula.widgets.nattable.viewport.ViewportLayer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
@@ -43,26 +48,6 @@ public class CSView extends ApplicationWindow {
 		super(null);
 		if (args.length > 0) {
 			csv = new CSV();
-			
-			csv.addRowListener(new RowListener() {
-				
-				private Timer timer;
-				
-				@Override
-				public synchronized void rowAdded(int row) {
-					if (timer == null) {
-						timer = new Timer(true);
-						timer.schedule(new TimerTask() {
-							@Override
-							public void run() {
-								getShell().getDisplay().asyncExec(() -> table.setItemCount(csv.getRowCount() - 1));
-								timer.cancel();
-								timer = null;
-							}
-						}, 1000);
-					}
-				}
-			});
 			
 			try {
 				loadCSV(args[0]);
@@ -108,6 +93,18 @@ public class CSView extends ApplicationWindow {
 	@Override
 	protected Control createContents(Composite parent) {
 
+	    final DataLayer bodyDataLayer = new DataLayer(new CSVDataProvider(csv));
+	    SelectionLayer selectionLayer = new SelectionLayer(bodyDataLayer);
+	    ViewportLayer viewportLayer = new ViewportLayer(selectionLayer); 
+	    
+	    viewportLayer.setRegionName(GridRegion.BODY);
+	    
+	    final NatTable natTable = new NatTable(parent, viewportLayer);
+	    
+	    return natTable;
+	}
+
+	private Control createSWTTable(Composite parent) {
 		table = new Table(parent, SWT.VIRTUAL | SWT.BORDER | SWT.MULTI);
 		table.setItemCount(csv.getRowCount() - 1);
 		table.setLinesVisible(true);
@@ -135,6 +132,26 @@ public class CSView extends ApplicationWindow {
 		});
 		table.setHeaderVisible(true);
 
+		csv.addRowListener(new RowListener() {
+			
+			private Timer timer;
+			
+			@Override
+			public synchronized void rowAdded(int row) {
+				if (timer == null) {
+					timer = new Timer(true);
+					timer.schedule(new TimerTask() {
+						@Override
+						public void run() {
+							getShell().getDisplay().asyncExec(() -> table.setItemCount(csv.getRowCount() - 1));
+							timer.cancel();
+							timer = null;
+						}
+					}, 1000);
+				}
+			}
+		});
+		
 		return table;
 	}
 
