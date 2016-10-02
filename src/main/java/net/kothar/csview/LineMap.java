@@ -8,7 +8,7 @@ import org.apache.commons.collections4.list.TreeList;
 
 public class LineMap {
 	
-	private List<Long> linePositions = new BlockList<>();
+	private List<Long> linePositions = new LongBlockList();
 	private ArrayList<RowListener> listeners = new ArrayList<>();
 	long lastPosition;
 	
