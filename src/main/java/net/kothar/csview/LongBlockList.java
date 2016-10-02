@@ -148,7 +148,7 @@ public class LongBlockList extends AbstractList<Long> {
 		private int requiredValueLength(long distance) {
 			int newValueLength = 2;
 			while (newValueLength < 8 && distance > 1L << (newValueLength * 8 - 1))
-				newValueLength <<= 1;
+				newValueLength += 1;
 			return newValueLength;
 		}
 
@@ -238,8 +238,16 @@ public class LongBlockList extends AbstractList<Long> {
 			switch (valueLength) {
 			case 2:
 				return buffer.getShort() + offset;
+			case 3:
+				long value = 0xFFL & buffer.get();
+				value |= (0xFFL & buffer.get()) << 8;
+				value |= buffer.get() << 16;
+				return value + offset;
 			case 4:
 				return buffer.getInt() + offset;
+			case 5:
+			case 6:
+			case 7:
 			case 8:
 				return buffer.getLong();
 			default:
@@ -252,9 +260,20 @@ public class LongBlockList extends AbstractList<Long> {
 			case 2:
 				buffer.putShort((short) (value - offset));
 				return;
+			case 3:
+				value = value - offset;
+				buffer.put((byte) (value & 0xFF));
+				value >>= 8;
+				buffer.put((byte) (value & 0xFF));
+				value >>= 8;
+				buffer.put((byte) value);
+				return;
 			case 4:
 				buffer.putInt((int) (value - offset));
 				return;
+			case 5:
+			case 6:
+			case 7:
 			case 8:
 				buffer.putLong(value);
 				return;
