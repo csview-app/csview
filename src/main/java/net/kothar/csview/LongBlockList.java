@@ -48,7 +48,8 @@ public class LongBlockList extends AbstractList<Long> {
 		
 		Long get(int index) {
 			if (items != null) {
-				return items.getLong(index * valueLength);
+				items.position(index * valueLength);
+				return readItem(items, offset, valueLength);
 			}
 			
 			if (index < left.size()) {
@@ -71,6 +72,17 @@ public class LongBlockList extends AbstractList<Long> {
 			left = new Block(items, valueLength, offset);
 			
 			items = null;
+			updateTree();
+		}
+		
+		void split() {
+			left = new Block(items, valueLength, offset);
+			right = new Block();
+			
+			items = null;
+			valueLength = 0;
+			offset = 0;
+			
 			updateTree();
 		}
 
@@ -112,21 +124,32 @@ public class LongBlockList extends AbstractList<Long> {
 		}
 		
 		public void append(Long e) {
-			if (items != null && size() >= blockSize) {
-				split(size());
+			if (items != null) {
+				if (size() >= blockSize) {
+					split();
+				} else if (requiredValueLength(e - offset) > valueLength) {
+					split();
+				}
 			}
 			
 			if (items != null) {
 				int limit = items.limit();
 				items.limit(limit + valueLength);
 				items.position(limit);
-				items.putLong(e);
+				writeItem(e, items, offset, valueLength);
 			} else {
 				right.append(e);
 				if (!balance()) {
 					updateTree();
 				}
 			}
+		}
+
+		private int requiredValueLength(long distance) {
+			int newValueLength = 2;
+			while (newValueLength < 8 && distance > 1L << (newValueLength * 8 - 1))
+				newValueLength <<= 1;
+			return newValueLength;
 		}
 
 		private void updateTree() {
@@ -173,11 +196,71 @@ public class LongBlockList extends AbstractList<Long> {
 		}
 
 		private void compact() {
-			ByteBuffer buffer = ByteBuffer.allocate(blockSize * valueLength);
+			// Choose a new offset
+			long min = Long.MAX_VALUE;
+			long max = Long.MIN_VALUE;
+			
+			for (int i = 0; i < size(); i++) {
+				Long value = get(i);
+				if (value < min) min = value;
+				if (value > max) max = value;
+			}
+			
+			long newOffset = (min + max) / 2;
+			long distance = max - newOffset;
+			
+			// Choose a new valueLength
+			int newValueLength = requiredValueLength(distance);
+			if (newValueLength == 8) newOffset = 0;
+			
+			ByteBuffer buffer = ByteBuffer.allocate(blockSize * newValueLength);
+			
 			items.rewind();
-			buffer.put(items);
+			
+			if (newValueLength == valueLength && newOffset == offset) {
+				// No re-encoding needed if lengths and offsets match
+				buffer.put(items);
+			} else {
+				// Re-encode with new offset
+				while (items.remaining() > 0) {
+					long value = readItem(items, offset, valueLength);
+					writeItem(value, buffer, newOffset, newValueLength);
+				}
+			}
+			
 			buffer.flip();
 			items = buffer;
+			offset = newOffset;
+			valueLength = newValueLength;
+		}
+
+		private long readItem(ByteBuffer buffer, long offset, int valueLength) {
+			switch (valueLength) {
+			case 2:
+				return buffer.getShort() + offset;
+			case 4:
+				return buffer.getInt() + offset;
+			case 8:
+				return buffer.getLong();
+			default:
+				throw new IllegalArgumentException();
+			}
+		}
+
+		private void writeItem(long value, ByteBuffer buffer, long offset, int valueLength) {
+			switch (valueLength) {
+			case 2:
+				buffer.putShort((short) (value - offset));
+				return;
+			case 4:
+				buffer.putInt((int) (value - offset));
+				return;
+			case 8:
+				buffer.putLong(value);
+				return;
+			default:
+				throw new IllegalArgumentException();
+			}
 		}
 	}
 
