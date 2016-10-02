@@ -2,19 +2,24 @@ package net.kothar.csview;
 
 import java.io.FileNotFoundException;
 
+import org.eclipse.jface.layout.GridDataFactory;
 import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.nebula.widgets.nattable.NatTable;
-import org.eclipse.nebula.widgets.nattable.grid.GridRegion;
+import org.eclipse.nebula.widgets.nattable.data.IDataProvider;
+import org.eclipse.nebula.widgets.nattable.grid.data.DefaultCornerDataProvider;
+import org.eclipse.nebula.widgets.nattable.grid.data.DefaultRowHeaderDataProvider;
+import org.eclipse.nebula.widgets.nattable.grid.layer.ColumnHeaderLayer;
+import org.eclipse.nebula.widgets.nattable.grid.layer.CornerLayer;
+import org.eclipse.nebula.widgets.nattable.grid.layer.GridLayer;
+import org.eclipse.nebula.widgets.nattable.grid.layer.RowHeaderLayer;
 import org.eclipse.nebula.widgets.nattable.layer.DataLayer;
+import org.eclipse.nebula.widgets.nattable.layer.ILayer;
 import org.eclipse.nebula.widgets.nattable.selection.SelectionLayer;
 import org.eclipse.nebula.widgets.nattable.viewport.ViewportLayer;
-import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
-import org.eclipse.swt.widgets.Table;
-import org.eclipse.swt.widgets.TableColumn;
 
 
 public class CSView extends ApplicationWindow {
@@ -87,25 +92,41 @@ public class CSView extends ApplicationWindow {
 	@Override
 	protected Control createContents(Composite parent) {
 
-	    final DataLayer bodyDataLayer = new DataLayer(new CSVDataProvider(csv));
+		// Body stack
+	    CSVDataProvider bodyDataProvider = new CSVDataProvider(csv);
+		DataLayer bodyDataLayer = new DataLayer(bodyDataProvider);
 	    SelectionLayer selectionLayer = new SelectionLayer(bodyDataLayer);
 	    ViewportLayer viewportLayer = new ViewportLayer(selectionLayer);
 	    
-	    viewportLayer.setRegionName(GridRegion.BODY);
+	    // Column header stack
+	    CSVHeaderProvider columnHeaderDataProvider = new CSVHeaderProvider(csv);
+		DataLayer headerDataLayer = new DataLayer(columnHeaderDataProvider);
+	    ILayer columnHeaderLayer = new ColumnHeaderLayer(headerDataLayer,
+	        viewportLayer, 
+	        selectionLayer);
 	    
-	    final NatTable natTable = new NatTable(parent, viewportLayer);
+	    // Create row header stack
+	    IDataProvider rowHeaderDataProvider = new DefaultRowHeaderDataProvider(bodyDataProvider);
+	    DataLayer rowHeaderDataLayer = new DataLayer(rowHeaderDataProvider, 40, 20);
+	    ILayer rowHeaderLayer = new RowHeaderLayer(rowHeaderDataLayer, 
+	        viewportLayer, 
+	        selectionLayer);
+
+	    // Create corner stack
+	    ILayer cornerLayer = 
+	         new CornerLayer(new DataLayer(new DefaultCornerDataProvider(
+	        		 columnHeaderDataProvider, rowHeaderDataProvider)), 
+	            rowHeaderLayer, 
+	            columnHeaderLayer);
+	    
+	    GridLayer gridLayer = 
+	            new GridLayer(viewportLayer, columnHeaderLayer, rowHeaderLayer, cornerLayer);
+	    
+	    final NatTable natTable = new NatTable(parent, gridLayer);
+	    GridDataFactory.fillDefaults().grab(true, true).applyTo(natTable);
+	    
+	    getShell().getDisplay().asyncExec(natTable::refresh);
 	    
 	    return natTable;
-	}
-
-	public void addColumn(final Table table, int index) {
-		TableColumn col = new TableColumn(table, SWT.NORMAL);
-		String[] row0 = csv.getRow(0);
-		if (row0.length > index) {
-			col.setText(row0[index]);
-		} else {
-			col.setText("[Column " + (index + 1) + "]");
-		}
-		col.setWidth(200);
 	}
 }
