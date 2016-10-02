@@ -113,7 +113,7 @@ public class LongBlockList extends AbstractList<Long> {
 		
 		public void append(Long e) {
 			if (items != null && size() >= blockSize) {
-				split(size() / 2);
+				split(size());
 			}
 			
 			if (items != null) {
