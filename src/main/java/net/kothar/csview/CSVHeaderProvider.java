@@ -13,7 +13,7 @@ public class CSVHeaderProvider implements IDataProvider {
 	@Override
 	public Object getDataValue(int columnIndex, int rowIndex) {
 		String[] row = csv.getRow(0);
-		if (columnIndex > row.length) {
+		if (columnIndex < 0 || columnIndex > row.length) {
 			return null;
 		}
 		return row[columnIndex];

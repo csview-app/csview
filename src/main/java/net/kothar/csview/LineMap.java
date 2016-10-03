@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.commons.collections4.list.TreeList;
-
 public class LineMap {
 	
 	private List<Long> linePositions = new LongBlockList();
@@ -87,12 +85,12 @@ public class LineMap {
 			testMap(new LineMap(new ArrayList<>()));
 			printmem();
 			
-			System.out.println("\n\nTreeList");
-			testMap(new LineMap(new TreeList<>()));
-			printmem();
-			
 			System.out.println("\n\nBlockList");
 			testMap(new LineMap(new BlockList<>()));
+			printmem();
+			
+			System.out.println("\n\nLongBlockList");
+			testMap(new LineMap(new LongBlockList()));
 			printmem();
 		}
 
