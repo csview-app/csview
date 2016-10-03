@@ -1,5 +1,6 @@
 package net.kothar.csview;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 
 import org.eclipse.jface.layout.GridDataFactory;
@@ -55,6 +56,16 @@ public class CSView extends ApplicationWindow {
 			}
 		} else {
 			loadCSVString("No Data, Please open a file");
+		}
+	}
+	
+	public CSView(File file) {
+		super(null);
+		csv = new CSV();
+		try {
+			loadCSV(file.toString());
+		} catch (FileNotFoundException e) {
+			loadCSVString(e.getMessage());
 		}
 	}
 	
