@@ -7,7 +7,7 @@ import java.util.AbstractList;
  * Specialises the behaviour of BlockList by storing longs in a byte array;
  * @author mhouston
  */
-public class LongBlockList extends AbstractList<Long> {
+public class CompactLongList extends AbstractList<Long> {
 	
 	private static final int DEFAULT_BLOCK_SIZE = 10_000;
 	Block root;
@@ -146,7 +146,7 @@ public class LongBlockList extends AbstractList<Long> {
 		}
 
 		private int requiredValueLength(long distance) {
-			int newValueLength = 2;
+			int newValueLength = 1;
 			while (newValueLength < 8 && distance > 1L << (newValueLength * 8 - 1))
 				newValueLength += 1;
 			return newValueLength;
@@ -236,6 +236,8 @@ public class LongBlockList extends AbstractList<Long> {
 
 		private long readItem(ByteBuffer buffer, long offset, int valueLength) {
 			switch (valueLength) {
+			case 1:
+				return buffer.get() + offset;
 			case 2:
 				return buffer.getShort() + offset;
 			case 3:
@@ -257,6 +259,8 @@ public class LongBlockList extends AbstractList<Long> {
 
 		private void writeItem(long value, ByteBuffer buffer, long offset, int valueLength) {
 			switch (valueLength) {
+			case 1:
+				buffer.put((byte) (value - offset));
 			case 2:
 				buffer.putShort((short) (value - offset));
 				return;
@@ -315,7 +319,7 @@ public class LongBlockList extends AbstractList<Long> {
 
 	public static class Test {
 		public static void main(String[] args) {
-			LongBlockList list = new LongBlockList();
+			CompactLongList list = new CompactLongList();
 			list.blockSize = 2;
 			
 			for (long i = 0; i < 100; i++) {

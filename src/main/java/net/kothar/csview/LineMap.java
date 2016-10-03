@@ -6,7 +6,7 @@ import java.util.List;
 
 public class LineMap {
 	
-	private List<Long> linePositions = new LongBlockList();
+	private List<Long> linePositions = new CompactLongList();
 	private ArrayList<RowListener> listeners = new ArrayList<>();
 	long lastPosition;
 	
@@ -90,7 +90,7 @@ public class LineMap {
 			printmem();
 			
 			System.out.println("\n\nLongBlockList");
-			testMap(new LineMap(new LongBlockList()));
+			testMap(new LineMap(new CompactLongList()));
 			printmem();
 		}
 

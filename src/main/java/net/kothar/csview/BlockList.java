@@ -6,43 +6,116 @@ import java.util.List;
 
 public class BlockList<E> extends AbstractList<E> {
 	
-	private static final int DEFAULT_BLOCK_SIZE = 10_000;
-	Block root;
-	int blockSize = DEFAULT_BLOCK_SIZE;
+	private static int BLOCK_SIZE = 10_000;
 	
-	class Block {
-		boolean copyOnWrite;
-		List<E> items;
+	static abstract class Block<E, L extends Block<E, L, I>, I> {
+		I items;
 		
-		Block parent;
-		Block left;
-		Block right;
+		L left;
+		L right;
 		
-		private int height = 0;
-		private int _size = 0;
+		protected int height = 0;
+		protected int treeSize = 0;
 		
-		public Block() {
-			items = new ArrayList<E>(blockSize);
-			copyOnWrite = false;
+		@SuppressWarnings("unchecked")
+		protected boolean balance() {
+			if (right.height > left.height + 1) {
+				L A = right;
+				L B = (L) this;
+				
+				L a = left;
+				L b = right.left;
+				L c = right.right;
+				
+				A.left = a;
+				A.right = b;
+				A.updateTree();
+				
+				B.left = A;
+				B.right = c;
+				B.updateTree();
+				return true;
+			} else if (left.height > right.height + 1) {
+				L A = (L) this;
+				L B = left;
+				
+				L a = left.left;
+				L b = left.right;
+				L c = right;
+				
+				B.left = b;
+				B.right = c;
+				B.updateTree();
+				
+				A.left = a;
+				A.right = B;
+				A.updateTree();
+				return true;
+			}
+			
+			return false;
 		}
-		
-		Block(List<E> items, Block parent) {
-			this.items = items;
-			this.parent = parent;
-			copyOnWrite = true;
+
+		abstract void appendItem(E e);
+
+		public abstract E remove(int index);
+
+		protected void split() {
+			split(countItems());
 		}
-		
-		int size() {
+
+		protected abstract void split(int index1, int index2);
+
+		protected int size() {
 			if (items != null) {
-				return items.size();
+				return countItems();
 			} else {
-				return _size;
+				return treeSize;
 			}
 		}
-		
-		E get(int index) {
+
+		protected abstract int countItems();
+
+		protected void split(int index) {
+			split(index, index);
+		}
+
+		public void add(int index, E e) {
 			if (items != null) {
-				return items.get(index);
+				if (index == countItems()) {
+					append(e);
+				} else {
+					split(index);
+					left.append(e);
+					updateTree();
+				}
+			} else {
+				if (index < left.size()) {
+					left.add(index, e);
+				} else {
+					right.add(index - left.size(), e);
+				}
+			}
+		}
+
+		protected void updateTree() {
+			treeSize = left.size() + right.size();
+			height = Math.max(right.height, left.height) + 1;
+		}
+		
+		protected void checkMerge() {
+			if (treeSize > BLOCK_SIZE / 2 && treeSize < BLOCK_SIZE) {
+				merge();
+			}
+		}
+
+		protected void merge() {
+			throw new UnsupportedOperationException();
+		}
+
+		protected E get(int index) {
+			if (items != null) {
+				return getItem(index);
 			}
 			
 			if (index < left.size()) {
@@ -52,15 +125,65 @@ public class BlockList<E> extends AbstractList<E> {
 			}
 		}
 
-		void split(int index) {
-			_size = items.size();
-			left = new Block(items.subList(0, index), this);
-			right = new Block(items.subList(index, _size), this);
+		protected abstract E getItem(int index);
+
+		public void append(E e) {
+			if (items != null && countItems() >= BLOCK_SIZE) {
+				split();
+			}
 			
-			items = null;
-			height = 1;
+			if (items != null) {
+				appendItem(e);
+			} else {
+				right.append(e);
+				if (!balance()) {
+					updateTree();
+				}
+			}
+		}
+	}
+	
+	Block<E, ?, ?> root;
+
+	static class ArrayListBlock<E> extends Block<E, ArrayListBlock<E>, List<E>>{
+		
+		public ArrayListBlock() {
+			items = new ArrayList<E>(BLOCK_SIZE);
+		}
+		
+		ArrayListBlock(List<E> items) {
+			this.items = new ArrayList<>(items);
 		}
 
+		@Override
+		protected int countItems() {
+			return items.size();
+		}
+		
+		@Override
+		protected E getItem(int index) {
+			return items.get(index);
+		}
+
+		@Override
+		protected void split(int index1, int index2) {
+			left = new ArrayListBlock<>(items.subList(0, index1));
+			right = new ArrayListBlock<>(items.subList(index2, items.size()));
+			
+			items = null;
+			updateTree();
+		}
+		
+		@Override
+		protected void split() {
+			left = new ArrayListBlock<>();
+			left.items = items;
+			
+			right = new ArrayListBlock<>();
+			updateTree();
+		}
+
+		@Override
 		public E remove(int index) {
 			E value;
 			if (items != null) {
@@ -70,88 +193,51 @@ public class BlockList<E> extends AbstractList<E> {
 				} else if (index == items.size() - 1) {
 					items = items.subList(0, items.size() - 1);
 				} else {
-					_size = items.size() - 1;
-					left = new Block(items.subList(0, index), this);
-					right = new Block(items.subList(index + 1, items.size()), this);
-					
-					items = null;
-					height = 1;
+					split(index, index + 1);
 				}
 			} else if (index < left.size()) {
 				value = left.remove(index);
-				update();
+				updateTree();
 			} else {
 				value = right.remove(index - left.size());
-				update();
+				updateTree();
 			}
 			return value;
 		}
 		
-		public void add(E e) {
-			checkCopy();
-			if (items != null && items.size() >= blockSize) {
-				split(items.size() / 2);
-			}
+		@Override
+		void appendItem(E e) {
+			items.add(e);
+		}
+		
+		@Override
+		protected void merge() {
+			ArrayList<E> newItems = new ArrayList<>();
+			merge(newItems);
 			
+			items = newItems;
+			left = null;
+			right = null;
+			height = 0;
+			treeSize = 0;
+		}
+
+		private void merge(ArrayList<E> newItems) {
 			if (items != null) {
-				items.add(e);
+				newItems.addAll(newItems);
 			} else {
-				right.add(e);
-				if (!balance()) {
-					update();
-				}
+				left.merge(newItems);
+				right.merge(newItems);
 			}
 		}
+	}
 
-		private void update() {
-			_size = left.size() + right.size();
-			height = Math.max(right.height, left.height) + 1;
-		}
+	public BlockList() {
+		this(new ArrayListBlock<>());
+	}
 
-		private boolean balance() {
-			if (right.height > left.height + 1) {
-				Block A = right;
-				Block B = this;
-				
-				Block a = left;
-				Block b = right.left;
-				Block c = right.right;
-				
-				A.left = a;
-				A.right = b;
-				A.update();
-				
-				B.left = A;
-				B.right = c;
-				B.update();
-				return true;
-			} else if (left.height > right.height + 1) {
-				Block A = this;
-				Block B = left;
-				
-				Block a = left.left;
-				Block b = left.right;
-				Block c = right;
-				
-				B.left = b;
-				B.right = c;
-				B.update();
-				
-				A.left = a;
-				A.right = B;
-				A.update();
-				return true;
-			}
-			
-			return false;
-		}
-
-		private void checkCopy() {
-			if (copyOnWrite) {
-				items = new ArrayList<>(items);
-				copyOnWrite = false;
-			}
-		}
+	protected BlockList(Block<E, ?, ?> root) {
+		this.root = root;
 	}
 
 	@Override
@@ -161,37 +247,40 @@ public class BlockList<E> extends AbstractList<E> {
 
 	@Override
 	public int size() {
-		if (root == null) {
-			return 0;
-		}
-		
 		return root.size();
 	}
 	
 	@Override
-	public boolean add(E e) {
-		if (root == null) {
-			root = new Block();
-		}
-		root.add(e);
-		return true;
+	public void add(int index, E e) {
+		root.add(index, e);
 	}
 	
 	@Override
 	public E remove(int index) {
-		if (root == null) {
-			throw new IndexOutOfBoundsException();
-		}
 		return root.remove(index);
 	}
 
 	public static class Test {
 		public static void main(String[] args) {
 			BlockList<Integer> list = new BlockList<>();
-			list.blockSize = 2;
+			BLOCK_SIZE = 10;
 			
 			for (int i = 0; i < 100; i++) {
 				list.add(i);
+			}
+			for (int i = 0; i < 100; i++) {
+				list.add(i * 2, i);
+			}
+			
+			for (int i = 0; i < 100; i++) {
+				Integer value = list.get(i * 2);
+				if (value != i) {
+					throw new RuntimeException("List value does not match at " + i + ": got " + value);
+				}
+			}
+			
+			for (int i = 99; i >= 0; i--) {
+				list.remove(i * 2);
 			}
 			
 			for (int i = 0; i < 100; i++) {
