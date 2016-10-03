@@ -17,6 +17,7 @@
 			<artifactId>jface</artifactId>
 			<version>3.5.0</version>
 		</dependency>
+
 		<dependency>
 			<groupId>org.eclipse.swt</groupId>
 			<artifactId>org.eclipse.swt.cocoa.macosx.x86_64</artifactId>

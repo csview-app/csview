@@ -1,21 +1,41 @@
-package net.kothar.csview;
+package net.kothar.csview.cocoa;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintStream;
+import java.util.Date;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
-import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 
+import net.kothar.csview.CSView;
+import net.kothar.csview.Menus;
+
 public class MacLoader {
+	
+	static final String APP_NAME = "CSView";
+	
 	private static Display display;
 
 	public static void main(String[] args) {
-		display = Display.getDefault();
 		
+		Display.setAppName(APP_NAME);
+		new CocoaUIEnhancer().earlyStartup();
+		
+		try {
+			PrintStream log = new PrintStream("/tmp/csview.log");
+			System.setOut(log);
+			System.setErr(log);
+			
+			System.out.println("\nStarted new session: " + new Date());
+		} catch (FileNotFoundException e) {
+		}
+		
+		display = Display.getDefault();
 		display.addListener(SWT.OpenDocument, new Listener() {
 			@Override
 			public void handleEvent(Event event) {
@@ -26,13 +46,7 @@ public class MacLoader {
 		});
 		
 		Menu menuBar = display.getMenuBar();
-		
-		MenuItem fileMenu = new MenuItem(menuBar, SWT.DROP_DOWN);
-		fileMenu.setText("File");
-		
-		Menu menu = new Menu(fileMenu);
-		MenuItem open = new MenuItem(menu, SWT.NORMAL);
-		open.setText("Open file");
+		Menus.createFileMenu(menuBar);
 		
 		while (!display.isDisposed()) {
 			if (!display.readAndDispatch()) {

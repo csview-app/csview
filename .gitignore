@@ -3,3 +3,5 @@
 .settings
 bin
 /target/
+build-mac-jar.xml
+csview-*.jar
