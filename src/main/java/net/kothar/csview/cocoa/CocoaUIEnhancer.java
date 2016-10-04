@@ -244,7 +244,7 @@ public class CocoaUIEnhancer extends CocoaUtil {
 			// enable pref menu
 			NSMenuItem prefMenuItem = (NSMenuItem) invokeMethod(NSMenu.class, appMenu,
 					"itemAtIndex", new Object[] { wrapPointer(kPreferencesMenuItem) });
-			prefMenuItem.setEnabled(true);
+			prefMenuItem.setEnabled(false);
 
 			// Register as a target on the prefs and quit items.
 			prefMenuItem.setTarget(delegate);
@@ -381,8 +381,8 @@ public class CocoaUIEnhancer extends CocoaUtil {
 	}
 
 	private static void showAbout() {
-		MessageDialog.openInformation(null, "About...", "Replace with a proper about text  / dialog");
-		// delegate.runCommand(ActionFactory.ABOUT.getCommandId());
+		MessageDialog.openInformation(null, "About " + MacLoader.APP_NAME, "CSView (c) 2016 Kothar labs\n"
+				+ "Icon by Honza Dousek (http://jandousek.cz/)");
 	}
 
 	private static void showPreferences() {
