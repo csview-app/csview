@@ -5,7 +5,7 @@ JDK = jdk1.8.0_40.jdk
 APP_JDK = $(APP)/Contents/Plugins/$(JDK)/Contents
 APP_JRE = $(APP_JDK)/Home/jre
 
-app:
+app-jre:
 	rm -rf $(APP)
 	jar2app \
 		-j -XstartOnFirstThread \
