@@ -1,6 +1,7 @@
 package net.kothar.csview;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -8,8 +9,6 @@ import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -66,19 +65,15 @@ public class CSV {
 	}
 
 	private void scanContents() {
-		int pos = 0;
-		Matcher matcher = Pattern.compile("\\r|\\n|\\r\\n").matcher(contents);
-		while (matcher.find()) {
-			addRow(pos);
-			pos = matcher.end();
+		scan(new ByteArrayInputStream(contents.getBytes()));
+	}
+	
+	private void scanFile() {
+		try (FileInputStream input = new FileInputStream(file)) {
+			scan(input);
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
-
-		// Add last row
-		if (pos < contents.length()) {
-			addRow(pos);
-		}
-
-		System.out.println("Scanned " + rows.size() + " rows");
 	}
 
 	/* We use two buffers to allow the next block to be read
@@ -89,25 +84,27 @@ public class CSV {
 	 * new position to the list, so profiling is needed.
 	 */
 	private byte[] bbuf, bbuf2;
-	
-	private void scanFile() {
+
+	private void scan(InputStream input) {
 		long pos = 0;
 		int blockSize = 1024 * 1024 * 4;
-		bbuf = new byte[blockSize + 1];
-		bbuf2 = new byte[blockSize + 1];
+		bbuf = new byte[blockSize];
+		bbuf2 = new byte[blockSize];
 
 		// Add first row
 		addRow(0);
 
 		long startTime = System.currentTimeMillis();
-		try (InputStream input = new BufferedInputStream(new FileInputStream(file))) {
-			int len = input.read(bbuf) - 1;
+		try (InputStream bufferedInput = new BufferedInputStream(input)) {
+
+			int len = bufferedInput.read(bbuf);
+			byte b1 = 0, b2 = 0;
+			boolean quoted = false;
 			
 			while (len > 0) {
-				bbuf2[0] = bbuf[len];
 				CompletableFuture<Integer> nextBuffer = CompletableFuture.supplyAsync(() -> {
 					try {
-						return input.read(bbuf2, 1, blockSize);
+						return bufferedInput.read(bbuf2);
 					} catch (Exception e) {
 						e.printStackTrace();
 						return 0;
@@ -117,15 +114,25 @@ public class CSV {
 				// Look for a line terminator
 				int i;
 				for (i = 0; i < len; i++) {
-					byte b = bbuf[i];
-					if (b == '\n') {
-						addRow(pos + i);
-					} else if (b == '\r') {
-						// Peek at the next char
-						if (bbuf[i+1] == '\n') {
-							i++;
+					b1 = b2;
+					b2 = bbuf[i];
+					
+					// Check for quoted values
+					if (quoted && b1 == '"' && b2 == '"') {
+						b1 = 0;
+						b2 = 0;
+					} else if (b1 == '"') {
+						quoted = !quoted;
+						b1 = 0;
+					}
+					
+					// Check for line ending
+					if (!quoted) {
+						if (b2 == '\n') {
+							addRow(pos + i);
+						} else if (b1 == '\r') {
+							addRow(pos);
 						}
-						addRow(pos + i);
 					}
 				}
 				pos += i;
