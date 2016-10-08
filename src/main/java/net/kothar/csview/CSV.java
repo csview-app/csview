@@ -176,6 +176,10 @@ public class CSV {
 
 		String rowContent = getContent(from, to).trim();
 
+		return parseRow(rowContent);
+	}
+
+	private String[] parseRow(String rowContent) {
 		try {
 			CSVParser parser = CSVParser.parse(rowContent, CSVFormat.DEFAULT);
 			CSVRecord record = parser.iterator().next();
