@@ -6,6 +6,8 @@ import java.io.FileNotFoundException;
 import org.eclipse.jface.layout.GridDataFactory;
 import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.nebula.widgets.nattable.NatTable;
+import org.eclipse.nebula.widgets.nattable.config.DefaultNatTableStyleConfiguration;
+import org.eclipse.nebula.widgets.nattable.config.IConfiguration;
 import org.eclipse.nebula.widgets.nattable.data.IDataProvider;
 import org.eclipse.nebula.widgets.nattable.grid.data.DefaultCornerDataProvider;
 import org.eclipse.nebula.widgets.nattable.grid.data.DefaultRowHeaderDataProvider;
@@ -16,6 +18,10 @@ import org.eclipse.nebula.widgets.nattable.grid.layer.RowHeaderLayer;
 import org.eclipse.nebula.widgets.nattable.layer.DataLayer;
 import org.eclipse.nebula.widgets.nattable.layer.ILayer;
 import org.eclipse.nebula.widgets.nattable.selection.SelectionLayer;
+import org.eclipse.nebula.widgets.nattable.selection.config.DefaultSelectionLayerConfiguration;
+import org.eclipse.nebula.widgets.nattable.selection.config.DefaultSelectionStyleConfiguration;
+import org.eclipse.nebula.widgets.nattable.style.HorizontalAlignmentEnum;
+import org.eclipse.nebula.widgets.nattable.util.GUIHelper;
 import org.eclipse.nebula.widgets.nattable.viewport.ViewportLayer;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
@@ -106,7 +112,8 @@ public class CSView extends ApplicationWindow {
 		// Body stack
 	    CSVDataProvider bodyDataProvider = new CSVDataProvider(csv);
 		DataLayer bodyDataLayer = new DataLayer(bodyDataProvider);
-	    SelectionLayer selectionLayer = new SelectionLayer(bodyDataLayer);
+	    SelectionLayer selectionLayer = new SelectionLayer(bodyDataLayer, false);
+	    selectionLayer.addConfiguration(createSelectionLayerConfiguration());
 	    ViewportLayer viewportLayer = new ViewportLayer(selectionLayer);
 	    
 	    // Column header stack
@@ -133,11 +140,30 @@ public class CSView extends ApplicationWindow {
 	    GridLayer gridLayer = 
 	            new GridLayer(viewportLayer, columnHeaderLayer, rowHeaderLayer, cornerLayer);
 	    
-	    final NatTable natTable = new NatTable(parent, gridLayer);
+	    final NatTable natTable = new NatTable(parent, gridLayer, false);
+	    natTable.addConfiguration(createTableConfiguration());
+	    natTable.configure();
 	    GridDataFactory.fillDefaults().grab(true, true).applyTo(natTable);
 	    
 	    getShell().getDisplay().asyncExec(natTable::refresh);
 	    
 	    return natTable;
+	}
+	
+	private IConfiguration createTableConfiguration() {
+		return new DefaultNatTableStyleConfiguration() {{
+			hAlign = HorizontalAlignmentEnum.LEFT;
+		}};
+	}
+
+	private IConfiguration createSelectionLayerConfiguration() {
+		return new DefaultSelectionLayerConfiguration() {
+			@Override
+			protected void addSelectionStyleConfig() {
+		        addConfiguration(new DefaultSelectionStyleConfiguration() {{
+		        	selectionFont = GUIHelper.DEFAULT_FONT;
+		        }});
+			}
+		};
 	}
 }
