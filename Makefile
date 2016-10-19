@@ -10,11 +10,11 @@ package: package/macosx/Info.plist
 		-appclass net.kothar.csview.cocoa.MacLoader \
 		-BmainJar=csview.jar \
 		-BappVersion=$(VERSION) \
-		-Bmac.category=Productivity \
+		-Bmac.category=public.app-category.productivity \
 		-Bmac.CFBundleIdentifier=net.kothar.csview \
 		-BjvmOptions=-XstartOnFirstThread \
-		-Bmac.signing-key-developer-id-app="3rd Party Mac Developer Application: Michael Houston (D5HSL8R3CY)" \
-		-Bmac.signing-key-developer-id-installer="3rd Party Mac Developer Installer: Michael Houston (D5HSL8R3CY)" 
+		-Bmac.signing-key-developer-id-app="Mac Developer: Michael Houston (4JB33XB5VR)" \
+		-Bmac.signing-key-developer-id-installer="Mac Developer: Michael Houston (4JB33XB5VR)" 
 
 log: app
 	tail -f /tmp/csview.log
