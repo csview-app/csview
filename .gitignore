@@ -6,3 +6,6 @@ bin
 build-mac-jar.xml
 csview.jar
 CSView.app
+package/bundles
+package/CSView.html
+package/CSView.jnlp
