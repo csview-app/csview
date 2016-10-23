@@ -9,6 +9,7 @@
  *     Adobe Systems, Inc. - initial API and implementation
  *     IBM Corporation - cleanup
  *     EclipseSource Inc - modified to run without workbench
+ *     Kothar Labs - modified to remove remaining references to workbench code
  *******************************************************************************/
 package net.kothar.csview.cocoa;
 
