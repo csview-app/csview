@@ -131,7 +131,7 @@ public class CSV {
 						if (b2 == '\n') {
 							addRow(pos + i);
 						} else if (b1 == '\r') {
-							addRow(pos);
+							addRow(pos + i - 1);
 						}
 					}
 				}

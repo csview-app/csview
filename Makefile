@@ -1,6 +1,9 @@
 
 APP_NAME = CSView
-VERSION = 1.0.0
+VERSION = 1.0.2
+DEVELOPER_KEY = Developer ID Application: Michael Houston (D5HSL8R3CY)
+INSTALLER_KEY = Developer ID Installer: Michael Houston (D5HSL8R3CY)
+APP_BUNDLE = package/bundles/$(APP_NAME).app
 
 all: app
 
@@ -26,8 +29,20 @@ package/macosx/CSView.icns: icon.svg
 app:
 	BUNDLES=image make package
 
-sandbox:
-	codesign --entitlements package/macosx/CSView.entitlements  -f -s "Mac Developer: Michael Houston (4JB33XB5VR)" package/bundles/CSView.app/
+$(APP_BUNDLE): build/macos/csview.jar
+	make app
+
+sandbox: $(APP_BUNDLE)
+	codesign --entitlements package/macosx/CSView.entitlements  -f -s "$(DEVELOPER_KEY)" $(APP_BUNDLE)
+
+verify: $(APP_BUNDLE)
+	codesign --verify --verbose --all-architectures $(APP_BUNDLE)
+	codesign -vv --deep-verify $(APP_BUNDLE)
+	codesign -dvv $(APP_BUNDLE)
+	spctl --assess -v --type execute $(APP_BUNDLE)
+
+resign: $(APP_BUNDLE)
+	codesign --verbose --force --verify --deep --sign "$(DEVELOPER_KEY)" $(APP_BUNDLE)
 
 dmg:
 	BUNDLES=dmg make package
@@ -46,10 +61,7 @@ package: package/macosx/CSView.icns
 		-Bmac.category=public.app-category.productivity \
 		-Bmac.CFBundleIdentifier=net.kothar.csview \
 		-BjvmOptions=-XstartOnFirstThread \
-		-Bmac.signing-key-developer-id-app="Mac Developer: Michael Houston (4JB33XB5VR)" \
-		-Bmac.signing-key-developer-id-installer="Developer ID Installer: Michael Houston (D5HSL8R3CY)" 
-
-log: app
-	tail -f /tmp/csview.log
+		-Bmac.signing-key-developer-id-app="$(DEVELOPER_KEY)" \
+		-Bmac.signing-key-developer-id-installer="$(INSTALLER_KEY)" 
 
 .PHONY: package
