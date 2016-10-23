@@ -2,8 +2,10 @@ package net.kothar.csview.cocoa;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Date;
+import java.util.Map.Entry;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Display;
@@ -27,12 +29,21 @@ public class MacLoader {
 		new CocoaUIEnhancer().earlyStartup();
 		
 		try {
-			PrintStream log = new PrintStream("/tmp/csview.log");
+			File logFile = File.createTempFile(APP_NAME, ".log");
+			System.out.println("Logging to " + logFile);
+			PrintStream log = new PrintStream(logFile);
 			System.setOut(log);
 			System.setErr(log);
 			
 			System.out.println("\nStarted new session: " + new Date());
+			
+			for (Entry<Object, Object> prop: System.getProperties().entrySet()) {
+				System.out.println(prop.getKey() + "=" + prop.getValue());
+			}
 		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 		
 		display = Display.getDefault();

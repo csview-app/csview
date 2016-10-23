@@ -26,6 +26,9 @@ package/macosx/CSView.icns: icon.svg
 app:
 	BUNDLES=image make package
 
+sandbox:
+	codesign --entitlements package/macosx/CSView.entitlements  -f -s "Mac Developer: Michael Houston (4JB33XB5VR)" package/bundles/CSView.app/
+
 dmg:
 	BUNDLES=dmg make package
 
@@ -34,7 +37,7 @@ appstore:
 
 package: package/macosx/CSView.icns
 	javapackager -deploy -native $(BUNDLES) \
-		-srcdir . -srcfiles csview.jar \
+		-srcdir build/macos \
 		-outdir package -outfile $(APP_NAME) \
 		-name $(APP_NAME) \
 		-appclass net.kothar.csview.cocoa.MacLoader \
