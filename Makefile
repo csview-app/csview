@@ -1,6 +1,6 @@
 
 APP_NAME = CSView
-VERSION = 1.0.3
+VERSION = 1.0.4
 DEVELOPER_KEY = Developer ID Application: Michael Houston (D5HSL8R3CY)
 INSTALLER_KEY = Developer ID Installer: Michael Houston (D5HSL8R3CY)
 APP_BUNDLE = package/bundles/$(APP_NAME).app
@@ -29,7 +29,7 @@ package/macosx/CSView.icns: icon.svg
 app:
 	BUNDLES=image make package
 
-$(APP_BUNDLE): build/macos/csview.jar
+$(APP_BUNDLE): build/csview.jar
 	make app
 
 sandbox: $(APP_BUNDLE)
@@ -52,7 +52,7 @@ appstore:
 
 package: package/macosx/CSView.icns
 	javapackager -deploy -native $(BUNDLES) \
-		-srcdir build/macos \
+		-srcdir build -srcfiles csview.jar \
 		-outdir package -outfile $(APP_NAME) \
 		-name $(APP_NAME) \
 		-appclass net.kothar.csview.cocoa.MacLoader \
