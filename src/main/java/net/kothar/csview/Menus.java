@@ -44,4 +44,19 @@ public class Menus {
 			}
 		};
 	}
+
+	public static void createDebugMenu(Menu menuBar) {
+		MenuItem debug = new MenuItem(menuBar, SWT.CASCADE);
+		debug.setText("Debug");
+		
+		Menu debugMenu = new Menu(menuBar);
+		debug.setMenu(debugMenu);
+		MenuItem exception = new MenuItem(debugMenu, SWT.NORMAL);
+		exception.setText("Throw exception");
+		exception.setAccelerator(SWT.MOD1 + 'E');
+		
+		exception.addSelectionListener(adapt(() -> {
+			throw new RuntimeException("Test exception");
+		}));
+	}
 }

@@ -1,6 +1,6 @@
 
 APP_NAME = CSView
-VERSION = 1.0.4
+VERSION = 1.0.5
 DEVELOPER_KEY = Developer ID Application: Michael Houston (D5HSL8R3CY)
 INSTALLER_KEY = Developer ID Installer: Michael Houston (D5HSL8R3CY)
 APP_BUNDLE = package/bundles/$(APP_NAME).app
