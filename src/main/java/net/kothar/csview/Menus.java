@@ -56,7 +56,7 @@ public class Menus {
 		exception.setAccelerator(SWT.MOD1 + 'E');
 		
 		exception.addSelectionListener(adapt(() -> {
-			throw new RuntimeException("Test exception");
+			throw new RuntimeException("Test exception", new IllegalArgumentException("Internal exception"));
 		}));
 	}
 }

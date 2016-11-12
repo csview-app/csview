@@ -14,14 +14,16 @@
  */
 package net.kothar.csview.cocoa;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.ArrayList;
+import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
 import java.util.Date;
-import java.util.List;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.MultiStatus;
@@ -94,31 +96,31 @@ public class MacLoader {
 
 	private static void handleUnexpectedException(Thread t, Throwable e) {
 		e.printStackTrace();
+		
 		String message = e.getLocalizedMessage();
-
 		if (logFile != null) {
 			message += "\n\nFull log can be found at " + logFile;
 		}
-
-		ErrorDialog.openError(null, "Unexpected error", "An unexpected error was caught", createMultiStatus(e.getLocalizedMessage(), e));
-		System.exit(-1);
-	}
-
-	private static MultiStatus createMultiStatus(String msg, Throwable t) {
-
-		List<Status> childStatuses = new ArrayList<>();
-		StackTraceElement[] stackTraces = Thread.currentThread().getStackTrace();
-
-		for (StackTraceElement stackTrace: stackTraces) {
-			Status status = new Status(IStatus.ERROR,
-					"net.kothar.csview", stackTrace.toString());
-			childStatuses.add(status);
+		
+		String stack;
+		try {
+			ByteArrayOutputStream bs = new ByteArrayOutputStream();
+			e.printStackTrace(new PrintStream(bs, true, "UTF-8"));
+			stack = bs.toString("UTF-8");
+		} catch (UnsupportedEncodingException e1) {
+			stack = e.getLocalizedMessage();
 		}
 
-		MultiStatus ms = new MultiStatus("net.kothar.csview",
-				IStatus.ERROR, childStatuses.toArray(new Status[] {}),
-				t.toString(), t);
-		return ms;
+		String[] stackLines = stack.split("\n");
+		IStatus[] children = Arrays.stream(stackLines)
+			.map((line) -> new Status(Status.ERROR, "net.kothar.csview", line))
+			.collect(Collectors.toList())
+			.toArray(new IStatus[0]);
+		
+		ErrorDialog.openError(null, "Unexpected error", message, 
+				new MultiStatus("net.kothar.csview", Status.ERROR, children, e.getLocalizedMessage(), e));
+		
+		System.exit(-1);
 	}
 
 	public static void openFile(String filename, File file) {
