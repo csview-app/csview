@@ -382,8 +382,9 @@ public class CocoaUIEnhancer extends CocoaUtil {
 	}
 
 	private static void showAbout() {
-		MessageDialog.openInformation(null, "About " + MacLoader.APP_NAME, "CSView (c) 2016 Kothar labs\n"
-				+ "Icon by Honza Dousek (http://jandousek.cz/)");
+		MessageDialog.openInformation(null, "About " + MacLoader.APP_NAME, 
+				MacLoader.APP_NAME + " v" + MacLoader.VERSION + "\n© 2016 Kothar Labs - https://www.kothar.net\n"
+				+ "Icon by Honza Dousek - http://jandousek.cz");
 	}
 
 	private static void showPreferences() {
