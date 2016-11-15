@@ -52,6 +52,7 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.ProgressBar;
 import org.eclipse.swt.widgets.Shell;
 
@@ -61,6 +62,7 @@ public class CSView extends ApplicationWindow {
 	private CSV csv;
 	private String file;
 	private ProgressBar progressBar;
+	private Composite progressRow;
 
 	public static void main(String[] args) {
 		Display display = new Display();
@@ -142,10 +144,9 @@ public class CSView extends ApplicationWindow {
 		
 		Composite composite = (Composite) super.createContents(parent);
 		
-		GridLayout layout = new GridLayout(1, true);
+		GridLayout layout = new GridLayout(1, false);
 		layout.marginHeight = 0;
 		layout.marginWidth = 0;
-		layout.marginBottom = 5;
 		composite.setLayout(layout);
 		
 		// Body stack
@@ -190,7 +191,12 @@ public class CSView extends ApplicationWindow {
 		
 		if (file != null) {
 			// Add a progress indicator
-			progressBar = new ProgressBar(composite, SWT.SMOOTH | SWT.HORIZONTAL);
+			progressRow = new Composite(composite, SWT.NORMAL);
+			progressRow.setLayout(new GridLayout(2, false));
+			progressRow.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+
+			new Label(progressRow, SWT.NORMAL).setText("Scanning...");
+			progressBar = new ProgressBar(progressRow, SWT.SMOOTH | SWT.HORIZONTAL);
 			progressBar.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
 	
 			long fileSize = new File(file).length();
@@ -201,8 +207,7 @@ public class CSView extends ApplicationWindow {
 				@Override
 				public void completed() {
 					getShell().getDisplay().asyncExec(() -> {
-						progressBar.dispose();
-						layout.marginBottom = 0;
+						progressRow.dispose();
 						composite.layout(true);
 					});
 				}
@@ -211,9 +216,6 @@ public class CSView extends ApplicationWindow {
 				public void changed(long progress) {
 					getShell().getDisplay().asyncExec(() -> {
 						progressBar.setSelection((int) ((progress*1000)/fileSize));
-						if (progress >= fileSize) {
-							progressBar.setVisible(false);
-						}
 					});
 				}
 			});
