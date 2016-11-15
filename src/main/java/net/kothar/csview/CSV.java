@@ -212,8 +212,16 @@ public class CSV {
 
 	private String[] parseRow(String rowContent) {
 		try {
-			CSVParser parser = CSVParser.parse(rowContent, CSVFormat.DEFAULT);
-			CSVRecord record = parser.iterator().next();
+			CSVParser parser;
+			CSVRecord record;
+			try {
+				parser = CSVParser.parse(rowContent, CSVFormat.DEFAULT);
+				record = parser.iterator().next();
+			} catch (RuntimeException e) {
+				// HACK: Try appending a new terminating quote to complete the line
+				parser = CSVParser.parse(rowContent + "\"", CSVFormat.DEFAULT);
+				record = parser.iterator().next();
+			}
 			String[] cols = new String[record.size()];
 			for (int i = 0; i < cols.length; i++) {
 				cols[i] = record.get(i);
