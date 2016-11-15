@@ -21,6 +21,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -38,6 +40,8 @@ public class CSV {
 	private String contents;
 	private RandomAccessFile randomAccessFile;
 	private String file;
+	
+	private List<ProgressListener> progressListeners = new ArrayList<>();
 	
 	private Cache<Integer, String[]> rowCache;
 	
@@ -57,6 +61,9 @@ public class CSV {
 	 */
 	public synchronized void addRow(long pos) {
 		rows.add(pos);
+		if (rows.size() % 5000 == 0) {
+			notifyProgress(pos);
+		}
 	}
 
 	/**
@@ -65,7 +72,6 @@ public class CSV {
 	 */
 	public synchronized void setContents(String contents) {
 		this.contents = contents;
-		CompletableFuture.runAsync(this::scanContents);
 	}
 
 	public void setFile(String file) {
@@ -75,7 +81,14 @@ public class CSV {
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-		CompletableFuture.runAsync(this::scanFile);
+	}
+	
+	public void scan() {
+		if (file != null) {
+			CompletableFuture.runAsync(this::scanFile);
+		} else if (contents != null) {
+			CompletableFuture.runAsync(this::scanContents);
+		}
 	}
 
 	private void scanContents() {
@@ -162,6 +175,7 @@ public class CSV {
 			double mb = randomAccessFile.length() / (double) (1 << 20);
 			double sec = (System.currentTimeMillis() - startTime) / 1000D;
 			System.out.println((long) (mb / sec) + " MiB/sec");
+			notifyCompleted();
 			
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -240,4 +254,21 @@ public class CSV {
 	public synchronized int getRowCount() {
 		return rows.size();
 	}
+
+	public void addProgressListener(ProgressListener listener) {
+		progressListeners.add(listener);
+	}
+	
+	private void notifyProgress(long progress) {
+		for (ProgressListener listener: progressListeners) {
+			listener.changed(progress);
+		}
+	}
+	
+	private void notifyCompleted() {
+		for (ProgressListener listener: progressListeners) {
+			listener.completed();
+		}
+	}
+	
 }

@@ -47,9 +47,12 @@ import org.eclipse.nebula.widgets.nattable.ui.matcher.MouseEventMatcher;
 import org.eclipse.nebula.widgets.nattable.util.GUIHelper;
 import org.eclipse.nebula.widgets.nattable.viewport.ViewportLayer;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.layout.GridData;
+import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.ProgressBar;
 import org.eclipse.swt.widgets.Shell;
 
 
@@ -57,6 +60,7 @@ public class CSView extends ApplicationWindow {
 
 	private CSV csv;
 	private String file;
+	private ProgressBar progressBar;
 
 	public static void main(String[] args) {
 		Display display = new Display();
@@ -76,6 +80,7 @@ public class CSView extends ApplicationWindow {
 
 	public CSView(String[] args) {
 		super(null);
+		
 		if (args.length > 0) {
 			csv = new CSV();
 
@@ -91,7 +96,9 @@ public class CSView extends ApplicationWindow {
 
 	public CSView(File file) {
 		super(null);
+		
 		csv = new CSV();
+		
 		try {
 			loadCSV(file.toString());
 		} catch (FileNotFoundException e) {
@@ -108,7 +115,7 @@ public class CSView extends ApplicationWindow {
 		setFile(file);
 		csv.setFile(file);
 	}
-
+	
 	private void setFile(String file) {
 		this.file = file;
 		Shell shell = getShell();
@@ -132,7 +139,15 @@ public class CSView extends ApplicationWindow {
 
 	@Override
 	protected Control createContents(Composite parent) {
-
+		
+		Composite composite = (Composite) super.createContents(parent);
+		
+		GridLayout layout = new GridLayout(1, true);
+		layout.marginHeight = 0;
+		layout.marginWidth = 0;
+		layout.marginBottom = 5;
+		composite.setLayout(layout);
+		
 		// Body stack
 		CSVDataProvider bodyDataProvider = new CSVDataProvider(csv);
 		DataLayer bodyDataLayer = new DataLayer(bodyDataProvider);
@@ -164,15 +179,50 @@ public class CSView extends ApplicationWindow {
 		GridLayer gridLayer = 
 				new GridLayer(viewportLayer, columnHeaderLayer, rowHeaderLayer, cornerLayer);
 
-		final NatTable natTable = new NatTable(parent, gridLayer, false);
+		NatTable natTable = new NatTable(composite, gridLayer, false);
+		natTable.setLayoutData(new GridData(GridData.FILL_BOTH));
 		natTable.addConfiguration(createTableConfiguration());
 		natTable.addConfiguration(createUiBindingConfiguration());
 		natTable.configure();
 		GridDataFactory.fillDefaults().grab(true, true).applyTo(natTable);
 
 		getShell().getDisplay().asyncExec(natTable::refresh);
+		
+		if (file != null) {
+			// Add a progress indicator
+			progressBar = new ProgressBar(composite, SWT.SMOOTH | SWT.HORIZONTAL);
+			progressBar.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+	
+			long fileSize = new File(file).length();
+			progressBar.setMaximum(1000);
+			progressBar.setSelection(0);
+			csv.addProgressListener(new ProgressListener() {
+				
+				@Override
+				public void completed() {
+					getShell().getDisplay().asyncExec(() -> {
+						progressBar.dispose();
+						layout.marginBottom = 0;
+						composite.layout(true);
+					});
+				}
+				
+				@Override
+				public void changed(long progress) {
+					getShell().getDisplay().asyncExec(() -> {
+						progressBar.setSelection((int) ((progress*1000)/fileSize));
+						if (progress >= fileSize) {
+							progressBar.setVisible(false);
+						}
+					});
+				}
+			});
+		}
 
-		return natTable;
+		// Load the CSV
+		csv.scan();
+
+		return composite;
 	}
 
 	private IConfiguration createUiBindingConfiguration() {
