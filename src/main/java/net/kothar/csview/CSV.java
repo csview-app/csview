@@ -203,7 +203,10 @@ public class CSV {
 		Long to = rows.getPosition(row+1);
 
 		String rowContent = getContent(from, to).trim();
-
+		if (rowContent.isEmpty()) {
+			return new String[0];
+		}
+		
 		return parseRow(rowContent);
 	}
 
