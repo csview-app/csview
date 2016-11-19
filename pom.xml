@@ -37,10 +37,10 @@
 			<artifactId>guava</artifactId>
 			<version>19.0</version>
 		</dependency>
-
 	</dependencies>
 	<profiles>
 		<profile>
+			<id>mac</id>
 			<activation>
 				<os>
 					<family>mac</family>
@@ -69,6 +69,43 @@
 								<configuration>
 									<sources>
 										<source>src/main/java-mac</source>
+									</sources>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>nonmac</id>
+			<activation>
+				<os>
+					<family>!mac</family>
+				</os>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>org.freedesktop</groupId>
+					<artifactId>xdg-java</artifactId>
+					<version>0.0.1-SNAPSHOT</version>
+				</dependency>
+			</dependencies>
+
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>build-helper-maven-plugin</artifactId>
+						<executions>
+							<execution>
+								<phase>generate-sources</phase>
+								<goals>
+									<goal>add-source</goal>
+								</goals>
+								<configuration>
+									<sources>
+										<source>src/main/java-nonmac</source>
 									</sources>
 								</configuration>
 							</execution>
