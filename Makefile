@@ -42,7 +42,7 @@ package/windows/CSView.ico: icon.svg
 
 package/windows/CSView-setup-icon.bmp: icon.svg
 	mkdir -p `dirname $@`
-	rsvg-convert -h 58 icon.svg > setup-icon.png
+	rsvg-convert -h 58 -b white icon.svg > setup-icon.png
 	convert setup-icon.png $@
 	rm setup-icon.png
 
