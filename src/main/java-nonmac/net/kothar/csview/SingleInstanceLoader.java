@@ -19,8 +19,8 @@ import org.freedesktop.BaseDirectory;
 
 public class SingleInstanceLoader implements ApplicationActions {
 
-	private static String cacheDir = BaseDirectory.get(BaseDirectory.XDG_DATA_HOME);
-	private static String portfile = cacheDir + "/net.kothar.csview/open.port";
+	private static String runtimeDir = BaseDirectory.get(BaseDirectory.XDG_RUNTIME_DIR);
+	private static String portfile = runtimeDir + "/net.kothar.csview/open.port";
 
 	private int openDocuments = 0;
 
