@@ -7,6 +7,8 @@ APP_BUNDLE = package/bundles/$(APP_NAME).app
 
 all: app
 
+icons: package/macosx/CSView.icns package/windows/CSView.ico package/windows/CSView-setup-icon.bmp
+
 package/macosx/CSView.icns: icon.svg
 	mkdir -p CSView.iconset
 	rsvg-convert -h 1024 icon.svg > CSView.iconset/icon_512x512@2x.png
@@ -37,6 +39,12 @@ package/windows/CSView.ico: icon.svg
 	rsvg-convert -h 16 icon.svg > CSView.icoset/icon_6_16x16.png
 	convert CSView.icoset/* -colors 256 $@
 	rm -r CSView.icoset
+
+package/windows/CSView-setup-icon.bmp: icon.svg
+	mkdir -p `dirname $@`
+	rsvg-convert -h 58 icon.svg > setup-icon.png
+	convert setup-icon.png $@
+	rm setup-icon.png
 
 app:
 	BUNDLES=image make package
@@ -76,4 +84,4 @@ package: package/macosx/CSView.icns
 		-Bmac.signing-key-developer-id-app="$(DEVELOPER_KEY)" \
 		-Bmac.signing-key-developer-id-installer="$(INSTALLER_KEY)" 
 
-.PHONY: package
+.PHONY: package icons appstore dmg resign verify sandbox app
