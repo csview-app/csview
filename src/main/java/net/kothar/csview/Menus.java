@@ -23,7 +23,20 @@ import org.eclipse.swt.widgets.MenuItem;
 
 public class Menus {
 
-	public static void createFileMenu(Menu menuBar) {
+	private ApplicationActions actions;
+	private Commands commands;
+
+	public Menus(ApplicationActions actions, Menu menuBar) {
+		this.actions = actions;
+		commands = new Commands(actions);
+		
+		createFileMenu(menuBar);
+		if (System.getProperties().containsKey("net.kothar.csview.debug")) {
+			createDebugMenu(menuBar);
+		}
+	}
+
+	public void createFileMenu(Menu menuBar) {
 		MenuItem file = new MenuItem(menuBar, SWT.CASCADE);
 		file.setText("File");
 		
@@ -33,10 +46,10 @@ public class Menus {
 		open.setText("Open file");
 		open.setAccelerator(SWT.MOD1 + 'O');
 		
-		open.addSelectionListener(adapt(Commands::openFile));
+		open.addSelectionListener(adapt(commands::openFile));
 	}
 
-	private static SelectionListener adapt(Runnable action) {
+	private SelectionListener adapt(Runnable action) {
 		return new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
@@ -45,7 +58,7 @@ public class Menus {
 		};
 	}
 
-	public static void createDebugMenu(Menu menuBar) {
+	public void createDebugMenu(Menu menuBar) {
 		MenuItem debug = new MenuItem(menuBar, SWT.CASCADE);
 		debug.setText("Debug");
 		

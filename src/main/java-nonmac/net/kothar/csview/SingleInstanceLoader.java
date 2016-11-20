@@ -14,14 +14,15 @@ import java.net.Socket;
 import java.util.Arrays;
 
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Menu;
 import org.freedesktop.BaseDirectory;
 
-public class SingleInstanceLoader {
+public class SingleInstanceLoader implements ApplicationActions {
 
 	private static String cacheDir = BaseDirectory.get(BaseDirectory.XDG_DATA_HOME);
 	private static String portfile = cacheDir + "/net.kothar.csview/open.port";
-	
-	static int openDocuments = 0;
+
+	private int openDocuments = 0;
 
 	public static void main(String[] args) throws IOException {
 		if (tryOpen(args)) {
@@ -29,10 +30,14 @@ public class SingleInstanceLoader {
 			return;
 		}
 
-		Thread listener = new Thread(SingleInstanceLoader::listen);
+		new SingleInstanceLoader().start(args);
+	}
+
+	private void start(String[] args) {
+		Thread listener = new Thread(this::listen);
 		listener.setDaemon(true);
 		listener.start();
-		
+
 		Display display = open(args);
 		while (!display.isDisposed()) {
 			if (!display.readAndDispatch()) {
@@ -41,23 +46,18 @@ public class SingleInstanceLoader {
 		}
 	}
 
-	private static Display open(String[] args) {
+	private Display open(String[] args) {
 		System.out.println("Open " + Arrays.asList(args));
 
-		openDocuments++;
 		Display display = Display.getDefault();
 		display.asyncExec(() -> {
-			CSView csView = new CSView(args);
-			csView.open();
-			csView.getShell().forceActive();
-
-			csView.getShell().addDisposeListener(e -> {
-				if (--openDocuments == 0) {
-					e.display.dispose();
+			for (String string: args) {
+				File file = new File(string);
+				if (file.exists() && file.isFile()) {
+					openFile(file);
 				}
-			});
+			}
 		});
-
 		return display;
 	}
 
@@ -65,14 +65,14 @@ public class SingleInstanceLoader {
 		if (!new File(portfile).exists()) {
 			return false;
 		}
-		
+
 		try (DataInputStream stream = new DataInputStream(new FileInputStream(portfile))) {
 			int port = stream.readInt();
-			
+
 			try (Socket socket = new Socket("127.0.0.1", port)) {
 				ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
 				DataInputStream input = new DataInputStream(socket.getInputStream());
-				
+
 				output.writeObject(args);
 				int read = input.read();
 				if (read == 1) {
@@ -82,15 +82,15 @@ public class SingleInstanceLoader {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+
 		return false;
 	}
 
-	private static void listen() {
-		
+	private void listen() {
+
 		try (ServerSocket server = new ServerSocket()) {
 			server.bind(new InetSocketAddress("127.0.0.1", 0));
-			
+
 			File file = new File(portfile);
 			file.getParentFile().mkdirs();
 			file.deleteOnExit();
@@ -103,7 +103,7 @@ public class SingleInstanceLoader {
 				try (Socket socket = server.accept()) {
 					ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
 					DataOutputStream output = new DataOutputStream(socket.getOutputStream());
-					
+
 					Object request = input.readObject();
 					if (request instanceof String[]) {
 						open((String[]) request);
@@ -111,7 +111,7 @@ public class SingleInstanceLoader {
 					} else {
 						output.write(0);
 					}
-					
+
 					input.read();
 				} catch (ClassNotFoundException e) {
 					e.printStackTrace();
@@ -121,6 +121,26 @@ public class SingleInstanceLoader {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+
+	@Override
+	public void openFile(File file) {
+		openDocuments++;
+		
+		CSView csView = new CSView(file);
+
+		csView.addMenuBar();
+		csView.open();
+		csView.getShell().forceActive();
+
+		Menu menu = csView.getMenuBarManager().getMenu();
+		new Menus(this, menu);
+
+		csView.getShell().addDisposeListener(e -> {
+			if (--openDocuments == 0) {
+				e.display.dispose();
+			}
+		});
 	}
 
 }

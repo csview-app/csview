@@ -33,23 +33,26 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
-import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.Shell;
 
+import net.kothar.csview.ApplicationActions;
 import net.kothar.csview.CSView;
 import net.kothar.csview.Menus;
 
-public class MacLoader {
+public class MacLoader implements ApplicationActions {
 
 	static final String APP_NAME = "CSView";
 	static final String VERSION = "1.1.0";
 
-	private static Display display;
+	private Display display;
 
-	private static File logFile;
+	private File logFile;
 
 	public static void main(String[] args) {
-
+		new MacLoader().start(args);
+	}
+	
+	public void start(String[] args) {
 		Display.setAppName(APP_NAME);
 		new CocoaUIEnhancer().earlyStartup();
 
@@ -81,13 +84,9 @@ public class MacLoader {
 			}
 		});
 
-		Menu menuBar = display.getMenuBar();
-		Menus.createFileMenu(menuBar);
-		if (System.getProperties().containsKey("net.kothar.csview.debug")) {
-			Menus.createDebugMenu(menuBar);
-		}
+		new Menus(this, display.getMenuBar());
 
-		Thread.setDefaultUncaughtExceptionHandler(MacLoader::handleUnexpectedException);
+		Thread.setDefaultUncaughtExceptionHandler(this::handleUnexpectedException);
 		while (!display.isDisposed()) {
 			if (!display.readAndDispatch()) {
 				display.sleep();
@@ -95,7 +94,7 @@ public class MacLoader {
 		}
 	}
 
-	private static void handleUnexpectedException(Thread t, Throwable e) {
+	private void handleUnexpectedException(Thread t, Throwable e) {
 		e.printStackTrace();
 		
 		String message = e.getLocalizedMessage();
@@ -124,14 +123,19 @@ public class MacLoader {
 		System.exit(-1);
 	}
 
-	public static void openFile(String filename, File file) {
+	public void openFile(String filename, File file) {
 		if (file.exists()) {
-			CSView view = new CSView(file);
-			view.open();
+			openFile(file);
 		} else {
 			Shell shell = new Shell(display);
 			shell.setText("File not found: " + filename);
 			shell.open();
 		}
+	}
+
+	@Override
+	public void openFile(File file) {
+		CSView view = new CSView(file);
+		view.open();
 	}
 }

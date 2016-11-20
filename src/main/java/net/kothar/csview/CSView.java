@@ -127,6 +127,11 @@ public class CSView extends ApplicationWindow {
 	}
 
 	@Override
+	public void addMenuBar() {
+		super.addMenuBar();
+	}
+	
+	@Override
 	protected void configureShell(Shell shell) {
 		super.configureShell(shell);
 

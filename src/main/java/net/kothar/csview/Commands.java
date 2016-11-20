@@ -20,8 +20,14 @@ import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Shell;
 
 public class Commands {
+	
+	private ApplicationActions actions;
 
-	public static void openFile() {
+	public Commands(ApplicationActions actions) {
+		this.actions = actions;
+	}
+
+	public void openFile() {
 		Shell shell = new Shell();
 		FileDialog dialog = new FileDialog(shell);
 		dialog.setFilterExtensions(new String[] {"*.csv"});
@@ -30,7 +36,7 @@ public class Commands {
 		if (filename != null) {
 			File file = new File(filename);
 			if (file.exists()) {
-				new CSView(file).open();
+				actions.openFile(file);
 			}
 		}
 	}
