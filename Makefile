@@ -26,6 +26,18 @@ package/macosx/CSView.icns: icon.svg
 	cp CSView.icns package/macosx/CSView-volume.icns
 	rm -r CSView.icns CSView.iconset
 
+package/windows/CSView.ico: icon.svg
+	mkdir -p `dirname $@`
+	rm -rf CSView.icoset
+	mkdir -p CSView.icoset
+	rsvg-convert -h 256 icon.svg > CSView.icoset/icon_2_256x256.png
+	rsvg-convert -h 128 icon.svg > CSView.icoset/icon_3_128x128.png
+	rsvg-convert -h 64 icon.svg > CSView.icoset/icon_4_64x64.png
+	rsvg-convert -h 32 icon.svg > CSView.icoset/icon_5_32x32.png
+	rsvg-convert -h 16 icon.svg > CSView.icoset/icon_6_16x16.png
+	convert CSView.icoset/* -colors 256 $@
+	rm -r CSView.icoset
+
 app:
 	BUNDLES=image make package
 
