@@ -1,4 +1,4 @@
-package net.kothar.csview;
+package net.kothar.csview.index;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,7 +54,7 @@ public class MappedBufferAllocator {
 			randomAccessFile = new RandomAccessFile(file, "rw");
 			
 			remap(PAGE_SIZE * 1024);
-			index = page(0).asLongBuffer();
+			index = block(0).asLongBuffer();
 			initIndex(index);
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to create mapped buffer", e);
@@ -66,8 +66,12 @@ public class MappedBufferAllocator {
 		for (int i = 1; i < buffer.limit(); i++)
 			buffer.put(i, 0);
 	}
+	
+	public synchronized Page page(int i) {
+		return new Page(i, block(i));
+	}
 
-	private synchronized ByteBuffer page(int i) {
+	public synchronized ByteBuffer block(int i) {
 		int offset = i * PAGE_SIZE;
 		try {
 			long size = randomAccessFile.length();
@@ -110,7 +114,7 @@ public class MappedBufferAllocator {
 			value |= mask;
 			index.put(i, value);
 			
-			return new Page(page, page(page));
+			return new Page(page, block(page));
 		}
 		
 		throw new OutOfMemoryError("TODO: add new index pages");
