@@ -48,16 +48,26 @@ public class SingleInstanceLoader implements ApplicationActions {
 
 	private Display open(String[] args) {
 		System.out.println("Open " + Arrays.asList(args));
-
+		
 		Display display = Display.getDefault();
-		display.asyncExec(() -> {
-			for (String string: args) {
-				File file = new File(string);
-				if (file.exists() && file.isFile()) {
-					openFile(file);
+		if (args.length == 0) {
+			display.asyncExec(() -> {
+				if (!new Commands(this).openFile()) {
+					if (openDocuments == 0) {
+						display.dispose();
+					}
 				}
-			}
-		});
+			});
+		} else {
+			display.asyncExec(() -> {
+				for (String string: args) {
+					File file = new File(string);
+					if (file.exists() && file.isFile()) {
+						openFile(file);
+					}
+				}
+			});
+		}
 		return display;
 	}
 

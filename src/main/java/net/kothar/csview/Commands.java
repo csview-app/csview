@@ -16,28 +16,39 @@ package net.kothar.csview;
 
 import java.io.File;
 
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Shell;
 
 public class Commands {
-	
+
 	private ApplicationActions actions;
 
 	public Commands(ApplicationActions actions) {
 		this.actions = actions;
 	}
 
-	public void openFile() {
-		Shell shell = new Shell();
-		FileDialog dialog = new FileDialog(shell);
-		dialog.setFilterExtensions(new String[] {"*.csv"});
-		dialog.setText("Select CSV file to open");
-		String filename = dialog.open();
-		if (filename != null) {
-			File file = new File(filename);
-			if (file.exists()) {
-				actions.openFile(file);
+	public boolean openFile() {
+		Display display = Display.getDefault();
+		Shell shell = new Shell(display);
+
+		try {
+			FileDialog dialog = new FileDialog(shell);
+			dialog.setFilterExtensions(new String[] {"*.csv"});
+			dialog.setText("Select CSV file to open");
+
+			String filename = dialog.open();
+			if (filename != null) {
+				File file = new File(filename);
+				if (file.exists()) {
+					actions.openFile(file);
+					return true;
+				}
 			}
+
+			return false;
+		} finally {
+			shell.dispose();
 		}
 	}
 
