@@ -141,6 +141,7 @@ public class SingleInstanceLoader implements ApplicationActions {
 		CSView csView = new CSView(file);
 
 		csView.addMenuBar();
+		csView.useAppIcon();
 		csView.open();
 		csView.getShell().forceActive();
 

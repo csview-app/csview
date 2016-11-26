@@ -68,6 +68,8 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	private ProgressBar progressBar;
 	private Composite progressRow;
 
+	private boolean useAppIcon;
+
 	public static void main(String[] args) {
 		Display display = new Display();
 
@@ -111,6 +113,10 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 			loadCSVString(e.getMessage());
 		}
 	}
+	
+	public void useAppIcon() {
+		useAppIcon = true;
+	}
 
 	private void loadCSVString(String string) {
 		csv = new CSV();
@@ -140,7 +146,8 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		super.configureShell(shell);
 
 		shell.setSize(1024, 768);
-		shell.setImage(appIcon);
+		if (useAppIcon)
+			shell.setImage(appIcon);
 
 		if (file != null) {
 			shell.setText(file + " - CSView");
