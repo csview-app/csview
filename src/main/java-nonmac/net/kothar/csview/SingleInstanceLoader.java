@@ -24,7 +24,7 @@ public class SingleInstanceLoader implements ApplicationActions {
 
 	private int openDocuments = 0;
 	
-	private Display display = Display.getDefault();
+	private Display display;
 
 	public static void main(String[] args) throws IOException {
 		if (tryOpen(args)) {
@@ -40,6 +40,7 @@ public class SingleInstanceLoader implements ApplicationActions {
 		listener.setDaemon(true);
 		listener.start();
 
+		display = Display.getDefault();
 		if (open(args)) {
 			while (!display.isDisposed()) {
 				if (!display.readAndDispatch()) {

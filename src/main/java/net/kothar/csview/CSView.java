@@ -60,8 +60,14 @@ import org.eclipse.swt.widgets.Shell;
 
 public class CSView extends ApplicationWindow implements DocumentActions {
 	
-	static Image appIcon = 
-			new Image(Display.getDefault(), CSView.class.getResourceAsStream("/icon.png"));
+	private static Image appIcon;
+	
+	public static Image getAppIcon() {
+		if (appIcon == null) {
+			appIcon = new Image(Display.getDefault(), CSView.class.getResourceAsStream("/icon.png"));
+		}
+		return appIcon;
+	}
 
 	private CSV csv;
 	private String file;
@@ -147,7 +153,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 		shell.setSize(1024, 768);
 		if (useAppIcon)
-			shell.setImage(appIcon);
+			shell.setImage(getAppIcon());
 
 		if (file != null) {
 			shell.setText(file + " - CSView");
