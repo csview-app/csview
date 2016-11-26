@@ -42,7 +42,7 @@ import net.kothar.csview.Menus;
 public class MacLoader implements ApplicationActions {
 
 	static final String APP_NAME = "CSView";
-	static final String VERSION = "1.1.0";
+	static final String VERSION = "1.1.1";
 
 	private Display display;
 
@@ -136,6 +136,9 @@ public class MacLoader implements ApplicationActions {
 	@Override
 	public void openFile(File file) {
 		CSView view = new CSView(file);
+		view.addMenuBar();
 		view.open();
+		
+		new Menus(this, view, view.getMenuBarManager().getMenu());
 	}
 }
