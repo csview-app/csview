@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutionException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.eclipse.swt.events.DisposeEvent;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -44,6 +45,7 @@ public class CSV {
 	private List<ProgressListener> progressListeners = new ArrayList<>();
 	
 	private Cache<Integer, String[]> rowCache;
+	private boolean disposed = false;
 	
 	public CSV() {
 		rowCache = CacheBuilder.newBuilder()
@@ -55,6 +57,14 @@ public class CSV {
 		rows.addListener(listener);
 	}
 
+	/**
+	 * Stop any active scan and dispose of any resources this
+	 * instance may be holding onto
+	 */
+	public synchronized void dispose(DisposeEvent e) {
+		disposed = true;
+	}
+	
 	/**
 	 * Adds a row to the row index at the given character offset
 	 * @param pos
@@ -169,6 +179,14 @@ public class CSV {
 				byte[] temp = bbuf;
 				bbuf = bbuf2;
 				bbuf2 = temp;
+				
+				// Stop if the CSV has been disposed
+				synchronized (this) {
+					if (disposed) {
+						System.out.println("Aborted scan");
+						return;
+					}
+				}
 			}
 
 			System.out.println("Scanned " + rows.size() + " rows");

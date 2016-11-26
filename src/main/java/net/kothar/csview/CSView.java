@@ -240,6 +240,8 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 		// Load the CSV
 		csv.scan();
+		
+		getShell().addDisposeListener(csv::dispose);
 
 		return composite;
 	}
