@@ -9,6 +9,10 @@ all: app
 
 icons: package/macosx/CSView.icns package/windows/CSView.ico package/windows/CSView-setup-icon.bmp
 
+src/main/resources/icon.png: icon.svg
+	mkdir -p `dirname $@`
+	rsvg-convert -h 32 icon.svg > $@
+
 package/macosx/CSView.icns: icon.svg
 	mkdir -p CSView.iconset
 	rsvg-convert -h 1024 icon.svg > CSView.iconset/icon_512x512@2x.png
