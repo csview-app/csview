@@ -11,7 +11,7 @@ icons: package/macosx/CSView.icns package/windows/CSView.ico package/windows/CSV
 
 src/main/resources/icon.png: icon.svg
 	mkdir -p `dirname $@`
-	rsvg-convert -h 32 icon.svg > $@
+	rsvg-convert -h 256 icon.svg > $@
 
 package/macosx/CSView.icns: icon.svg
 	mkdir -p CSView.iconset
