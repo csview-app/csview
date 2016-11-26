@@ -23,6 +23,8 @@ public class SingleInstanceLoader implements ApplicationActions {
 	private static String portfile = runtimeDir + "/net.kothar.csview/open.port";
 
 	private int openDocuments = 0;
+	
+	private Display display = Display.getDefault();
 
 	public static void main(String[] args) throws IOException {
 		if (tryOpen(args)) {
@@ -38,26 +40,24 @@ public class SingleInstanceLoader implements ApplicationActions {
 		listener.setDaemon(true);
 		listener.start();
 
-		Display display = open(args);
-		while (!display.isDisposed()) {
-			if (!display.readAndDispatch()) {
-				display.sleep();
+		if (open(args)) {
+			while (!display.isDisposed()) {
+				if (!display.readAndDispatch()) {
+					display.sleep();
+				}
 			}
 		}
 	}
 
-	private Display open(String[] args) {
+	private boolean open(String[] args) {
 		System.out.println("Open " + Arrays.asList(args));
 		
-		Display display = Display.getDefault();
 		if (args.length == 0) {
-			display.asyncExec(() -> {
-				if (!new Commands(this).openFile()) {
-					if (openDocuments == 0) {
-						display.dispose();
-					}
+			if (!new Commands(this).openFile()) {
+				if (openDocuments == 0) {
+					return false;
 				}
-			});
+			}
 		} else {
 			display.asyncExec(() -> {
 				for (String string: args) {
@@ -68,7 +68,8 @@ public class SingleInstanceLoader implements ApplicationActions {
 				}
 			});
 		}
-		return display;
+		
+		return true;
 	}
 
 	private static boolean tryOpen(String[] args) {
@@ -144,7 +145,7 @@ public class SingleInstanceLoader implements ApplicationActions {
 		csView.getShell().forceActive();
 
 		Menu menu = csView.getMenuBarManager().getMenu();
-		new Menus(this, menu);
+		new Menus(this, csView, menu);
 
 		csView.getShell().addDisposeListener(e -> {
 			if (--openDocuments == 0) {

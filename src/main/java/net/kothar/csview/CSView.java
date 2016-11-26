@@ -47,6 +47,7 @@ import org.eclipse.nebula.widgets.nattable.ui.matcher.MouseEventMatcher;
 import org.eclipse.nebula.widgets.nattable.util.GUIHelper;
 import org.eclipse.nebula.widgets.nattable.viewport.ViewportLayer;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
@@ -57,7 +58,10 @@ import org.eclipse.swt.widgets.ProgressBar;
 import org.eclipse.swt.widgets.Shell;
 
 
-public class CSView extends ApplicationWindow {
+public class CSView extends ApplicationWindow implements DocumentActions {
+	
+	static Image appIcon = 
+			new Image(Display.getDefault(), CSView.class.getResourceAsStream("/icon.png"));
 
 	private CSV csv;
 	private String file;
@@ -136,6 +140,7 @@ public class CSView extends ApplicationWindow {
 		super.configureShell(shell);
 
 		shell.setSize(1024, 768);
+		shell.setImage(appIcon);
 
 		if (file != null) {
 			shell.setText(file + " - CSView");

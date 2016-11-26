@@ -31,6 +31,7 @@ public class Commands {
 	public boolean openFile() {
 		Display display = Display.getDefault();
 		Shell shell = new Shell(display);
+		shell.setImage(CSView.appIcon);
 
 		try {
 			FileDialog dialog = new FileDialog(shell);

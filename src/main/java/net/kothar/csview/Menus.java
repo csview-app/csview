@@ -24,6 +24,7 @@ import org.eclipse.swt.widgets.MenuItem;
 public class Menus {
 
 	private ApplicationActions actions;
+	private DocumentActions docActions;
 	private Commands commands;
 
 	public Menus(ApplicationActions actions, Menu menuBar) {
@@ -36,17 +37,42 @@ public class Menus {
 		}
 	}
 
-	public void createFileMenu(Menu menuBar) {
+	public Menus(ApplicationActions actions, DocumentActions docActions, Menu menuBar) {
+		this.actions = actions;
+		this.docActions = docActions;
+		commands = new Commands(actions);
+		
+		Menu fileMenu = createFileMenu(menuBar);
+		addDocumentFileActions(fileMenu);
+		if (System.getProperties().containsKey("net.kothar.csview.debug")) {
+			createDebugMenu(menuBar);
+		}
+	}
+
+	private void addDocumentFileActions(Menu fileMenu) {
+		
+		MenuItem close = new MenuItem(fileMenu, SWT.NORMAL);
+		close.setText("Close file");
+		close.setAccelerator(SWT.MOD1 + 'W');
+		
+		close.addSelectionListener(adapt(docActions::close));
+		
+	}
+
+	public Menu createFileMenu(Menu menuBar) {
 		MenuItem file = new MenuItem(menuBar, SWT.CASCADE);
 		file.setText("File");
 		
 		Menu fileMenu = new Menu(menuBar);
 		file.setMenu(fileMenu);
+		
 		MenuItem open = new MenuItem(fileMenu, SWT.NORMAL);
 		open.setText("Open file");
 		open.setAccelerator(SWT.MOD1 + 'O');
 		
 		open.addSelectionListener(adapt(commands::openFile));
+		
+		return fileMenu;
 	}
 
 	private SelectionListener adapt(Runnable action) {
