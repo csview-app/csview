@@ -41,6 +41,8 @@ public class CSV {
 	private RandomAccessFile randomAccessFile;
 	private String file;
 	
+	private CSVFormat format = CSVFormat.DEFAULT;
+	
 	private List<ProgressListener> progressListeners = new ArrayList<>();
 	
 	private Cache<Integer, String[]> rowCache;
@@ -126,6 +128,12 @@ public class CSV {
 		int blockSize = 1024 * 1024 * 4;
 		bbuf = new byte[blockSize];
 		bbuf2 = new byte[blockSize];
+		
+		Character quote = format.getQuoteCharacter();
+		Character escape = format.getEscapeCharacter();
+		if (escape == null) {
+			escape = quote;
+		}
 
 		// Add first row
 		addRow(0);
@@ -138,26 +146,31 @@ public class CSV {
 			boolean quoted = false;
 			
 			while (len > 0) {
-				CompletableFuture<Integer> nextBuffer = CompletableFuture.supplyAsync(() -> {
-					try {
-						return bufferedInput.read(bbuf2);
-					} catch (Exception e) {
-						e.printStackTrace();
-						return 0;
-					}
-				});
+				
+				CompletableFuture<Integer> nextBuffer = null;
+				if (bufferedInput.available() > 0) {
+					nextBuffer = CompletableFuture.supplyAsync(() -> {
+						try {
+							return bufferedInput.read(bbuf2);
+						} catch (Exception e) {
+							e.printStackTrace();
+							return 0;
+						}
+					});
+				}
 				
 				// Look for a line terminator
+				// TODO handle comment lines
 				int i;
 				for (i = 0; i < len; i++) {
 					b1 = b2;
 					b2 = bbuf[i];
 					
 					// Check for quoted values
-					if (quoted && b1 == '"' && b2 == '"') {
+					if (quoted && b1 == escape && b2 == quote) {
 						b1 = 0;
 						b2 = 0;
-					} else if (b1 == '"') {
+					} else if (b1 == quote) {
 						quoted = !quoted;
 						b1 = 0;
 					}
@@ -174,10 +187,14 @@ public class CSV {
 				pos += i;
 
 				// Swap buffers
-				len = nextBuffer.get();
-				byte[] temp = bbuf;
-				bbuf = bbuf2;
-				bbuf2 = temp;
+				if (nextBuffer == null) {
+					break;
+				} else {
+					len = nextBuffer.get();
+					byte[] temp = bbuf;
+					bbuf = bbuf2;
+					bbuf2 = temp;
+				}
 				
 				// Stop if the CSV has been disposed
 				synchronized (this) {
@@ -200,9 +217,8 @@ public class CSV {
 			e.printStackTrace();
 		} catch (ExecutionException e) {
 			e.printStackTrace();
-		} finally {
-			bbuf = null;
-			bbuf2 = null;
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -232,11 +248,11 @@ public class CSV {
 			CSVParser parser;
 			CSVRecord record;
 			try {
-				parser = CSVParser.parse(rowContent, CSVFormat.DEFAULT);
+				parser = CSVParser.parse(rowContent, format);
 				record = parser.iterator().next();
 			} catch (RuntimeException e) {
 				// HACK: Try appending a new terminating quote to complete the line
-				parser = CSVParser.parse(rowContent + "\"", CSVFormat.DEFAULT);
+				parser = CSVParser.parse(rowContent + "\"", format);
 				record = parser.iterator().next();
 			}
 			String[] cols = new String[record.size()];

@@ -18,6 +18,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 
 import org.eclipse.jface.viewers.TableViewer;
+import org.eclipse.jface.action.Action;
+import org.eclipse.jface.action.StatusLineContributionItem;
+import org.eclipse.jface.action.StatusLineManager;
+import org.eclipse.jface.layout.GridDataFactory;
 import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
@@ -70,9 +74,15 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		}
 
 	}
+	
+	public CSView() {
+		super(null);
+
+		addStatusLine();
+	}
 
 	public CSView(String[] args) {
-		super(null);
+		this();
 		
 		if (args.length > 0) {
 			csv = new CSV();
@@ -88,7 +98,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	}
 
 	public CSView(File file) {
-		super(null);
+		this();
 		
 		csv = new CSV();
 		
@@ -216,6 +226,21 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		return composite;
 	}
 	
+	protected StatusLineManager createStatusLineManager() {
+        StatusLineManager statusLineManager = super.createStatusLineManager();
+        
+        StatusLineContributionItem message = new StatusLineContributionItem("message");
+        message.setText("CSView");
+		statusLineManager.add(message);
+        
+        Action action = new Action("Test action") {
+		};
+		statusLineManager.add(action);
+        
+		statusLineManager.update(true);
+        return statusLineManager;
+    }
+
 	public void refreshTable() {
 		viewer.setItemCount(csv.getRowCount());
 	}
