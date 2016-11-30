@@ -34,7 +34,6 @@ import org.eclipse.swt.events.DisposeEvent;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
-
 public class CSV {
 
 	private LineMap rows = new LineMap();

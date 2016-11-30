@@ -17,35 +17,8 @@ package net.kothar.csview;
 import java.io.File;
 import java.io.FileNotFoundException;
 
-import org.eclipse.jface.layout.GridDataFactory;
+import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.window.ApplicationWindow;
-import org.eclipse.nebula.widgets.nattable.NatTable;
-import org.eclipse.nebula.widgets.nattable.config.AbstractUiBindingConfiguration;
-import org.eclipse.nebula.widgets.nattable.config.DefaultNatTableStyleConfiguration;
-import org.eclipse.nebula.widgets.nattable.config.IConfiguration;
-import org.eclipse.nebula.widgets.nattable.data.IDataProvider;
-import org.eclipse.nebula.widgets.nattable.grid.GridRegion;
-import org.eclipse.nebula.widgets.nattable.grid.data.DefaultCornerDataProvider;
-import org.eclipse.nebula.widgets.nattable.grid.data.DefaultRowHeaderDataProvider;
-import org.eclipse.nebula.widgets.nattable.grid.layer.ColumnHeaderLayer;
-import org.eclipse.nebula.widgets.nattable.grid.layer.CornerLayer;
-import org.eclipse.nebula.widgets.nattable.grid.layer.GridLayer;
-import org.eclipse.nebula.widgets.nattable.grid.layer.RowHeaderLayer;
-import org.eclipse.nebula.widgets.nattable.layer.DataLayer;
-import org.eclipse.nebula.widgets.nattable.layer.ILayer;
-import org.eclipse.nebula.widgets.nattable.resize.action.ColumnResizeCursorAction;
-import org.eclipse.nebula.widgets.nattable.resize.event.ColumnResizeEventMatcher;
-import org.eclipse.nebula.widgets.nattable.resize.mode.ColumnResizeDragMode;
-import org.eclipse.nebula.widgets.nattable.selection.SelectionLayer;
-import org.eclipse.nebula.widgets.nattable.selection.config.DefaultSelectionLayerConfiguration;
-import org.eclipse.nebula.widgets.nattable.selection.config.DefaultSelectionStyleConfiguration;
-import org.eclipse.nebula.widgets.nattable.style.HorizontalAlignmentEnum;
-import org.eclipse.nebula.widgets.nattable.ui.action.ClearCursorAction;
-import org.eclipse.nebula.widgets.nattable.ui.action.NoOpMouseAction;
-import org.eclipse.nebula.widgets.nattable.ui.binding.UiBindingRegistry;
-import org.eclipse.nebula.widgets.nattable.ui.matcher.MouseEventMatcher;
-import org.eclipse.nebula.widgets.nattable.util.GUIHelper;
-import org.eclipse.nebula.widgets.nattable.viewport.ViewportLayer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.GridData;
@@ -56,6 +29,8 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.ProgressBar;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Table;
+import org.eclipse.swt.widgets.TableColumn;
 
 
 public class CSView extends ApplicationWindow implements DocumentActions {
@@ -75,6 +50,9 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	private Composite progressRow;
 
 	private boolean useAppIcon;
+	
+	private Table table;
+	private TableViewer viewer;
 
 	public static void main(String[] args) {
 		Display display = new Display();
@@ -172,45 +150,25 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		layout.marginWidth = 0;
 		composite.setLayout(layout);
 		
-		// Body stack
-		CSVDataProvider bodyDataProvider = new CSVDataProvider(csv);
-		DataLayer bodyDataLayer = new DataLayer(bodyDataProvider);
-		SelectionLayer selectionLayer = new SelectionLayer(bodyDataLayer, false);
-		selectionLayer.addConfiguration(createSelectionLayerConfiguration());
-		ViewportLayer viewportLayer = new ViewportLayer(selectionLayer);
-
-		// Column header stack
-		CSVHeaderProvider columnHeaderDataProvider = new CSVHeaderProvider(csv);
-		DataLayer headerDataLayer = new DataLayer(columnHeaderDataProvider);
-		ILayer columnHeaderLayer = new ColumnHeaderLayer(headerDataLayer,
-				viewportLayer, 
-				selectionLayer);
-
-		// Create row header stack
-		IDataProvider rowHeaderDataProvider = new DefaultRowHeaderDataProvider(bodyDataProvider);
-		DataLayer rowHeaderDataLayer = new DataLayer(rowHeaderDataProvider, 40, DataLayer.DEFAULT_ROW_HEIGHT);
-		ILayer rowHeaderLayer = new RowHeaderLayer(rowHeaderDataLayer, 
-				viewportLayer, 
-				selectionLayer);
-
-		// Create corner stack
-		ILayer cornerLayer = 
-				new CornerLayer(new DataLayer(new DefaultCornerDataProvider(
-						columnHeaderDataProvider, rowHeaderDataProvider)), 
-						rowHeaderLayer, 
-						columnHeaderLayer);
-
-		GridLayer gridLayer = 
-				new GridLayer(viewportLayer, columnHeaderLayer, rowHeaderLayer, cornerLayer);
-
-		NatTable natTable = new NatTable(composite, gridLayer, false);
-		natTable.setLayoutData(new GridData(GridData.FILL_BOTH));
-		natTable.addConfiguration(createTableConfiguration());
-		natTable.addConfiguration(createUiBindingConfiguration());
-		natTable.configure();
-		GridDataFactory.fillDefaults().grab(true, true).applyTo(natTable);
-
-		getShell().getDisplay().asyncExec(natTable::refresh);
+		table = new Table(composite, SWT.VIRTUAL);
+		table.setLayoutData(new GridData(GridData.FILL_BOTH));
+		table.setHeaderVisible(true);
+		table.setLinesVisible(true);
+		
+		viewer = new TableViewer(table);
+		viewer.setContentProvider(new CSVContentProvider());
+		viewer.setLabelProvider(new CSVLabelProvider());
+		viewer.setInput(csv);
+		
+		TableColumn column = new TableColumn(table, SWT.RIGHT, 0);
+		column.setText("");
+		column.setWidth(80);
+		
+		for (int i = 1; i <= 10; i++) {
+			column = new TableColumn(table, SWT.LEFT, i);
+			column.setText("");
+			column.setWidth(200);
+		}
 		
 		if (file != null) {
 			// Add a progress indicator
@@ -232,6 +190,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 					getShell().getDisplay().asyncExec(() -> {
 						progressRow.dispose();
 						composite.layout(true);
+						refreshTable();
 					});
 				}
 				
@@ -239,59 +198,25 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 				public void changed(long progress) {
 					getShell().getDisplay().asyncExec(() -> {
 						progressBar.setSelection((int) ((progress*1000)/fileSize));
+						refreshTable();
 					});
 				}
+				
 			});
 		}
 
 		// Load the CSV
 		csv.scan();
 		
+		getShell().getDisplay().asyncExec(this::refreshTable);
+		
 		getShell().addDisposeListener(csv::dispose);
 
 		return composite;
 	}
-
-	private IConfiguration createUiBindingConfiguration() {
-		return new AbstractUiBindingConfiguration() {
-			@Override
-			public void configureUiBindings(UiBindingRegistry uiBindingRegistry) {
-				
-				// TODO replace with less aggressive auto resize handler
-				uiBindingRegistry.unregisterDoubleClickBinding(new ColumnResizeEventMatcher(SWT.NONE,
-						GridRegion.COLUMN_HEADER, 1));
-
-				uiBindingRegistry.registerMouseMoveBinding(new MouseEventMatcher(), new ClearCursorAction());
-				
-				for (String region: new String[] {GridRegion.ROW_HEADER, GridRegion.CORNER}) {
-					// Mouse move - Show resize cursor
-					uiBindingRegistry.registerFirstMouseMoveBinding(new ColumnResizeEventMatcher(SWT.NONE,
-							region, 0), new ColumnResizeCursorAction());
-
-					// Column resize
-					uiBindingRegistry.registerFirstMouseDragMode(new ColumnResizeEventMatcher(SWT.NONE,
-							region, 1), new ColumnResizeDragMode());
-					uiBindingRegistry.registerSingleClickBinding(new ColumnResizeEventMatcher(SWT.NONE,
-							region, 1), new NoOpMouseAction());
-				}
-			}
-		};
+	
+	public void refreshTable() {
+		viewer.setItemCount(csv.getRowCount());
 	}
 
-	private IConfiguration createTableConfiguration() {
-		return new DefaultNatTableStyleConfiguration() {{
-			hAlign = HorizontalAlignmentEnum.LEFT;
-		}};
-	}
-
-	private IConfiguration createSelectionLayerConfiguration() {
-		return new DefaultSelectionLayerConfiguration() {
-			@Override
-			protected void addSelectionStyleConfig() {
-				addConfiguration(new DefaultSelectionStyleConfiguration() {{
-					selectionFont = GUIHelper.DEFAULT_FONT;
-				}});
-			}
-		};
-	}
 }
