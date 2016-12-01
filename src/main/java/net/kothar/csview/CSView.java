@@ -17,11 +17,10 @@ package net.kothar.csview;
 import java.io.File;
 import java.io.FileNotFoundException;
 
-import org.eclipse.jface.viewers.TableViewer;
-import org.eclipse.jface.action.Action;
+import org.eclipse.jface.action.ControlContribution;
 import org.eclipse.jface.action.StatusLineContributionItem;
 import org.eclipse.jface.action.StatusLineManager;
-import org.eclipse.jface.layout.GridDataFactory;
+import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
@@ -31,7 +30,6 @@ import org.eclipse.swt.widgets.CSVTable;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
-import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.ProgressBar;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
@@ -58,6 +56,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	
 	private Table table;
 	private TableViewer viewer;
+	private StatusLineContributionItem message;
 
 	public static void main(String[] args) {
 		Display display = new Display();
@@ -182,25 +181,16 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		}
 		
 		if (file != null) {
-			// Add a progress indicator
-			progressRow = new Composite(composite, SWT.NORMAL);
-			progressRow.setLayout(new GridLayout(2, false));
-			progressRow.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
-
-			new Label(progressRow, SWT.NORMAL).setText("Scanning...");
-			progressBar = new ProgressBar(progressRow, SWT.SMOOTH | SWT.HORIZONTAL);
-			progressBar.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+			message.setText("Scanning...");
 	
 			long fileSize = new File(file).length();
-			progressBar.setMaximum(1000);
-			progressBar.setSelection(0);
 			csv.addProgressListener(new ProgressListener() {
 				
 				@Override
 				public void completed() {
 					getShell().getDisplay().asyncExec(() -> {
-						progressRow.dispose();
-						composite.layout(true);
+						getStatusLineManager().find("progress").setVisible(false);
+						message.setText("");
 						refreshTable();
 					});
 				}
@@ -220,7 +210,6 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		csv.scan();
 		
 		getShell().getDisplay().asyncExec(this::refreshTable);
-		
 		getShell().addDisposeListener(csv::dispose);
 
 		return composite;
@@ -229,13 +218,19 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	protected StatusLineManager createStatusLineManager() {
         StatusLineManager statusLineManager = super.createStatusLineManager();
         
-        StatusLineContributionItem message = new StatusLineContributionItem("message");
+        statusLineManager.add(new ControlContribution("progress") {
+			@Override
+			protected Control createControl(Composite parent) {
+				progressBar = new ProgressBar(parent, SWT.SMOOTH | SWT.HORIZONTAL);
+				progressBar.setMaximum(1000);
+				progressBar.setSelection(0);
+				return progressBar;
+			}
+        });
+        
+        message = new StatusLineContributionItem("message");
         message.setText("CSView");
 		statusLineManager.add(message);
-        
-        Action action = new Action("Test action") {
-		};
-		statusLineManager.add(action);
         
 		statusLineManager.update(true);
         return statusLineManager;
