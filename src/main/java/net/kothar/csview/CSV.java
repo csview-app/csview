@@ -26,13 +26,12 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import javax.xml.ws.Holder;
+
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.eclipse.swt.events.DisposeEvent;
-
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 
 public class CSV {
 
@@ -45,13 +44,9 @@ public class CSV {
 	
 	private List<ProgressListener> progressListeners = new ArrayList<>();
 	
-	private Cache<Integer, String[]> rowCache;
 	private boolean disposed = false;
 	
 	public CSV() {
-		rowCache = CacheBuilder.newBuilder()
-			.maximumSize(500)
-			.build();
 	}
 
 	public void addRowListener(RowListener listener) {
@@ -114,20 +109,22 @@ public class CSV {
 		}
 	}
 
-	/* We use two buffers to allow the next block to be read
-	 * while processing the first. We could potentially use more
-	 * threads or a dedicated thread for more throughput.
-	 * 
-	 * I suspect we are currently limited by scanning the buffer or adding
-	 * new position to the list, so profiling is needed.
-	 */
-	private byte[] bbuf, bbuf2;
-
 	private void scan(InputStream input) {
 		long pos = 0;
 		int blockSize = 1024 * 1024 * 4;
-		bbuf = new byte[blockSize];
-		bbuf2 = new byte[blockSize];
+
+		/* We use two buffers to allow the next block to be read
+		 * while processing the first. We could potentially use more
+		 * threads or a dedicated thread for more throughput.
+		 * 
+		 * I suspect we are currently limited by scanning the buffer or adding
+		 * new position to the list, so profiling is needed.
+		 */
+		Holder<byte[]> bbuf, bbuf2;
+		
+		
+		bbuf = new Holder<>(new byte[blockSize]);
+		bbuf2 = new Holder<>(new byte[blockSize]);
 		
 		Character quote = format.getQuoteCharacter();
 		Character escape = format.getEscapeCharacter();
@@ -141,7 +138,7 @@ public class CSV {
 		long startTime = System.currentTimeMillis();
 		try (InputStream bufferedInput = new BufferedInputStream(input)) {
 
-			int len = bufferedInput.read(bbuf);
+			int len = bufferedInput.read(bbuf.value);
 			byte b1 = 0, b2 = 0;
 			boolean quoted = false;
 			
@@ -151,7 +148,11 @@ public class CSV {
 				if (bufferedInput.available() > 0) {
 					nextBuffer = CompletableFuture.supplyAsync(() -> {
 						try {
-							return bufferedInput.read(bbuf2);
+							byte[] buffer;
+							synchronized (bbuf2) {
+								buffer = bbuf2.value;
+							}
+							return bufferedInput.read(buffer);
 						} catch (Exception e) {
 							e.printStackTrace();
 							return 0;
@@ -162,9 +163,10 @@ public class CSV {
 				// Look for a line terminator
 				// TODO handle comment lines
 				int i;
+				byte[] buffer = bbuf.value;
 				for (i = 0; i < len; i++) {
 					b1 = b2;
-					b2 = bbuf[i];
+					b2 = buffer[i];
 					
 					// Check for quoted values
 					if (quoted && b1 == escape && b2 == quote) {
@@ -186,14 +188,16 @@ public class CSV {
 				}
 				pos += i;
 
-				// Swap buffers
 				if (nextBuffer == null) {
 					break;
 				} else {
-					len = nextBuffer.get();
-					byte[] temp = bbuf;
-					bbuf = bbuf2;
-					bbuf2 = temp;
+					// Swap buffers
+					synchronized (bbuf2) {
+						len = nextBuffer.get();
+						byte[] temp = bbuf.value;
+						bbuf.value = bbuf2.value;
+						bbuf2.value = temp;
+					}
 				}
 				
 				// Stop if the CSV has been disposed
@@ -223,15 +227,6 @@ public class CSV {
 	}
 
 	public synchronized String[] getRow(int row) {
-		try {
-			return rowCache.get(row, () -> loadRow(row));
-		} catch (ExecutionException e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
-	
-	private String[] loadRow(int row) {
 		Long from = rows.getPosition(row);
 		Long to = rows.getPosition(row+1);
 
