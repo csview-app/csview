@@ -17,7 +17,7 @@ package net.kothar.csview;
 import java.io.File;
 import java.io.FileNotFoundException;
 
-import org.eclipse.jface.action.ControlContribution;
+import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.action.StatusLineContributionItem;
 import org.eclipse.jface.action.StatusLineManager;
 import org.eclipse.jface.viewers.TableViewer;
@@ -30,16 +30,15 @@ import org.eclipse.swt.widgets.CSVTable;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
-import org.eclipse.swt.widgets.ProgressBar;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 
 
 public class CSView extends ApplicationWindow implements DocumentActions {
-	
+
 	private static Image appIcon;
-	
+
 	public static Image getAppIcon() {
 		if (appIcon == null) {
 			appIcon = new Image(Display.getDefault(), CSView.class.getResourceAsStream("/icon.png"));
@@ -49,14 +48,11 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 	private CSV csv;
 	private String file;
-	private ProgressBar progressBar;
-	private Composite progressRow;
 
 	private boolean useAppIcon;
-	
+
 	private Table table;
 	private TableViewer viewer;
-	private StatusLineContributionItem message;
 
 	public static void main(String[] args) {
 		Display display = new Display();
@@ -73,7 +69,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		}
 
 	}
-	
+
 	public CSView() {
 		super(null);
 
@@ -82,7 +78,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 	public CSView(String[] args) {
 		this();
-		
+
 		if (args.length > 0) {
 			csv = new CSV();
 
@@ -98,16 +94,16 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 	public CSView(File file) {
 		this();
-		
+
 		csv = new CSV();
-		
+
 		try {
 			loadCSV(file.toString());
 		} catch (FileNotFoundException e) {
 			loadCSVString(e.getMessage());
 		}
 	}
-	
+
 	public void useAppIcon() {
 		useAppIcon = true;
 	}
@@ -121,7 +117,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		setFile(file);
 		csv.setFile(file);
 	}
-	
+
 	private void setFile(String file) {
 		this.file = file;
 		Shell shell = getShell();
@@ -134,7 +130,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	public void addMenuBar() {
 		super.addMenuBar();
 	}
-	
+
 	@Override
 	protected void configureShell(Shell shell) {
 		super.configureShell(shell);
@@ -152,89 +148,91 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 	@Override
 	protected Control createContents(Composite parent) {
-		
+
 		Composite composite = (Composite) super.createContents(parent);
-		
+
 		GridLayout layout = new GridLayout(1, false);
 		layout.marginHeight = 0;
 		layout.marginWidth = 0;
 		composite.setLayout(layout);
-		
+
 		table = new CSVTable(composite, SWT.VIRTUAL);
 		table.setLayoutData(new GridData(GridData.FILL_BOTH));
 		table.setHeaderVisible(true);
 		table.setLinesVisible(true);
-		
+
 		viewer = new TableViewer(table);
 		viewer.setContentProvider(new CSVContentProvider());
 		viewer.setLabelProvider(new CSVLabelProvider());
 		viewer.setInput(csv);
-		
+
 		TableColumn column = new TableColumn(table, SWT.RIGHT, 0);
 		column.setText("");
 		column.setWidth(80);
-		
+
 		for (int i = 1; i <= 10; i++) {
 			column = new TableColumn(table, SWT.LEFT, i);
 			column.setText("");
 			column.setWidth(200);
 		}
-		
+
 		if (file != null) {
-			message.setText("Scanning...");
-	
+			IProgressMonitor progressMonitor = getStatusLineManager().getProgressMonitor();
+			progressMonitor.beginTask("Scanning", 1000);
+
 			long fileSize = new File(file).length();
 			csv.addProgressListener(new ProgressListener() {
-				
+
+				private long lastProgress = 0;
+
 				@Override
 				public void completed() {
 					getShell().getDisplay().asyncExec(() -> {
-						getStatusLineManager().find("progress").setVisible(false);
-						message.setText("");
+						progressMonitor.done();
 						refreshTable();
 					});
 				}
-				
+
 				@Override
 				public void changed(long progress) {
 					getShell().getDisplay().asyncExec(() -> {
-						progressBar.setSelection((int) ((progress*1000)/fileSize));
+						int worked = ((int) (((progress - lastProgress)*1000)/fileSize));
+						if (worked > 0) {
+							progressMonitor.worked(worked);
+							lastProgress = progress;
+						}
 						refreshTable();
 					});
 				}
-				
+
 			});
 		}
 
 		// Load the CSV
 		csv.scan();
-		
+
 		getShell().getDisplay().asyncExec(this::refreshTable);
 		getShell().addDisposeListener(csv::dispose);
 
 		return composite;
 	}
-	
+
 	protected StatusLineManager createStatusLineManager() {
-        StatusLineManager statusLineManager = super.createStatusLineManager();
-        
-        statusLineManager.add(new ControlContribution("progress") {
-			@Override
-			protected Control createControl(Composite parent) {
-				progressBar = new ProgressBar(parent, SWT.SMOOTH | SWT.HORIZONTAL);
-				progressBar.setMaximum(1000);
-				progressBar.setSelection(0);
-				return progressBar;
-			}
-        });
-        
-        message = new StatusLineContributionItem("message");
-        message.setText("CSView");
-		statusLineManager.add(message);
-        
+		StatusLineManager statusLineManager = super.createStatusLineManager();
+
+		statusLineManager.add(new StatusLineContributionItem("separator", 10) {{
+			setText("Fields: ,");
+		}});
+		statusLineManager.add(new StatusLineContributionItem("quote", 10) {{
+			setText("Escape: \"");
+		}});
+		statusLineManager.add(new StatusLineContributionItem("line", 10) {{
+			setText("Line: \\n");
+		}});
+
 		statusLineManager.update(true);
-        return statusLineManager;
-    }
+		return statusLineManager;
+	}
 
 	public void refreshTable() {
 		viewer.setItemCount(csv.getRowCount());
