@@ -12,13 +12,15 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
-package net.kothar.csview;
+package net.kothar.csview.ui;
 
 import java.io.File;
 
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Shell;
+
+import net.kothar.csview.ApplicationActions;
 
 public class Commands {
 

@@ -1,4 +1,4 @@
-package net.kothar.csview;
+package net.kothar.csview.ui;
 
 import java.text.NumberFormat;
 
@@ -6,7 +6,7 @@ import org.eclipse.jface.viewers.ILabelProviderListener;
 import org.eclipse.jface.viewers.ITableLabelProvider;
 import org.eclipse.swt.graphics.Image;
 
-import net.kothar.csview.CSVContentProvider.Row;
+import net.kothar.csview.ui.CSVContentProvider.Row;
 
 public class CSVLabelProvider implements ITableLabelProvider {
 	

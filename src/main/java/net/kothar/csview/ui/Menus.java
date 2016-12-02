@@ -12,7 +12,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
-package net.kothar.csview;
+package net.kothar.csview.ui;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
@@ -20,6 +20,9 @@ import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
+
+import net.kothar.csview.ApplicationActions;
+import net.kothar.csview.DocumentActions;
 
 public class Menus {
 

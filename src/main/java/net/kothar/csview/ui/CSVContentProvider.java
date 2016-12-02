@@ -1,4 +1,4 @@
-package net.kothar.csview;
+package net.kothar.csview.ui;
 
 import java.util.TreeSet;
 
@@ -6,6 +6,8 @@ import org.eclipse.jface.viewers.ILazyContentProvider;
 import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.swt.widgets.Table;
+
+import net.kothar.csview.csv.CSV;
 
 public class CSVContentProvider implements ILazyContentProvider {
 

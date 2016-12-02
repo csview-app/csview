@@ -36,8 +36,8 @@ import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
 
 import net.kothar.csview.ApplicationActions;
-import net.kothar.csview.CSView;
-import net.kothar.csview.Menus;
+import net.kothar.csview.ui.CSView;
+import net.kothar.csview.ui.Menus;
 
 public class MacLoader implements ApplicationActions {
 

@@ -12,7 +12,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
-package net.kothar.csview;
+package net.kothar.csview.csv;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
@@ -32,6 +32,9 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.eclipse.swt.events.DisposeEvent;
+
+import net.kothar.csview.ProgressListener;
+import net.kothar.csview.RowListener;
 
 public class CSV {
 
@@ -126,8 +129,8 @@ public class CSV {
 		bbuf = new Holder<>(new byte[blockSize]);
 		bbuf2 = new Holder<>(new byte[blockSize]);
 		
-		Character quote = format.getQuoteCharacter();
-		Character escape = format.getEscapeCharacter();
+		Character quote = getFormat().getQuoteCharacter();
+		Character escape = getFormat().getEscapeCharacter();
 		if (escape == null) {
 			escape = quote;
 		}
@@ -243,11 +246,11 @@ public class CSV {
 			CSVParser parser;
 			CSVRecord record;
 			try {
-				parser = CSVParser.parse(rowContent, format);
+				parser = CSVParser.parse(rowContent, getFormat());
 				record = parser.iterator().next();
 			} catch (RuntimeException e) {
 				// HACK: Try appending a new terminating quote to complete the line
-				parser = CSVParser.parse(rowContent + "\"", format);
+				parser = CSVParser.parse(rowContent + "\"", getFormat());
 				record = parser.iterator().next();
 			}
 			String[] cols = new String[record.size()];
@@ -308,6 +311,14 @@ public class CSV {
 		for (ProgressListener listener: progressListeners) {
 			listener.completed();
 		}
+	}
+
+	public CSVFormat getFormat() {
+		return format;
+	}
+
+	public void setFormat(CSVFormat format) {
+		this.format = format;
 	}
 	
 }

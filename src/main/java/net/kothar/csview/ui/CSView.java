@@ -12,12 +12,14 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
-package net.kothar.csview;
+package net.kothar.csview.ui;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 
+import org.apache.commons.csv.CSVFormat;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.StatusLineContributionItem;
 import org.eclipse.jface.action.StatusLineManager;
 import org.eclipse.jface.viewers.TableViewer;
@@ -33,6 +35,10 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
+
+import net.kothar.csview.DocumentActions;
+import net.kothar.csview.ProgressListener;
+import net.kothar.csview.csv.CSV;
 
 
 public class CSView extends ApplicationWindow implements DocumentActions {
@@ -220,9 +226,33 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	protected StatusLineManager createStatusLineManager() {
 		StatusLineManager statusLineManager = super.createStatusLineManager();
 
-		statusLineManager.add(new StatusLineContributionItem("separator", 10) {{
-			setText("Fields: ,");
-		}});
+		StatusLineMenuContribution fieldSeparatorMenu = new StatusLineMenuContribution("separator", "Delimiter: COMMA");
+		statusLineManager.add(fieldSeparatorMenu);
+		fieldSeparatorMenu.getMenuManager().add(new Action("COMMA") {
+			@Override
+			public void run() {
+				CSVFormat newFormat = csv.getFormat().withDelimiter(',');
+				csv.setFormat(newFormat);
+				fieldSeparatorMenu.setText("Delimiter: COMMA");
+			}
+		});
+		fieldSeparatorMenu.getMenuManager().add(new Action("TAB") {
+			@Override
+			public void run() {
+				CSVFormat newFormat = csv.getFormat().withDelimiter('\t');
+				csv.setFormat(newFormat);
+				fieldSeparatorMenu.setText("Delimiter: TAB");
+			}
+		});
+		fieldSeparatorMenu.getMenuManager().add(new Action("PIPE") {
+			@Override
+			public void run() {
+				CSVFormat newFormat = csv.getFormat().withDelimiter('|');
+				csv.setFormat(newFormat);
+				fieldSeparatorMenu.setText("Delimiter: PIPE");
+			}
+		});
+		
 		statusLineManager.add(new StatusLineContributionItem("quote", 10) {{
 			setText("Escape: \"");
 		}});
