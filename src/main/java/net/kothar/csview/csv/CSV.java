@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
 
 import javax.xml.ws.Holder;
 
@@ -44,6 +45,7 @@ public class CSV {
 	private String file;
 	
 	private CSVFormat format = CSVFormat.DEFAULT;
+	private int maxColumns = -1;
 	
 	private List<ProgressListener> progressListeners = new ArrayList<>();
 	
@@ -238,7 +240,12 @@ public class CSV {
 			return new String[0];
 		}
 		
-		return parseRow(rowContent);
+		String[] values = parseRow(rowContent);
+		if (values.length > maxColumns) {
+			maxColumns = values.length;
+			notifyColumnsChanged(maxColumns);
+		}
+		return values;
 	}
 
 	private String[] parseRow(String rowContent) {
@@ -262,7 +269,7 @@ public class CSV {
 			e.printStackTrace();
 		}
 
-		return rowContent.split("\\s*,\\s*");
+		return rowContent.split("\\s*" + Pattern.quote(""+getFormat().getDelimiter()) + "\\s*");
 	}
 
 	private String getContent(Long from, Long to) {
@@ -301,6 +308,12 @@ public class CSV {
 		progressListeners.add(listener);
 	}
 	
+	private void notifyColumnsChanged(int columns) {
+		for (ProgressListener listener: progressListeners) {
+			listener.columnsChanged(columns);
+		}
+	}
+	
 	private void notifyProgress(long progress) {
 		for (ProgressListener listener: progressListeners) {
 			listener.changed(progress);
@@ -319,6 +332,7 @@ public class CSV {
 
 	public void setFormat(CSVFormat format) {
 		this.format = format;
+		maxColumns = -1;
 	}
 	
 }

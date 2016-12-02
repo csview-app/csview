@@ -46,11 +46,11 @@ public class CSVContentProvider implements ILazyContentProvider {
 			Table table = viewer.getTable();
 			int top = table.getTopIndex() - 10;
 			for (Integer i: rendered.headSet(top)) {
-				table.clear(i);
+				viewer.clear(i);
 			}
 			int bottom = table.getTopIndex() + table.getSize().y / table.getItemHeight() + 10;
 			for (Integer i: rendered.tailSet(bottom)) {
-				table.clear(i);
+				viewer.clear(i);
 			}
 			rendered = new TreeSet<>(rendered.subSet(top, bottom));
 		}

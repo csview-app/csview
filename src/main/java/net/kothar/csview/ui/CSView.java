@@ -176,12 +176,6 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		column.setText("");
 		column.setWidth(80);
 
-		for (int i = 1; i <= 10; i++) {
-			column = new TableColumn(table, SWT.LEFT, i);
-			column.setText("");
-			column.setWidth(200);
-		}
-
 		if (file != null) {
 			IProgressMonitor progressMonitor = getStatusLineManager().getProgressMonitor();
 			progressMonitor.beginTask("Scanning", 1000);
@@ -211,6 +205,19 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 					});
 				}
 
+				@Override
+				public void columnsChanged(int columns) {
+					String[] headerRow = csv.getRow(0);
+					for (int i = table.getColumnCount()-1; i < columns; i++) {
+						TableColumn column = new TableColumn(table, SWT.LEFT);
+						if (i < headerRow.length)
+							column.setText(headerRow[i]);
+						else
+							column.setText("[" + (i+1) + "]");
+						column.setWidth(200);
+					}
+				}
+
 			});
 		}
 
@@ -226,32 +233,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	protected StatusLineManager createStatusLineManager() {
 		StatusLineManager statusLineManager = super.createStatusLineManager();
 
-		StatusLineMenuContribution fieldSeparatorMenu = new StatusLineMenuContribution("separator", "Delimiter: COMMA");
-		statusLineManager.add(fieldSeparatorMenu);
-		fieldSeparatorMenu.getMenuManager().add(new Action("COMMA") {
-			@Override
-			public void run() {
-				CSVFormat newFormat = csv.getFormat().withDelimiter(',');
-				csv.setFormat(newFormat);
-				fieldSeparatorMenu.setText("Delimiter: COMMA");
-			}
-		});
-		fieldSeparatorMenu.getMenuManager().add(new Action("TAB") {
-			@Override
-			public void run() {
-				CSVFormat newFormat = csv.getFormat().withDelimiter('\t');
-				csv.setFormat(newFormat);
-				fieldSeparatorMenu.setText("Delimiter: TAB");
-			}
-		});
-		fieldSeparatorMenu.getMenuManager().add(new Action("PIPE") {
-			@Override
-			public void run() {
-				CSVFormat newFormat = csv.getFormat().withDelimiter('|');
-				csv.setFormat(newFormat);
-				fieldSeparatorMenu.setText("Delimiter: PIPE");
-			}
-		});
+		createDelimiterMenu(statusLineManager);
 		
 		statusLineManager.add(new StatusLineContributionItem("quote", 10) {{
 			setText("Escape: \"");
@@ -264,8 +246,45 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		return statusLineManager;
 	}
 
+	private void createDelimiterMenu(StatusLineManager statusLineManager) {
+		StatusLineMenuContribution fieldSeparatorMenu = new StatusLineMenuContribution("separator", "Delimiter: COMMA");
+		statusLineManager.add(fieldSeparatorMenu);
+		fieldSeparatorMenu.getMenuManager().add(new Action("COMMA") {
+			@Override
+			public void run() {
+				CSVFormat newFormat = csv.getFormat().withDelimiter(',');
+				fieldSeparatorMenu.setText("Delimiter: COMMA");
+				updateFormat(newFormat);
+			}
+		});
+		fieldSeparatorMenu.getMenuManager().add(new Action("TAB") {
+			@Override
+			public void run() {
+				CSVFormat newFormat = csv.getFormat().withDelimiter('\t');
+				fieldSeparatorMenu.setText("Delimiter: TAB");
+				updateFormat(newFormat);
+			}
+		});
+		fieldSeparatorMenu.getMenuManager().add(new Action("PIPE") {
+			@Override
+			public void run() {
+				CSVFormat newFormat = csv.getFormat().withDelimiter('|');
+				fieldSeparatorMenu.setText("Delimiter: PIPE");
+				updateFormat(newFormat);
+			}
+		});
+	}
+
 	public void refreshTable() {
 		viewer.setItemCount(csv.getRowCount());
+	}
+
+	private void updateFormat(CSVFormat newFormat) {
+		csv.setFormat(newFormat);
+		for (int i = viewer.getTable().getColumnCount() - 1; i > 0; i--) {
+			viewer.getTable().getColumn(i).dispose();
+		}
+		viewer.refresh(true);
 	}
 
 }
