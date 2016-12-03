@@ -162,7 +162,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		layout.marginWidth = 0;
 		composite.setLayout(layout);
 
-		table = new CSVTable(composite, SWT.VIRTUAL);
+		table = new CSVTable(composite, SWT.VIRTUAL | SWT.FULL_SELECTION);
 		table.setLayoutData(new GridData(GridData.FILL_BOTH));
 		table.setHeaderVisible(true);
 		table.setLinesVisible(true);

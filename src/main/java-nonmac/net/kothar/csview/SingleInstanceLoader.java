@@ -17,6 +17,10 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Menu;
 import org.freedesktop.BaseDirectory;
 
+import net.kothar.csview.ui.CSView;
+import net.kothar.csview.ui.Commands;
+import net.kothar.csview.ui.Menus;
+
 public class SingleInstanceLoader implements ApplicationActions {
 
 	private static String runtimeDir = BaseDirectory.get(BaseDirectory.XDG_RUNTIME_DIR);
