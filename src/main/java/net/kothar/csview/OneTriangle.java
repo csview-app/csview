@@ -1,23 +1,27 @@
 package net.kothar.csview;
 
-import static com.jogamp.opengl.GL.GL_BLEND;
-import static com.jogamp.opengl.GL.GL_COLOR_BUFFER_BIT;
-import static com.jogamp.opengl.GL.GL_ONE_MINUS_SRC_ALPHA;
-import static com.jogamp.opengl.GL.GL_SRC_ALPHA;
-import static com.jogamp.opengl.GL2.GL_QUAD_STRIP;
-import static com.jogamp.opengl.fixedfunc.GLMatrixFunc.GL_MODELVIEW;
-import static com.jogamp.opengl.fixedfunc.GLMatrixFunc.GL_PROJECTION;
+import static com.jogamp.opengl.GL.*;
+import static com.jogamp.opengl.GL2.*;
+import static com.jogamp.opengl.fixedfunc.GLMatrixFunc.*;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.IntBuffer;
+
+import org.eclipse.swt.graphics.GC;
+import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.widgets.Display;
 
 import com.jogamp.opengl.GL2;
 import com.jogamp.opengl.glu.GLU;
+import com.jogamp.opengl.util.GLPixelBuffer.GLPixelAttributes;
 import com.jogamp.opengl.util.texture.Texture;
+import com.jogamp.opengl.util.texture.TextureData;
 import com.jogamp.opengl.util.texture.TextureIO;
 
 public class OneTriangle {
 	private static Texture icon;
+	private static Texture text;
 
 	protected static void setup(GL2 gl2, int width, int height) {
 		gl2.glMatrixMode(GL_PROJECTION);
@@ -36,6 +40,20 @@ public class OneTriangle {
 		try {
 			InputStream stream = OneTriangle.class.getResourceAsStream("/icon.png");
 			icon = TextureIO.newTexture(stream, false, ".png");
+			
+			Image image = new Image(Display.getDefault(), 100, 32);
+			GC gc = new GC(image);
+			gc.drawString("Hello", 32, 0, true);
+			gc.dispose();
+			
+			int[] pixels = new int[32 * 100];
+			image.getImageData().getPixels(0, 0, 100, pixels, 0);
+			IntBuffer buffer = IntBuffer.wrap(pixels);
+			
+			TextureData textData = new TextureData(gl2.getGLProfile(), GL_RGBA, 100, 32, 0, 
+					new GLPixelAttributes(GL_RGBA, GL_UNSIGNED_BYTE),
+					false, false, false, buffer, null);
+			text = new Texture(gl2, textData);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
