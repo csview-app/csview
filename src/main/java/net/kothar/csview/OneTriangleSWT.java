@@ -10,6 +10,7 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
+import org.eclipse.swt.widgets.ScrollBar;
 import org.eclipse.swt.widgets.Shell;
 
 import com.jogamp.opengl.GLContext;
@@ -39,7 +40,7 @@ public class OneTriangleSWT {
         gldata.doubleBuffer = true;
         // need SWT.NO_BACKGROUND to prevent SWT from clearing the window
         // at the wrong times (we use glClear for this instead)
-        final GLCanvas glcanvas = new GLCanvas( composite, SWT.NO_BACKGROUND, gldata );
+        final GLCanvas glcanvas = new GLCanvas( composite, SWT.NO_BACKGROUND | SWT.H_SCROLL | SWT.V_SCROLL, gldata );
         glcanvas.setCurrent();
         final GLContext glcontext = GLDrawableFactory.getFactory( glprofile ).createExternalGLContext();
 
@@ -66,6 +67,10 @@ public class OneTriangleSWT {
             }
         });
 
+        ScrollBar horizontalBar = glcanvas.getHorizontalBar();
+		horizontalBar.setMaximum(100);
+        horizontalBar.setSelection(50);
+        
         shell.open();
 
         while( !shell.isDisposed() ) {
