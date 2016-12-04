@@ -1,7 +1,5 @@
 package net.kothar.csview.grid;
 
-import java.util.ArrayList;
-
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ControlAdapter;
 import org.eclipse.swt.events.ControlEvent;
@@ -18,6 +16,8 @@ import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.ScrollBar;
 
+import net.kothar.csview.adt.SizeTree;
+
 public class Grid extends Composite {
 
 	public static final int DEFAULT = -1;
@@ -25,8 +25,8 @@ public class Grid extends Composite {
 	private static final int SCROLL_FACTOR = 4;
 	
 	private Canvas canvas;
-	private ArrayList<Row> rows = new ArrayList<>();
-	private ArrayList<Col> cols = new ArrayList<>();
+	private SizeTree rows = new SizeTree(22);
+	private SizeTree cols = new SizeTree(100);
 
 	Grid(Composite parent, int style) {
 		super(parent, style);
@@ -101,15 +101,12 @@ public class Grid extends Composite {
 		gc.fillRectangle(0, columnHeaderHeight, rowHeaderWidth, canvas.getBounds().height - columnHeaderHeight);
 		
 		int yOffset = getYOffset();
-		int yPos = getColumnHeaderHeight();
-		int i = 0;
 
 		Color textColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_FOREGROUND);
 		Color borderColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW);
-		for (Row r: rows) {
-			int y = yPos - yOffset;
-			yPos += r.height;
-			i++;
+		for (int i = rows.getItemAt(yOffset); i < rows.getCount(); i++) {
+			int height = rows.getSize(i);
+			int y = columnHeaderHeight + rows.getPosition(i) - yOffset;
 
 			if (y > bounds.height)
 				break;
@@ -122,7 +119,7 @@ public class Grid extends Composite {
 			gc.drawString(Integer.toString(i), rowHeaderWidth - 5 - extent.x, y + 5);
 			
 			gc.setForeground(borderColor);
-			gc.drawRectangle(0, y, rowHeaderWidth, r.height);
+			gc.drawRectangle(0, y, rowHeaderWidth, height);
 		}
 	}
 
@@ -138,15 +135,12 @@ public class Grid extends Composite {
 		gc.fillRectangle(rowHeaderWidth, 0, canvas.getBounds().width - rowHeaderWidth, columnHeaderHeight);
 		
 		int xOffset = getXOffset();
-		int xPos = getRowHeaderWidth();
-		int i = 0;
 
 		Color textColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_FOREGROUND);
 		Color borderColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW);
-		for (Col c: cols) {
-			int x = xPos - xOffset;
-			xPos += c.width;
-			i++;
+		for (int i = cols.getItemAt(xOffset); i < cols.getCount(); i++) {
+			int width = cols.getSize(i);
+			int x = rowHeaderWidth + cols.getPosition(i) - xOffset;
 
 			if (x > bounds.width)
 				break;
@@ -159,7 +153,7 @@ public class Grid extends Composite {
 			gc.drawString(text, x + (rowHeaderWidth - extent.x) / 2, 5);
 			
 			gc.setForeground(borderColor);
-			gc.drawRectangle(x, 0, c.width, columnHeaderHeight);
+			gc.drawRectangle(x, 0, width, columnHeaderHeight);
 		}
 	}
 
@@ -168,14 +162,15 @@ public class Grid extends Composite {
 	}
 
 	private void paintGridlines(GC gc, Rectangle bounds) {
+		int columnHeaderHeight = getColumnHeaderHeight();
+		int rowHeaderWidth = getRowHeaderWidth();
+		
 		gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_LIGHT_SHADOW));
 		gc.setLineDash(new int[] {2,2});
 		
 		int yOffset = getYOffset();
-		int yPos = getColumnHeaderHeight();
-		for (Row r: rows) {
-			int y = yPos + r.height - yOffset;
-			yPos += r.height;
+		for (int i = rows.getItemAt(yOffset); i < rows.getCount(); i++) {
+			int y = columnHeaderHeight + rows.getPosition(i) - yOffset;
 			
 			if (y > bounds.height)
 				break;
@@ -186,17 +181,15 @@ public class Grid extends Composite {
 		}
 		
 		int xOffset = getXOffset();
-		int xPos = getRowHeaderWidth();
-		for (Col c: cols) {
-			int x = xPos + c.width - xOffset;
-			xPos += c.width;
+		for (int i = cols.getItemAt(xOffset); i < cols.getCount(); i++) {
+			int x = rowHeaderWidth + cols.getPosition(i) - xOffset;
 			
 			if (x > bounds.width)
 				break;
 			if (x < bounds.x)
 				continue;
 			
-			gc.drawLine(x, getColumnHeaderHeight(), x, bounds.y + bounds.height);
+			gc.drawLine(x, columnHeaderHeight, x, bounds.y + bounds.height);
 		}
 		
 		gc.setLineStyle(SWT.LINE_SOLID);
@@ -210,9 +203,10 @@ public class Grid extends Composite {
 	public void addRow(int height) {
 		if (height == DEFAULT) {
 			// TODO derive from font metrics
-			height = 22;
+			rows.add();
+		} else {
+			rows.add(height);
 		}
-		rows.add(new Row(height));
 		updateVerticalScroll();
 	}
 
@@ -234,19 +228,16 @@ public class Grid extends Composite {
 	}
 
 	private int getTotalHeight() {
-		int height = 1;
-		for (Row r: rows) {
-			height += r.height;
-		}
-		return height;
+		return rows.getTotal();
 	}
 	
 	public void addCol(int width) {
 		if (width == DEFAULT) {
 			// TODO derive from font metrics
-			width = 100;
+			cols.add();
+		} else {
+			cols.add(width);
 		}
-		cols.add(new Col(width));
 		updateHorizontalScroll();
 	}
 
@@ -268,11 +259,7 @@ public class Grid extends Composite {
 	}
 
 	private int getTotalWidth() {
-		int width = 0;
-		for (Col c: cols) {
-			width += c.width;
-		}
-		return width;
+		return cols.getTotal();
 	}
 	
 	private void updateScroll() {

@@ -81,7 +81,7 @@ public class SizeTree {
 		}
 
 		public void add() {
-			increaseChildren(children + 1);
+			setChildren(children + 1);
 		}
 
 		private void decreaseChildren(int count) {
@@ -102,11 +102,11 @@ public class SizeTree {
 				} else {
 					// Split into child nodes
 					left = new Node();
-					left.children = children;
+					left.children = 1;
 					left.size = size;
 					
 					right = new Node();
-					right.children = count - children;
+					right.children = count - 1;
 					right.size = right.children * defaultSize;
 					
 					children = count;
@@ -119,7 +119,7 @@ public class SizeTree {
 				size = children * defaultSize;
 			} else {
 				// Add to RHS
-				right.increaseChildren(count - left.children);
+				right.setChildren(count - left.children);
 			}
 		}
 		
@@ -131,6 +131,7 @@ public class SizeTree {
 			// TODO rebalance
 			
 			size = left.size + right.size;
+			children = left.children + right.children;
 			height = Math.max(left.height, right.height) + 1;
 		}
 
@@ -230,6 +231,12 @@ public class SizeTree {
 			sizes.setSize(5, 64);
 			assert(sizes.getTotal() == 352);
 			assert(sizes.getSize(5) == 64);
+			
+			sizes.add();
+			assert(sizes.getTotal() == 384);
+			
+			sizes.add(10);
+			assert(sizes.getTotal() == 394);
 			
 			print(sizes);
 		}
