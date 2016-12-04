@@ -22,23 +22,20 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.StatusLineContributionItem;
 import org.eclipse.jface.action.StatusLineManager;
-import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
-import org.eclipse.swt.widgets.CSVTable;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
-import org.eclipse.swt.widgets.Table;
-import org.eclipse.swt.widgets.TableColumn;
 
 import net.kothar.csview.DocumentActions;
 import net.kothar.csview.ProgressListener;
 import net.kothar.csview.csv.CSV;
+import net.kothar.csview.grid.Grid;
 
 
 public class CSView extends ApplicationWindow implements DocumentActions {
@@ -57,8 +54,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 	private boolean useAppIcon;
 
-	private Table table;
-	private TableViewer viewer;
+	private Grid grid;
 
 	public static void main(String[] args) {
 		Display display = new Display();
@@ -162,19 +158,13 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		layout.marginWidth = 0;
 		composite.setLayout(layout);
 
-		table = new CSVTable(composite, SWT.VIRTUAL | SWT.FULL_SELECTION);
-		table.setLayoutData(new GridData(GridData.FILL_BOTH));
-		table.setHeaderVisible(true);
-		table.setLinesVisible(true);
+		grid = new Grid(composite, SWT.NORMAL);
+		grid.setLayoutData(new GridData(GridData.FILL_BOTH));
+		grid.setHeaderVisible(true);
+		grid.setLinesVisible(true);
 
-		viewer = new TableViewer(table);
-		viewer.setContentProvider(new CSVContentProvider());
-		viewer.setLabelProvider(new CSVLabelProvider());
-		viewer.setInput(csv);
-
-		TableColumn column = new TableColumn(table, SWT.RIGHT, 0);
-		column.setText("");
-		column.setWidth(80);
+		grid.setContentProvider(new CSVContentProvider(csv));
+		grid.setLabelProvider(new CSVLabelProvider());
 
 		if (file != null) {
 			IProgressMonitor progressMonitor = getStatusLineManager().getProgressMonitor();
@@ -207,15 +197,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 				@Override
 				public void columnsChanged(int columns) {
-					String[] headerRow = csv.getRow(0);
-					for (int i = table.getColumnCount()-1; i < columns; i++) {
-						TableColumn column = new TableColumn(table, SWT.LEFT);
-						if (i < headerRow.length)
-							column.setText(headerRow[i]);
-						else
-							column.setText("[" + (i+1) + "]");
-						column.setWidth(200);
-					}
+					grid.setCols(columns);
 				}
 
 			});
@@ -276,15 +258,12 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	}
 
 	public void refreshTable() {
-		viewer.setItemCount(csv.getRowCount());
+		grid.setRows(csv.getRowCount());
 	}
 
 	private void updateFormat(CSVFormat newFormat) {
+		grid.setCols(1);
 		csv.setFormat(newFormat);
-		for (int i = viewer.getTable().getColumnCount() - 1; i > 0; i--) {
-			viewer.getTable().getColumn(i).dispose();
-		}
-		viewer.refresh(true);
 	}
 
 }

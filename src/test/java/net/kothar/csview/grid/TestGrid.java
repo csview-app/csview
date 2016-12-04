@@ -11,14 +11,14 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 
-public class ShowGrid extends ApplicationWindow {
+public class TestGrid extends ApplicationWindow {
 	
-	public ShowGrid(Shell parentShell) {
+	public TestGrid(Shell parentShell) {
 		super(parentShell);
 	}
 
 	public static void main(String[] args) {
-		ShowGrid grid = new ShowGrid(null);
+		TestGrid grid = new TestGrid(null);
 		grid.open();
 		
 		Shell shell = grid.getShell();
@@ -45,10 +45,8 @@ public class ShowGrid extends ApplicationWindow {
 		contents.setLayout(new FillLayout());
 		Grid grid = new Grid(contents, SWT.NORMAL);
 		
-		for (int i = 0; i < 10_000; i++) {
-			grid.addRow(Grid.DEFAULT);
-			grid.addCol(Grid.DEFAULT);
-		}
+		grid.setCols(1_000_000);
+		grid.setRows(1_000_000);
 		
 		grid.setContentProvider(i -> i);
 		grid.setLabelProvider(new ITableLabelProvider() {

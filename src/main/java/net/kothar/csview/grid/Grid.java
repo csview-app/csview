@@ -6,7 +6,6 @@ import org.eclipse.jface.viewers.ITableLabelProvider;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ControlAdapter;
 import org.eclipse.swt.events.ControlEvent;
-import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.PaintEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
@@ -36,7 +35,7 @@ public class Grid extends Composite {
 
 	private static final int TILE_SIZE = 256;
 
-	private Canvas canvas;
+	Canvas canvas;
 
 	private int horizontalCellPadding = 5;
 	private int verticalCellPadding = 2;
@@ -50,10 +49,6 @@ public class Grid extends Composite {
 	private Integer columnHeaderSize;
 	private Integer rowHeaderSize;
 
-	private int lastXOffset = -1;
-	private int lastYOffset = -1;
-	private Rectangle lastBounds = null;
-
 	private Cache<Point, String> labelCache = 
 			CacheBuilder.newBuilder()
 			.maximumSize(10_000)
@@ -65,17 +60,20 @@ public class Grid extends Composite {
 			.removalListener((RemovalNotification<Point, Image> e) -> e.getValue().dispose())
 			.build();
 
-	private Image buffer;
+	private MouseHandler mouseHandler;
 
-	Grid(Composite parent, int style) {
+	public Grid(Composite parent, int style) {
 		super(parent, style);
 
+		cols.setCount(1);
+		rows.setCount(1);
+		
 		setLayout(new FillLayout());
 		createContents(this);
 	}
 
 	private void createContents(Composite parent) {
-		canvas = new Canvas(parent, SWT.H_SCROLL | SWT.V_SCROLL);
+		canvas = new Canvas(parent, SWT.H_SCROLL | SWT.V_SCROLL | SWT.DOUBLE_BUFFERED);
 
 		// Hook painting
 		canvas.addPaintListener(this::paintGrid);
@@ -98,8 +96,8 @@ public class Grid extends Composite {
 		canvas.getVerticalBar().addSelectionListener(redraw);
 		canvas.getHorizontalBar().addSelectionListener(redraw);
 
-		// Hook mouseover
-		canvas.addMouseMoveListener(this::mouseMove);
+		// Hook mouse handling
+		mouseHandler = new MouseHandler(this);
 	}
 
 	private void paintGrid(PaintEvent e) {
@@ -179,7 +177,8 @@ public class Grid extends Composite {
 					if (text.isEmpty())
 						continue;
 
-					gc.drawString(text, x + horizontalCellPadding, y + verticalCellPadding, true);
+					gc.setClipping(x, y, width, height);
+					gc.drawString(text, x + horizontalCellPadding, y + verticalCellPadding, false);
 
 				} catch (ExecutionException e) {
 					e.printStackTrace();
@@ -187,6 +186,8 @@ public class Grid extends Composite {
 				}
 			}
 		}
+		
+		gc.setClipping((Rectangle) null);
 	}
 
 	private Image renderTile(Device device, int xOffset, int yOffset) {
@@ -224,8 +225,17 @@ public class Grid extends Composite {
 	private void paintCorner(GC gc) {
 		gc.setBackground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_BACKGROUND));
 		gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW));
-		gc.fillRectangle(0, 0, getRowHeaderSize(), getColumnHeaderSize());
-		gc.drawRectangle(0, 0, getRowHeaderSize(), getColumnHeaderSize());
+		
+		int rowHeaderSize = getRowHeaderSize();
+		int columnHeaderSize = getColumnHeaderSize();
+		
+		gc.fillRectangle(0, 0, rowHeaderSize, columnHeaderSize);
+		gc.drawLine(0, columnHeaderSize, rowHeaderSize, columnHeaderSize);
+		gc.drawLine(rowHeaderSize, 0, rowHeaderSize, columnHeaderSize);
+		
+		gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_HIGHLIGHT_SHADOW));
+		gc.drawLine(0, columnHeaderSize+1, rowHeaderSize, columnHeaderSize+1);
+		gc.drawLine(rowHeaderSize+1, 0, rowHeaderSize+1, columnHeaderSize);
 	}
 
 	private void paintRowHeaders(GC gc) {
@@ -243,6 +253,8 @@ public class Grid extends Composite {
 
 		Color textColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_FOREGROUND);
 		Color borderColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW);
+		Color borderColor2 = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_HIGHLIGHT_SHADOW);
+
 		for (int i = rows.getItemAt(yOffset); i < rows.getCount(); i++) {
 			int height = rows.getSize(i);
 			int y = columnHeaderSize + rows.getPosition(i) - yOffset;
@@ -255,12 +267,21 @@ public class Grid extends Composite {
 			gc.setForeground(textColor);
 			String text = Integer.toString(i);
 			Point extent = gc.stringExtent(text);
-			// TODO clipping
+			
+			gc.setClipping(0, y, rowHeaderSize, height);
 			gc.drawString(Integer.toString(i), rowHeaderSize - horizontalCellPadding - extent.x, y + verticalCellPadding);
+			gc.setClipping((Rectangle) null);
 
 			gc.setForeground(borderColor);
-			gc.drawRectangle(0, y, rowHeaderSize, height);
+			gc.drawLine(0, y, rowHeaderSize, y);
+			gc.setForeground(borderColor2);
+			gc.drawLine(0, y+1, rowHeaderSize, y+1);
 		}
+
+		gc.setForeground(borderColor);
+		gc.drawLine(rowHeaderSize, columnHeaderSize, rowHeaderSize, bounds.height);
+		gc.setForeground(borderColor2);
+		gc.drawLine(0, 0, 0, bounds.height);
 	}
 
 	private int getYOffset() {
@@ -282,6 +303,7 @@ public class Grid extends Composite {
 
 		Color textColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_FOREGROUND);
 		Color borderColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW);
+		Color borderColor2 = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_HIGHLIGHT_SHADOW);
 		for (int i = cols.getItemAt(xOffset); i < cols.getCount(); i++) {
 			int width = cols.getSize(i);
 			int x = rowHeaderSize + cols.getPosition(i) - xOffset;
@@ -294,12 +316,21 @@ public class Grid extends Composite {
 			gc.setForeground(textColor);
 			String text = Integer.toString(i);
 			Point extent = gc.stringExtent(text);
-			// TODO clipping
+			
+			gc.setClipping(x, 0, width, rowHeaderSize);
 			gc.drawString(text, x + (rowHeaderSize - extent.x) / 2, verticalCellPadding);
-
+			gc.setClipping((Rectangle) null);
+			
 			gc.setForeground(borderColor);
-			gc.drawRectangle(x, 0, width, columnHeaderSize);
+			gc.drawLine(x, 0, x, columnHeaderSize);
+			gc.setForeground(borderColor2);
+			gc.drawLine(x+1, 0, x+1, columnHeaderSize);
 		}
+
+		gc.setForeground(borderColor);
+		gc.drawLine(rowHeaderSize, columnHeaderSize, bounds.width, columnHeaderSize);
+		gc.setForeground(borderColor2);
+		gc.drawLine(0, 0, bounds.width, 0);
 	}
 
 	private int getXOffset() {
@@ -381,6 +412,8 @@ public class Grid extends Composite {
 
 	private void refresh() {
 		updateScroll();
+		labelCache.invalidateAll();
+		tileCache.invalidateAll();
 		canvas.redraw();
 	}
 
@@ -450,41 +483,6 @@ public class Grid extends Composite {
 		updateVerticalScroll();
 	}
 
-	private void mouseMove(MouseEvent e) {
-		boolean rowHeaders = e.x <= getRowHeaderSize();
-		boolean colHeaders = e.y <= getColumnHeaderSize();
-
-		canvas.setCursor(null);
-
-		if (rowHeaders && colHeaders) {
-			cornerMouseMove(e);
-		} else if (rowHeaders) {
-			rowHeadersMouseMove(e);
-		} else if (colHeaders) {
-			colHeadersMouseMove(e);
-		} else {
-			cellsMouseMove(e);
-		}
-	}
-
-	private void cellsMouseMove(MouseEvent e) {
-		// TODO Auto-generated method stub
-
-	}
-
-	private void colHeadersMouseMove(MouseEvent e) {
-		canvas.setCursor(e.display.getSystemCursor(SWT.CURSOR_SIZEWE));
-	}
-
-	private void rowHeadersMouseMove(MouseEvent e) {
-		canvas.setCursor(e.display.getSystemCursor(SWT.CURSOR_SIZENS));
-	}
-
-	private void cornerMouseMove(MouseEvent e) {
-		// TODO Auto-generated method stub
-
-	}
-
 	public IGridContentProvider getContentProvider() {
 		return contentProvider;
 	}
@@ -499,6 +497,26 @@ public class Grid extends Composite {
 
 	public void setLabelProvider(ITableLabelProvider labelProvider) {
 		this.labelProvider = labelProvider;
+	}
+
+	public void setCols(int count) {
+		cols.setCount(count);
+		refresh();
+	}
+
+	public void setRows(int count) {
+		rows.setCount(count);
+		refresh();
+	}
+
+	public void setHeaderVisible(boolean headerVisible) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	public void setLinesVisible(boolean linesVisible) {
+		// TODO Auto-generated method stub
+		
 	}
 
 }
