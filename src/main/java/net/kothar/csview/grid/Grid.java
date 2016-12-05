@@ -30,9 +30,7 @@ import net.kothar.csview.adt.SizeTree;
 public class Grid extends Composite {
 
 	public static final int DEFAULT = -1;
-
 	private static final int SCROLL_FACTOR = 4;
-
 	private static final int TILE_SIZE = 256;
 
 	Canvas canvas;
@@ -40,8 +38,8 @@ public class Grid extends Composite {
 	private int horizontalCellPadding = 5;
 	private int verticalCellPadding = 2;
 
-	private SizeTree rows = new SizeTree(getColumnHeaderSize());
-	private SizeTree cols = new SizeTree(getRowHeaderSize());
+	SizeTree rows = new SizeTree(getColumnHeaderSize());
+	SizeTree cols = new SizeTree(getRowHeaderSize());
 
 	private IGridContentProvider contentProvider;
 	private ITableLabelProvider labelProvider;
@@ -49,18 +47,19 @@ public class Grid extends Composite {
 	private Integer columnHeaderSize;
 	private Integer rowHeaderSize;
 
-	private Cache<Point, String> labelCache = 
+	Cache<Point, String> labelCache = 
 			CacheBuilder.newBuilder()
 			.maximumSize(10_000)
 			.build();
 
-	private Cache<Point, Image> tileCache = 
+	Cache<Point, Image> tileCache = 
 			CacheBuilder.newBuilder()
 			.maximumSize(1000)
 			.removalListener((RemovalNotification<Point, Image> e) -> e.getValue().dispose())
 			.build();
 
 	private MouseHandler mouseHandler;
+	private Image nullTile;
 
 	public Grid(Composite parent, int style) {
 		super(parent, style);
@@ -116,24 +115,39 @@ public class Grid extends Composite {
 			System.out.println("Rendered in " + elapsed + "ms");
 	}
 
-
-
 	private void paintCells(GC gc) {
 		int xOffset = getXOffset();
 		int yOffset = getYOffset();
 
-		int xAdjust = xOffset % TILE_SIZE;
+		int firstCol = cols.getItemAt(xOffset);
+		int firstPos = cols.getPosition(firstCol);
+		int xAdjust = xOffset - firstPos;
 		int yAdjust = yOffset % TILE_SIZE;
 
-		for (int y = 0; y < canvas.getBounds().height - getColumnHeaderSize() + TILE_SIZE; y += TILE_SIZE) {
-			for (int x = 0; x < canvas.getBounds().width - getRowHeaderSize() + TILE_SIZE; x += TILE_SIZE) {
+		int columnHeaderSize = getColumnHeaderSize();
+		int rowHeaderSize = getRowHeaderSize();
+		
+		int height = canvas.getBounds().height;
+		int width = canvas.getBounds().width;
+		int colCount = cols.getCount();
+		Device device = gc.getDevice();
+		getNullTile(device);
+		
+		for (int y = 0; y + columnHeaderSize - TILE_SIZE < height; y += TILE_SIZE) {
+			
+			int col = firstCol;
+			for (int x = 0; col < colCount && x + rowHeaderSize - xAdjust < width; ) {
 				try {
-					Point position = new Point(x + xOffset - xAdjust, y + yOffset - yAdjust);
-					Image tile = tileCache.get(position, () -> renderTile(gc.getDevice(), position.x, position.y));
+					Point position = new Point(col, y + yOffset - yAdjust);
+					int fx = x + xOffset - xAdjust; int fcol = col;
+					Image tile = tileCache.get(position, () -> renderTile(device, fx, position.y, fcol));
 
-					gc.drawImage(tile, x + getRowHeaderSize() - xAdjust, y + getColumnHeaderSize() - yAdjust);
+					if (tile != nullTile) {
+						gc.drawImage(tile, x + rowHeaderSize - xAdjust, y + columnHeaderSize - yAdjust);
+						x += tile.getBounds().width;
+					}
+					col++;
 				} catch (ExecutionException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
@@ -190,13 +204,16 @@ public class Grid extends Composite {
 		gc.setClipping((Rectangle) null);
 	}
 
-	private Image renderTile(Device device, int xOffset, int yOffset) {
-		long start = System.currentTimeMillis();
-
+	private Image renderTile(Device device, int xOffset, int yOffset, int column) {
 		try {
-			Image tile = new Image(device, TILE_SIZE, TILE_SIZE);
+			int width = cols.getSize(column);
+			if (width == 0) {
+				return nullTile;
+			}
+			
+			Image tile = new Image(device, width, TILE_SIZE);
 			GC gc = new GC(tile);
-			Rectangle viewport = new Rectangle(xOffset, yOffset, TILE_SIZE, TILE_SIZE);
+			Rectangle viewport = new Rectangle(xOffset, yOffset, width, TILE_SIZE);
 			renderBackground(gc, viewport);
 
 			if (viewport.x < cols.getTotal() && viewport.y < rows.getTotal()) {
@@ -207,14 +224,18 @@ public class Grid extends Composite {
 
 			gc.dispose();
 
-			long elapsed = System.currentTimeMillis() - start;
-			if (elapsed > 10)
-				System.out.println("Rendered tile (" + xOffset + "," + yOffset + ") in " + elapsed + "ms");
 			return tile;
 		} catch (Exception e) {
 			e.printStackTrace();
 			return null;
 		}
+	}
+
+	private Image getNullTile(Device device) {
+		if (nullTile == null) {
+			nullTile = new Image(device, 1, 1);
+		}
+		return nullTile;
 	}
 
 	private void renderSelection(GC gc, Rectangle viewport) {
@@ -284,7 +305,7 @@ public class Grid extends Composite {
 		gc.drawLine(0, 0, 0, bounds.height);
 	}
 
-	private int getYOffset() {
+	int getYOffset() {
 		return canvas.getVerticalBar().getSelection() * SCROLL_FACTOR;
 	}
 
@@ -318,7 +339,7 @@ public class Grid extends Composite {
 			Point extent = gc.stringExtent(text);
 			
 			gc.setClipping(x, 0, width, rowHeaderSize);
-			gc.drawString(text, x + (rowHeaderSize - extent.x) / 2, verticalCellPadding);
+			gc.drawString(text, x + (width - extent.x) / 2, verticalCellPadding);
 			gc.setClipping((Rectangle) null);
 			
 			gc.setForeground(borderColor);
@@ -333,7 +354,7 @@ public class Grid extends Composite {
 		gc.drawLine(0, 0, bounds.width, 0);
 	}
 
-	private int getXOffset() {
+	int getXOffset() {
 		return canvas.getHorizontalBar().getSelection() * SCROLL_FACTOR;
 	}
 
@@ -407,14 +428,13 @@ public class Grid extends Composite {
 
 	public void setColumnHeaderSize(int size) {
 		this.columnHeaderSize = size;
-		refresh();
+		canvas.redraw();
 	}
 
 	private void refresh() {
 		updateScroll();
 		labelCache.invalidateAll();
-		tileCache.invalidateAll();
-		canvas.redraw();
+		redrawTiles();
 	}
 
 	private int getTotalHeight() {
@@ -454,6 +474,7 @@ public class Grid extends Composite {
 
 	public void setRowHeaderSize(int size) {
 		this.rowHeaderSize = size;
+		canvas.redraw();
 	}
 
 	public int getHorizontalCellPadding() {
@@ -462,7 +483,7 @@ public class Grid extends Composite {
 
 	public void setHorizontalCellPadding(int padding) {
 		this.horizontalCellPadding = padding;
-		refresh();
+		redrawTiles();
 	}
 
 	public int getVerticalCellPadding() {
@@ -471,7 +492,12 @@ public class Grid extends Composite {
 
 	public void setVerticalCellPadding(int padding) {
 		this.verticalCellPadding = padding;
-		refresh();
+		redrawTiles();
+	}
+
+	private void redrawTiles() {
+		tileCache.invalidateAll();
+		canvas.redraw();
 	}
 
 	private int getTotalWidth() {
@@ -517,6 +543,14 @@ public class Grid extends Composite {
 	public void setLinesVisible(boolean linesVisible) {
 		// TODO Auto-generated method stub
 		
+	}
+
+	public void setColumnSize(int column, int newSize) {
+		cols.setSize(column, newSize);
+		updateHorizontalScroll();
+		
+		tileCache.asMap().keySet().removeIf(p -> p.x == column);
+		canvas.redraw();
 	}
 
 }

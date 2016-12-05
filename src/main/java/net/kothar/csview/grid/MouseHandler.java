@@ -1,6 +1,5 @@
 package net.kothar.csview.grid;
 
-import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.MouseListener;
 import org.eclipse.swt.events.MouseMoveListener;
@@ -8,6 +7,7 @@ import org.eclipse.swt.widgets.Canvas;
 
 public class MouseHandler implements MouseListener, MouseMoveListener {
 
+	private static final int SEPARATOR_SENSITIVITY = 5;
 	private Grid grid;
 	private Canvas canvas;
 	
@@ -27,7 +27,7 @@ public class MouseHandler implements MouseListener, MouseMoveListener {
 		boolean rowHeaders = e.x <= grid.getRowHeaderSize();
 		boolean colHeaders = e.y <= grid.getColumnHeaderSize();
 
-		canvas.setCursor(null);
+		nextAction = null;
 
 		if (rowHeaders && colHeaders) {
 			cornerMouseMove(e);
@@ -41,24 +41,54 @@ public class MouseHandler implements MouseListener, MouseMoveListener {
 		
 		if (activeAction != null) {
 			activeAction.mouseMove(e);
+		} else if (nextAction != null) {
+			canvas.setCursor(nextAction.getCursor(e));
+		} else {
+			canvas.setCursor(null);
 		}
 	}
 
 	private void cellsMouseMove(MouseEvent e) {
-		// TODO Auto-generated method stub
-
+		int mouseX = e.x - grid.getRowHeaderSize() + grid.getXOffset();
+		if (mouseX < 0 || mouseX >= grid.cols.getTotal()) {
+			return;
+		}
+		int colIndex = grid.cols.getItemAt(mouseX);
+		
+		int mouseY = e.y - grid.getColumnHeaderSize() + grid.getYOffset();
+		if (mouseY < 0 || mouseY >= grid.rows.getTotal()) {
+			return;
+		}
+		int rowIndex = grid.rows.getItemAt(mouseY);
+		
+		nextAction = new GridSelectAction(grid, colIndex, rowIndex);
 	}
 
 	private void colHeadersMouseMove(MouseEvent e) {
-		canvas.setCursor(e.display.getSystemCursor(SWT.CURSOR_SIZEWE));
+		
+		int mouseX = e.x - grid.getRowHeaderSize() + grid.getXOffset();
+		if (mouseX < 0 || mouseX >= grid.cols.getTotal()) {
+			return;
+		}
+		int colIndex = grid.cols.getItemAt(mouseX);
+		int colPos = grid.cols.getPosition(colIndex);
+		int colWidth = grid.cols.getSize(colIndex);
+		
+		if (mouseX - colPos < SEPARATOR_SENSITIVITY) {
+			if (colIndex > 0)
+				nextAction = new ColResizeAction(grid, colIndex - 1);
+			else
+				nextAction = new RowHeaderResizeAction(grid);
+		} else if (colPos + colWidth - mouseX < SEPARATOR_SENSITIVITY) {
+			nextAction = new ColResizeAction(grid, colIndex);
+		}
 	}
 
 	private void rowHeadersMouseMove(MouseEvent e) {
-		canvas.setCursor(e.display.getSystemCursor(SWT.CURSOR_SIZENS));
+
 	}
 
 	private void cornerMouseMove(MouseEvent e) {
-		// TODO Auto-generated method stub
 
 	}
 

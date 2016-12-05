@@ -70,7 +70,7 @@ public class TestGrid extends ApplicationWindow {
 			
 			@Override
 			public String getColumnText(Object row, int col) {
-				return row + "," + col;
+				return col + "," + row;
 			}
 			
 			@Override
