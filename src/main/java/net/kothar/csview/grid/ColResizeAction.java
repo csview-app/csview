@@ -35,8 +35,9 @@ public class ColResizeAction implements MouseAction {
 			String label = grid.getLabel(column, row);
 			
 			Point extent = gc.stringExtent(label);
-			if (extent.x > desiredSize) {
-				desiredSize = extent.x + grid.getHorizontalCellPadding() * 2;
+			int labelSize = extent.x + grid.getHorizontalCellPadding() * 2;
+			if (labelSize > desiredSize) {
+				desiredSize = labelSize;
 			}
 			
 			if (++row >= rowCount) {

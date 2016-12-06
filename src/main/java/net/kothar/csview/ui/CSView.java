@@ -185,6 +185,9 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 				@Override
 				public void changed(long progress) {
+					if (getShell().isDisposed())
+						return;
+					
 					getShell().getDisplay().asyncExec(() -> {
 						int worked = ((int) (((progress - lastProgress)*1000)/fileSize));
 						if (worked > 0) {

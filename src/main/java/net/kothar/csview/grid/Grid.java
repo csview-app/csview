@@ -395,6 +395,9 @@ public class Grid extends Composite {
 	}
 
 	public void addRow(int height) {
+		
+		int y = rows.getTotal();
+		
 		if (height == DEFAULT) {
 			// TODO derive from font metrics
 			rows.add();
@@ -402,9 +405,16 @@ public class Grid extends Composite {
 			rows.add(height);
 		}
 		updateVerticalScroll();
+		
+		tileCache.asMap().keySet().removeIf(p -> p.y + TILE_SIZE > y);
+		canvas.redraw();
 	}
 
 	private void updateVerticalScroll() {
+		if (isDisposed()) {
+			return;
+		}
+		
 		int max = getTotalHeight() - canvas.getBounds().height;
 		ScrollBar bar = canvas.getVerticalBar();
 		if (max > 0) {
@@ -448,9 +458,14 @@ public class Grid extends Composite {
 			cols.add(width);
 		}
 		updateHorizontalScroll();
+		canvas.redraw();
 	}
 
 	private void updateHorizontalScroll() {
+		if (isDisposed()) {
+			return;
+		}
+		
 		int max = getTotalWidth() - canvas.getBounds().width;
 		ScrollBar bar = canvas.getHorizontalBar();
 		if (max > 0) {
@@ -530,8 +545,17 @@ public class Grid extends Composite {
 	}
 
 	public void setRows(int count) {
+		int oldCount = rows.getCount();
+		int y = count < oldCount ? rows.getPosition(count) : rows.getTotal();
+		
 		rows.setCount(count);
-		refresh();
+		
+		tileCache.asMap().keySet().removeIf(p -> p.y + TILE_SIZE > y);
+		if (count < oldCount)
+			labelCache.asMap().keySet().removeIf(p -> p.y >= count);
+		updateVerticalScroll();
+		
+		canvas.redraw();
 	}
 
 	public void setHeaderVisible(boolean headerVisible) {
