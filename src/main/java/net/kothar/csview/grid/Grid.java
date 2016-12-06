@@ -43,6 +43,7 @@ public class Grid extends Composite {
 
 	private IGridContentProvider contentProvider;
 	private ITableLabelProvider labelProvider;
+	Selection selection = new Selection();
 
 	private Integer columnHeaderSize;
 	private Integer rowHeaderSize;
@@ -52,7 +53,7 @@ public class Grid extends Composite {
 			.maximumSize(10_000)
 			.build();
 
-	private Cache<Point, Image> tileCache = 
+	Cache<Point, Image> tileCache = 
 			CacheBuilder.newBuilder()
 			.maximumSize(1000)
 			.removalListener((RemovalNotification<Point, Image> e) -> e.getValue().dispose())
@@ -167,6 +168,7 @@ public class Grid extends Composite {
 		int xOffset = viewport.x;
 
 		Color textColor = gc.getDevice().getSystemColor(SWT.COLOR_LIST_FOREGROUND);
+		Color selectedColor = gc.getDevice().getSystemColor(SWT.COLOR_LIST_SELECTION_TEXT);
 		gc.setForeground(textColor);
 
 		for (int row = rows.getItemAt(yOffset); row < rows.getCount(); row++) {
@@ -184,14 +186,19 @@ public class Grid extends Composite {
 
 				if (x > viewport.width)
 					break;
-
+				
 				try {
 					String text = getLabel(col, row, element);
 					if (text.isEmpty())
 						continue;
 
 					gc.setClipping(x, y, width, height);
-					gc.drawString(text, x + horizontalCellPadding, y + verticalCellPadding, false);
+					if (selection.isSelected(col, row)) {
+						gc.setForeground(selectedColor);
+					} else {
+						gc.setForeground(textColor);
+					}
+					gc.drawString(text, x + horizontalCellPadding, y + verticalCellPadding, true);
 
 				} catch (ExecutionException e) {
 					e.printStackTrace();
@@ -238,8 +245,33 @@ public class Grid extends Composite {
 	}
 
 	private void renderSelection(GC gc, Rectangle viewport) {
-		// TODO Auto-generated method stub
+		int fromCol = cols.getItemAt(viewport.x);
+		int fromRow = rows.getItemAt(viewport.y);
+		int toCol = cols.getItemAt(viewport.x + viewport.width);
+		int toRow = rows.getItemAt(viewport.y + viewport.height);
+		Rectangle viewportRange = new Rectangle(fromCol, fromRow, toCol - fromCol, toRow - fromRow + 1);
+		
+		gc.setBackground(gc.getDevice().getSystemColor(SWT.COLOR_LIST_SELECTION));
+		for (Rectangle r: selection.selectedRegions) {
+			if (r.intersects(viewportRange)) {
+				System.out.println("Selected: " + r);
+				System.out.println("Viewport: " + viewportRange);
+				
+				Rectangle intersection = r.intersection(viewportRange);
+				System.out.println("Intersection: " + intersection);
 
+				int x = cols.getPosition(intersection.x);
+				int y = rows.getPosition(intersection.y);
+				int x2 = intersection.x + intersection.width - 1;
+				int y2 = intersection.y + intersection.height - 1;
+				int width = cols.getPosition(x2) + cols.getSize(x2) - x;
+				int height = rows.getPosition(y2) + rows.getSize(y2) - y;
+				
+				Rectangle selectionArea = new Rectangle(x - viewport.x, y - viewport.y, width, height);
+				System.out.println("Selection area: " + selectionArea);
+				gc.fillRectangle(selectionArea);
+			}
+		}
 	}
 
 	private void paintCorner(GC gc) {
@@ -509,7 +541,7 @@ public class Grid extends Composite {
 		redrawTiles();
 	}
 
-	private void redrawTiles() {
+	void redrawTiles() {
 		tileCache.invalidateAll();
 		canvas.redraw();
 	}
@@ -590,6 +622,10 @@ public class Grid extends Composite {
 			e.printStackTrace();
 			return "";
 		}
+	}
+	
+	public Selection getSelection() {
+		return selection;
 	}
 
 }

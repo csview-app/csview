@@ -1,0 +1,32 @@
+package net.kothar.csview.grid;
+
+import java.util.HashSet;
+import java.util.Set;
+
+import org.eclipse.swt.graphics.Rectangle;
+
+public class Selection {
+	
+	Set<Rectangle> selectedRegions = new HashSet<>();
+	
+	/**
+	 * @param region
+	 * @return true if the region was new
+	 */
+	public boolean addRegion(Rectangle region) {
+		return selectedRegions.add(region);
+	}
+	
+	public void removeRegion(Rectangle region) {
+		selectedRegions.remove(region);
+	}
+	
+	public void clear() {
+		selectedRegions.clear();
+	}
+	
+	public boolean isSelected(int col, int row) {
+		Rectangle cell = new Rectangle(col, row, 1, 1);
+		return selectedRegions.parallelStream().anyMatch(cell::intersects);
+	}
+}

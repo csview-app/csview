@@ -5,6 +5,7 @@ import org.eclipse.jface.viewers.ITableLabelProvider;
 import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
@@ -47,6 +48,8 @@ public class TestGrid extends ApplicationWindow {
 		
 		grid.setCols(1_000_000);
 		grid.setRows(1_000_000);
+		
+		grid.getSelection().addRegion(new Rectangle(1, 1, 1, 1));
 		
 		grid.setContentProvider(i -> i);
 		grid.setLabelProvider(new ITableLabelProvider() {
