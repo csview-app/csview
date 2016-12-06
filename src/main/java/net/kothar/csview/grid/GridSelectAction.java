@@ -28,8 +28,8 @@ public class GridSelectAction implements MouseAction {
 	}
 
 	private Point getCell(MouseEvent e) {
-		int x = grid.cols.getItemAt(e.x - grid.getRowHeaderSize() - grid.getXOffset());
-		int y = grid.rows.getItemAt(e.y - grid.getColumnHeaderSize() - grid.getYOffset());
+		int x = grid.cols.getItemAt(e.x - grid.getRowHeaderSize() + grid.getXOffset());
+		int y = grid.rows.getItemAt(e.y - grid.getColumnHeaderSize() + grid.getYOffset());
 		return new Point(x, y);
 	}
 	

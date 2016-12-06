@@ -247,8 +247,12 @@ public class Grid extends Composite {
 	private void renderSelection(GC gc, Rectangle viewport) {
 		int fromCol = cols.getItemAt(viewport.x);
 		int fromRow = rows.getItemAt(viewport.y);
-		int toCol = cols.getItemAt(viewport.x + viewport.width);
-		int toRow = rows.getItemAt(viewport.y + viewport.height);
+		
+		int right = viewport.x + viewport.width;
+		int toCol = right >= cols.getTotal() ? cols.getCount() - 1 : cols.getItemAt(right);
+		
+		int bottom = viewport.y + viewport.height;
+		int toRow = bottom >= rows.getTotal() ? rows.getCount() - 1 : rows.getItemAt(bottom);
 		Rectangle viewportRange = new Rectangle(fromCol, fromRow, toCol - fromCol, toRow - fromRow + 1);
 		
 		gc.setBackground(gc.getDevice().getSystemColor(SWT.COLOR_LIST_SELECTION));
