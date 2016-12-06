@@ -1,7 +1,5 @@
 package net.kothar.csview.grid;
 
-import java.util.Map.Entry;
-
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.graphics.Cursor;
@@ -26,16 +24,26 @@ public class ColResizeAction implements MouseAction {
 	public void mouseDoubleClick(MouseEvent e) {
 		int desiredSize = 5;
 		GC gc = new GC(e.display);
-		// TODO directly ask for labels of all visible cells in the column
-		for (Entry<Point, String> entry: grid.labelCache.asMap().entrySet()) {
-			if (entry.getKey().x != column) {
-				continue;
-			}
+		
+		int yOffset = grid.getYOffset();
+		int row = grid.rows.getItemAt(yOffset);
+		int y = grid.rows.getPosition(row);
+		int height = grid.canvas.getBounds().height;
+		int rowCount = grid.rows.getCount();
+		
+		while (y - yOffset < height) {
+			String label = grid.getLabel(column, row);
 			
-			Point extent = gc.stringExtent(entry.getValue());
+			Point extent = gc.stringExtent(label);
 			if (extent.x > desiredSize) {
 				desiredSize = extent.x + grid.getHorizontalCellPadding() * 2;
 			}
+			
+			if (++row >= rowCount) {
+				break;
+			}
+			
+			y = grid.rows.getPosition(row);
 		}
 		
 		grid.setColumnSize(column, desiredSize);

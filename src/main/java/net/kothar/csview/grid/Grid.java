@@ -47,12 +47,12 @@ public class Grid extends Composite {
 	private Integer columnHeaderSize;
 	private Integer rowHeaderSize;
 
-	Cache<Point, String> labelCache = 
+	private Cache<Point, String> labelCache = 
 			CacheBuilder.newBuilder()
 			.maximumSize(10_000)
 			.build();
 
-	Cache<Point, Image> tileCache = 
+	private Cache<Point, Image> tileCache = 
 			CacheBuilder.newBuilder()
 			.maximumSize(1000)
 			.removalListener((RemovalNotification<Point, Image> e) -> e.getValue().dispose())
@@ -186,8 +186,7 @@ public class Grid extends Composite {
 					break;
 
 				try {
-					Point point = new Point(col, row);
-					String text = labelCache.get(point, () -> labelProvider.getColumnText(element, point.x));
+					String text = getLabel(col, row, element);
 					if (text.isEmpty())
 						continue;
 
@@ -551,6 +550,22 @@ public class Grid extends Composite {
 		
 		tileCache.asMap().keySet().removeIf(p -> p.x == column);
 		canvas.redraw();
+	}
+
+	private String getLabel(int col, int row, Object element) throws ExecutionException {
+		Point point = new Point(col, row);
+		String text = labelCache.get(point, () -> labelProvider.getColumnText(element, col));
+		return text;
+	}
+
+	public String getLabel(int col, int row) {
+		try {
+			Object element = contentProvider.getRow(row);
+			return getLabel(col, row, element);
+		} catch (ExecutionException e) {
+			e.printStackTrace();
+			return "";
+		}
 	}
 
 }
