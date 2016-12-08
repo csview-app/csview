@@ -704,6 +704,9 @@ public class Grid extends Composite {
 	}
 
 	public void setCurrentCell(Point cell) {
+		if (!getCellBounds().contains(cell)) {
+			return;
+		}
 		currentCell = cell;
 		refresh();
 	}

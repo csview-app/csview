@@ -77,6 +77,12 @@ public class GridSelectAction implements MouseAction {
 	public void mouseMove(MouseEvent e) {
 		Point cell = getCell(e);
 		Rectangle selection = new Rectangle(col, row, cell.x - col + 1, cell.y - row + 1);
+		if (selection.width <= 0) {
+			selection = new Rectangle(selection.x + selection.width - 1, selection.y, 2-selection.width, selection.height);
+		}
+		if (selection.height <= 0) {
+			selection = new Rectangle(selection.x, selection.y + selection.height - 1, selection.width, 2-selection.height);
+		}
 		if (!selection.equals(lastSelection)) {
 			System.out.println("Selection updated: " + selection);
 			grid.selection.removeRegion(lastSelection);
