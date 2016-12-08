@@ -28,11 +28,27 @@ public class GridSelectAction implements MouseAction {
 	}
 
 	private Point getCell(MouseEvent e) {
-		int x = grid.cols.getItemAt(e.x - grid.getRowHeaderSize() + grid.getXOffset());
-		int y = grid.rows.getItemAt(e.y - grid.getColumnHeaderSize() + grid.getYOffset());
+		int x = getColAt(e.x - grid.getRowHeaderSize() + grid.getXOffset());
+		int y = getRowAt(e.y - grid.getColumnHeaderSize() + grid.getYOffset());
 		return new Point(x, y);
 	}
 	
+	private int getRowAt(int y) {
+		if (y < 0)
+			return -1;
+		else if (y >= grid.rows.getTotal())
+			return grid.rows.getCount();
+		return grid.rows.getItemAt(y);
+	}
+
+	private int getColAt(int x) {
+		if (x < 0)
+			return -1;
+		else if (x >= grid.cols.getTotal())
+			return grid.cols.getCount();
+		return grid.cols.getItemAt(x);
+	}
+
 	private void invalidateTiles(Rectangle... regions) {
 		boolean changed = grid.tileCache.asMap().keySet().removeIf(p -> {
 			for (Rectangle r: regions) {
@@ -42,6 +58,7 @@ public class GridSelectAction implements MouseAction {
 			// TODO invalidate based on row position
 			return false;
 		});
+		
 		grid.redraw();
 	}
 	

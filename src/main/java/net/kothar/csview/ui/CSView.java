@@ -165,6 +165,8 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 		grid.setContentProvider(new CSVContentProvider(csv));
 		grid.setLabelProvider(new CSVLabelProvider());
+		grid.setRowLabelProvider(new NumberFormatLabelProvider(1));
+		grid.setColumnLabelProvider(new NumberFormatLabelProvider(1));
 
 		if (file != null) {
 			IProgressMonitor progressMonitor = getStatusLineManager().getProgressMonitor();

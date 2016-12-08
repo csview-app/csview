@@ -2,6 +2,7 @@ package net.kothar.csview.grid;
 
 import java.util.concurrent.ExecutionException;
 
+import org.eclipse.jface.viewers.ILabelProvider;
 import org.eclipse.jface.viewers.ITableLabelProvider;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ControlAdapter;
@@ -43,6 +44,9 @@ public class Grid extends Composite {
 
 	private IGridContentProvider contentProvider;
 	private ITableLabelProvider labelProvider;
+	private ILabelProvider rowLabelProvider;
+	private ILabelProvider colLabelProvider;
+	
 	Selection selection = new Selection();
 
 	private Integer columnHeaderSize;
@@ -249,11 +253,15 @@ public class Grid extends Composite {
 		int fromRow = rows.getItemAt(viewport.y);
 		
 		int right = viewport.x + viewport.width;
-		int toCol = right >= cols.getTotal() ? cols.getCount() - 1 : cols.getItemAt(right);
+		int toCol = right >= cols.getTotal() ? cols.getCount() : cols.getItemAt(right);
 		
 		int bottom = viewport.y + viewport.height;
-		int toRow = bottom >= rows.getTotal() ? rows.getCount() - 1 : rows.getItemAt(bottom);
-		Rectangle viewportRange = new Rectangle(fromCol, fromRow, toCol - fromCol, toRow - fromRow + 1);
+		int toRow = bottom >= rows.getTotal() ? rows.getCount() : rows.getItemAt(bottom);
+		Rectangle viewportRange = new Rectangle(fromCol, fromRow, toCol - fromCol, toRow - fromRow);
+		
+		// Only needed while rows don't align with tiles
+		if (viewportRange.y + viewportRange.height < rows.getCount())
+			viewportRange.height++;
 		
 		gc.setBackground(gc.getDevice().getSystemColor(SWT.COLOR_LIST_SELECTION));
 		for (Rectangle r: selection.selectedRegions) {
@@ -321,11 +329,16 @@ public class Grid extends Composite {
 				continue;
 
 			gc.setForeground(textColor);
-			String text = Integer.toString(i);
+			String text;
+			if (rowLabelProvider != null) {
+				text = rowLabelProvider.getText(i);
+			} else {
+				text = Integer.toString(i);
+			}
 			Point extent = gc.stringExtent(text);
 			
 			gc.setClipping(0, y, rowHeaderSize, height);
-			gc.drawString(Integer.toString(i), rowHeaderSize - horizontalCellPadding - extent.x, y + verticalCellPadding);
+			gc.drawString(text, rowHeaderSize - horizontalCellPadding - extent.x, y + verticalCellPadding);
 			gc.setClipping((Rectangle) null);
 
 			gc.setForeground(borderColor);
@@ -336,6 +349,11 @@ public class Grid extends Composite {
 
 		gc.setForeground(borderColor);
 		gc.drawLine(rowHeaderSize, columnHeaderSize, rowHeaderSize, bounds.height);
+		int bottomEdge = rows.getTotal() - yOffset + columnHeaderSize;
+		if (bottomEdge < bounds.height) {
+			gc.drawLine(0, bottomEdge, rowHeaderSize, bottomEdge);
+		}
+		
 		gc.setForeground(borderColor2);
 		gc.drawLine(0, 0, 0, bounds.height);
 	}
@@ -370,7 +388,12 @@ public class Grid extends Composite {
 				continue;
 
 			gc.setForeground(textColor);
-			String text = Integer.toString(i);
+			String text;
+			if (colLabelProvider != null) {
+				text = colLabelProvider.getText(i);
+			} else {
+				text = Integer.toString(i);
+			}
 			Point extent = gc.stringExtent(text);
 			
 			gc.setClipping(x, 0, width, rowHeaderSize);
@@ -385,6 +408,10 @@ public class Grid extends Composite {
 
 		gc.setForeground(borderColor);
 		gc.drawLine(rowHeaderSize, columnHeaderSize, bounds.width, columnHeaderSize);
+		int rightEdge = cols.getTotal() - xOffset + rowHeaderSize;
+		if (rightEdge < bounds.width) {
+			gc.drawLine(rightEdge, 0, rightEdge, columnHeaderSize);
+		}
 		gc.setForeground(borderColor2);
 		gc.drawLine(0, 0, bounds.width, 0);
 	}
@@ -397,8 +424,12 @@ public class Grid extends Composite {
 
 		gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_LIGHT_SHADOW));
 		gc.setLineDash(new int[] {2,2});
-
+		
+		int xOffset = viewport.x;
 		int yOffset = viewport.y;
+		int rightEdge = cols.getTotal() - xOffset;
+		int bottomEdge = rows.getTotal() - yOffset;
+
 		for (int i = rows.getItemAt(yOffset); i < rows.getCount(); i++) {
 			int y = rows.getPosition(i) - yOffset;
 
@@ -407,10 +438,13 @@ public class Grid extends Composite {
 			if (y < 0)
 				continue;
 
-			gc.drawLine(0, y, viewport.width, y);
+			gc.drawLine(0, y, rightEdge, y);
+		}
+		
+		if (bottomEdge < viewport.height) {
+			gc.drawLine(0, bottomEdge, viewport.width, bottomEdge);
 		}
 
-		int xOffset = viewport.x;
 		for (int i = cols.getItemAt(xOffset); i < cols.getCount(); i++) {
 			int x = cols.getPosition(i) - xOffset;
 
@@ -419,7 +453,10 @@ public class Grid extends Composite {
 			if (x < 0)
 				continue;
 
-			gc.drawLine(x, 0, x, viewport.height);
+			gc.drawLine(x, 0, x, bottomEdge);
+		}
+		if (rightEdge < viewport.width) {
+			gc.drawLine(rightEdge, 0, rightEdge, viewport.height);
 		}
 
 		gc.setLineStyle(SWT.LINE_SOLID);
@@ -457,8 +494,10 @@ public class Grid extends Composite {
 			bar.setVisible(true);
 			int total = (max + canvas.getHorizontalBar().getSize().y + getColumnHeaderSize())/SCROLL_FACTOR + 11;
 			bar.setMaximum(total);
+			bar.setEnabled(true);
 		} else {
 			bar.setVisible(false);
+			bar.setEnabled(false);
 		}
 	}
 
@@ -508,8 +547,10 @@ public class Grid extends Composite {
 			bar.setVisible(true);
 			int total = (max + canvas.getVerticalBar().getSize().x + getRowHeaderSize())/SCROLL_FACTOR + 11;
 			bar.setMaximum(total);
+			bar.setEnabled(true);
 		} else {
 			bar.setVisible(false);
+			bar.setEnabled(false);
 		}
 	}
 
@@ -630,6 +671,14 @@ public class Grid extends Composite {
 	
 	public Selection getSelection() {
 		return selection;
+	}
+
+	public void setRowLabelProvider(ILabelProvider rowLabelProvider) {
+		this.rowLabelProvider = rowLabelProvider;
+	}
+
+	public void setColumnLabelProvider(ILabelProvider colLabelProvider) {
+		this.colLabelProvider = colLabelProvider;
 	}
 
 }
