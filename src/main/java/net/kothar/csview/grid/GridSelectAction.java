@@ -48,19 +48,6 @@ public class GridSelectAction implements MouseAction {
 			return grid.cols.getCount();
 		return grid.cols.getItemAt(x);
 	}
-
-	private void invalidateTiles(Rectangle... regions) {
-		boolean changed = grid.tileCache.asMap().keySet().removeIf(p -> {
-			for (Rectangle r: regions) {
-				if (p.x >= r.x && p.x - r.x < r.width)
-					return true;
-			}
-			// TODO invalidate based on row position
-			return false;
-		});
-		
-		grid.redraw();
-	}
 	
 	@Override
 	public void mouseDown(MouseEvent e) {
@@ -71,7 +58,8 @@ public class GridSelectAction implements MouseAction {
 		}
 		lastSelection = new Rectangle(col, row, 1, 1);
 		newSelection = grid.selection.addRegion(lastSelection);
-		invalidateTiles(lastSelection);
+		grid.setCurrentCell(new Point(col, row));
+		grid.invalidateTiles(lastSelection);
 	}
 
 	@Override
@@ -81,7 +69,7 @@ public class GridSelectAction implements MouseAction {
 		if (!newSelection && col == cell.x && row == cell.y && (e.stateMask & SWT.MOD1) != 0) {
 			System.out.println("Toggle selection off");
 			grid.selection.removeRegion(lastSelection);
-			invalidateTiles(lastSelection);
+			grid.invalidateTiles(lastSelection);
 		}
 	}
 
@@ -93,7 +81,8 @@ public class GridSelectAction implements MouseAction {
 			System.out.println("Selection updated: " + selection);
 			grid.selection.removeRegion(lastSelection);
 			grid.selection.addRegion(selection);
-			invalidateTiles(lastSelection, selection);
+			grid.setCurrentCell(cell);
+			grid.invalidateTiles(lastSelection, selection);
 			lastSelection = selection;
 		}
 	}

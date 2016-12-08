@@ -65,12 +65,14 @@ public class Grid extends Composite {
 
 	private MouseHandler mouseHandler;
 	private Image nullTile;
+	private Point currentCell;
 
 	public Grid(Composite parent, int style) {
 		super(parent, style);
 
 		cols.setCount(1);
 		rows.setCount(1);
+		currentCell = new Point(0, 0);
 		
 		setLayout(new FillLayout());
 		createContents(this);
@@ -102,6 +104,8 @@ public class Grid extends Composite {
 
 		// Hook mouse handling
 		mouseHandler = new MouseHandler(this);
+		
+		getShell().addKeyListener(new KeyboardHandler(this));
 	}
 
 	private void paintGrid(PaintEvent e) {
@@ -230,6 +234,7 @@ public class Grid extends Composite {
 				renderSelection(gc, viewport);
 				renderCells(gc, viewport);
 				renderGridlines(gc, viewport);
+				renderCurrentCell(gc, viewport);
 			}
 
 			gc.dispose();
@@ -238,6 +243,19 @@ public class Grid extends Composite {
 		} catch (Exception e) {
 			e.printStackTrace();
 			return null;
+		}
+	}
+
+	private void renderCurrentCell(GC gc, Rectangle viewport) {
+		int x = cols.getPosition(currentCell.x) + 1;
+		int y = rows.getPosition(currentCell.y) + 1;
+		int width = cols.getSize(currentCell.x) - 2;
+		int height = rows.getSize(currentCell.y) - 2;
+		
+		Rectangle cellPosition = new Rectangle(x, y, width, height);
+		if (cellPosition.intersects(viewport)) {
+			gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_BORDER));
+			gc.drawRectangle(x - viewport.x, y - viewport.y, width, height);
 		}
 	}
 
@@ -679,6 +697,32 @@ public class Grid extends Composite {
 
 	public void setColumnLabelProvider(ILabelProvider colLabelProvider) {
 		this.colLabelProvider = colLabelProvider;
+	}
+
+	public Point getCurrentCell() {
+		return currentCell;
+	}
+
+	public void setCurrentCell(Point cell) {
+		currentCell = cell;
+		refresh();
+	}
+
+	public Rectangle getCellBounds() {
+		return new Rectangle(0, 0, cols.getCount(), rows.getCount());
+	}
+	
+	void invalidateTiles(Rectangle... regions) {
+		tileCache.asMap().keySet().removeIf(p -> {
+			for (Rectangle r: regions) {
+				if (p.x >= r.x && p.x - r.x < r.width)
+					return true;
+			}
+			// TODO invalidate based on row position
+			return false;
+		});
+		
+		redraw();
 	}
 
 }

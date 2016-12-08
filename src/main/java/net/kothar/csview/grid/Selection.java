@@ -9,11 +9,14 @@ public class Selection {
 	
 	Set<Rectangle> selectedRegions = new HashSet<>();
 	
+	private Rectangle lastRegion;
+	
 	/**
 	 * @param region
 	 * @return true if the region was new
 	 */
 	public boolean addRegion(Rectangle region) {
+		lastRegion = region;
 		return selectedRegions.add(region);
 	}
 	
@@ -23,10 +26,15 @@ public class Selection {
 	
 	public void clear() {
 		selectedRegions.clear();
+		lastRegion = null;
 	}
 	
 	public boolean isSelected(int col, int row) {
 		Rectangle cell = new Rectangle(col, row, 1, 1);
 		return selectedRegions.parallelStream().anyMatch(cell::intersects);
+	}
+	
+	public Rectangle getLastRegion() {
+		return lastRegion;
 	}
 }
