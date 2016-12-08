@@ -438,7 +438,7 @@ public class Grid extends Composite {
 			if (y < 0)
 				continue;
 
-			gc.drawLine(0, y, rightEdge, y);
+			gc.drawLine(0, y, Math.min(rightEdge, viewport.width), y);
 		}
 		
 		if (bottomEdge < viewport.height) {
@@ -453,7 +453,7 @@ public class Grid extends Composite {
 			if (x < 0)
 				continue;
 
-			gc.drawLine(x, 0, x, bottomEdge);
+			gc.drawLine(x, 0, x, Math.min(bottomEdge, viewport.height));
 		}
 		if (rightEdge < viewport.width) {
 			gc.drawLine(rightEdge, 0, rightEdge, viewport.height);
