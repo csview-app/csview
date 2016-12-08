@@ -22,7 +22,9 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.StatusLineContributionItem;
 import org.eclipse.jface.action.StatusLineManager;
+import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.jface.window.ApplicationWindow;
+import org.eclipse.jface.window.Window;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.GridData;
@@ -258,6 +260,36 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 				CSVFormat newFormat = csv.getFormat().withDelimiter('|');
 				fieldSeparatorMenu.setText("Delimiter: PIPE");
 				updateFormat(newFormat);
+			}
+		});
+		fieldSeparatorMenu.getMenuManager().add(new Action("COLON") {
+			@Override
+			public void run() {
+				CSVFormat newFormat = csv.getFormat().withDelimiter(':');
+				fieldSeparatorMenu.setText("Delimiter: COLON");
+				updateFormat(newFormat);
+			}
+		});
+		fieldSeparatorMenu.getMenuManager().add(new Action("SEMICOLON") {
+			@Override
+			public void run() {
+				CSVFormat newFormat = csv.getFormat().withDelimiter(';');
+				fieldSeparatorMenu.setText("Delimiter: SEMICOLON");
+				updateFormat(newFormat);
+			}
+		});
+		fieldSeparatorMenu.getMenuManager().add(new Action("Custom...") {
+			@Override
+			public void run() {
+				String defaultValue = "" + csv.getFormat().getDelimiter();
+				InputDialog inputDialog = new InputDialog(getShell(), "Select input delimiter", 
+						"Please choose a delimiter character", defaultValue, null);
+				if (inputDialog.open() == Window.OK && !inputDialog.getValue().isEmpty()) {
+					char delimiter = inputDialog.getValue().toCharArray()[0];
+					CSVFormat newFormat = csv.getFormat().withDelimiter(delimiter);
+					fieldSeparatorMenu.setText("Delimiter: Custom - " + delimiter);
+					updateFormat(newFormat);
+				}
 			}
 		});
 	}
