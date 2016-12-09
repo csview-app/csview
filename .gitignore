@@ -7,7 +7,7 @@
 /package/bundles
 /package/CSView.html
 /package/CSView.jnlp
-/package/csview.jar
 /package/csview_lib
 /build/
 Thumbs.db
+*.jar
