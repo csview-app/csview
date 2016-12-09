@@ -37,4 +37,16 @@ public class Selection {
 	public Rectangle getLastRegion() {
 		return lastRegion;
 	}
+
+	public Rectangle getUnion() {
+		Rectangle union = null;
+		for (Rectangle region: selectedRegions) {
+			if (union == null) {
+				union = region;
+			} else {
+				union = union.union(region);
+			}
+		}
+		return union;
+	}
 }

@@ -303,4 +303,10 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		csv.setFormat(newFormat);
 	}
 
+	@Override
+	public boolean copySelection() {
+		grid.copySelection();
+		return true;
+	}
+
 }

@@ -29,11 +29,11 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.MultiStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.dialogs.ErrorDialog;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
-import org.eclipse.swt.widgets.Shell;
 
 import net.kothar.csview.ApplicationActions;
 import net.kothar.csview.ui.CSView;
@@ -127,9 +127,7 @@ public class MacLoader implements ApplicationActions {
 		if (file.exists()) {
 			openFile(file);
 		} else {
-			Shell shell = new Shell(display);
-			shell.setText("File not found: " + filename);
-			shell.open();
+			MessageDialog.openError(null, "File not found", filename);
 		}
 	}
 

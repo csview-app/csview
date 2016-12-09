@@ -1,11 +1,17 @@
 package net.kothar.csview.grid;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.eclipse.jface.viewers.ILabelProvider;
 import org.eclipse.jface.viewers.ITableLabelProvider;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.dnd.Clipboard;
+import org.eclipse.swt.dnd.HTMLTransfer;
+import org.eclipse.swt.dnd.TextTransfer;
+import org.eclipse.swt.dnd.Transfer;
 import org.eclipse.swt.events.ControlAdapter;
 import org.eclipse.swt.events.ControlEvent;
 import org.eclipse.swt.events.PaintEvent;
@@ -23,6 +29,8 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.ScrollBar;
 
+import com.google.common.base.Objects;
+import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.RemovalNotification;
@@ -765,6 +773,68 @@ public class Grid extends Composite {
 		});
 		
 		redraw();
+	}
+
+	public void copySelection() {
+		// Get bounds of selection
+		Rectangle bounds = selection.getUnion();
+		if (bounds == null) {
+			return;
+		}
+
+		// Prepare data
+		HashMap<Integer, Integer> colSizes = new HashMap<>();
+		for (int row = 0; row < bounds.height; row++) {
+			for (int col = 0; col < bounds.width; col++) {
+				if (selection.isSelected(col + bounds.x, row + bounds.y)) {
+					String label = getLabel(col + bounds.x, row + bounds.y);
+					if (label.isEmpty())
+						continue;
+					
+					Integer size = colSizes.get(col);
+					if (size == null)
+						size = 0;
+					colSizes.put(col, Math.max(size, label.length()));
+				}
+			}
+		}
+		
+		StringBuilder text = new StringBuilder();
+		StringBuilder html = new StringBuilder("<table style=\"border: 1px solid #999;\" cellspacing=\"0\">\n");
+		
+		for (int row = 0; row < bounds.height; row++) {
+			html.append("<tr>\n");
+			for (int col = 0; col < bounds.width; col++) {
+				Integer size = colSizes.get(col);
+				if (size == null || size == 0)
+					continue;
+				
+				String label = "";
+				if (selection.isSelected(col + bounds.x, row + bounds.y))
+					label = getLabel(col + bounds.x, row + bounds.y);
+				
+				text.append(label);
+				html.append("<td style=\"border: 1px dotted #ddd; padding: 3px 5px;\">" + StringEscapeUtils.escapeHtml4(label) + "</td>\n");
+				
+				if (col < bounds.width -1) {
+					text.append(" ");
+					text.append(Strings.repeat(" ", size - label.length()));
+				}
+			}
+			text.append("\n");
+			html.append("</tr>\n");
+		}
+		html.append("</table>\n");
+		
+		Object[] data = new Object[] { text.toString(), html.toString() };
+		
+		TextTransfer textTransfer = TextTransfer.getInstance();
+		HTMLTransfer htmlTransfer = HTMLTransfer.getInstance();
+		Transfer[] transfers = new Transfer[] { textTransfer, htmlTransfer };
+		
+		Clipboard clipboard = new Clipboard(getDisplay());
+		clipboard.setContents(data, transfers);
+		clipboard.dispose();
 	}
 
 }

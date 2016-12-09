@@ -47,9 +47,28 @@ public class Menus {
 		
 		Menu fileMenu = createFileMenu(menuBar);
 		addDocumentFileActions(fileMenu);
+		
+		createSelectionMenu(menuBar);
+		
 		if (System.getProperties().containsKey("net.kothar.csview.debug")) {
 			createDebugMenu(menuBar);
 		}
+	}
+
+	private Menu createSelectionMenu(Menu menuBar) {
+		MenuItem menuItem = new MenuItem(menuBar, SWT.CASCADE);
+		menuItem.setText("Selection");
+		
+		Menu menu = new Menu(menuBar);
+		menuItem.setMenu(menu);
+		
+		MenuItem copy = new MenuItem(menu, SWT.NORMAL);
+		copy.setText("Copy");
+		copy.setAccelerator(SWT.MOD1 + 'C');
+		
+		copy.addSelectionListener(adapt(docActions::copySelection));
+		
+		return menu;
 	}
 
 	private void addDocumentFileActions(Menu fileMenu) {
