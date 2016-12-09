@@ -1,5 +1,6 @@
 package net.kothar.csview.grid;
 
+import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 
 import org.eclipse.jface.viewers.ILabelProvider;
@@ -379,6 +380,9 @@ public class Grid extends Composite {
 	int getYOffset() {
 		return canvas.getVerticalBar().getSelection() * SCROLL_FACTOR;
 	}
+	void setYOffset(int yOffset) {
+		canvas.getVerticalBar().setSelection(yOffset / SCROLL_FACTOR);
+	}
 
 	private void paintColHeaders(GC gc) {
 		Rectangle bounds = canvas.getBounds();
@@ -436,6 +440,9 @@ public class Grid extends Composite {
 
 	int getXOffset() {
 		return canvas.getHorizontalBar().getSelection() * SCROLL_FACTOR;
+	}
+	void setXOffset(int xOffset) {
+		canvas.getHorizontalBar().setSelection(xOffset / SCROLL_FACTOR);
 	}
 
 	private void renderGridlines(GC gc, Rectangle viewport) {
@@ -708,7 +715,35 @@ public class Grid extends Composite {
 			return;
 		}
 		currentCell = cell;
-		refresh();
+		
+		int x = cols.getPosition(cell.x);
+		int y = rows.getPosition(cell.y);
+		int width = cols.getSize(cell.x);
+		int height = rows.getSize(cell.y);
+		
+		invalidateTiles(new Rectangle(cell.x, y, 1, height));
+		
+		int xOffset = getXOffset();
+		if (x < xOffset) {
+			setXOffset(x);
+		} else {
+			int canvasWidth = canvas.getBounds().width;
+			int rowHeaderSize = getRowHeaderSize();
+			if (x + width > xOffset + canvasWidth - rowHeaderSize - 16) {
+				setXOffset(x - canvasWidth + rowHeaderSize + width + 16);
+			}
+		}
+
+		int yOffset = getYOffset();
+		if (y < yOffset) {
+			setYOffset(y);
+		} else {
+			int canvasHeight = canvas.getBounds().height;
+			int columnHeaderSize = getColumnHeaderSize();
+			if (y + height > yOffset + canvasHeight - columnHeaderSize - 16) {
+				setYOffset(y - canvasHeight + columnHeaderSize + height + 16);
+			}
+		}
 	}
 
 	public Rectangle getCellBounds() {
@@ -716,12 +751,16 @@ public class Grid extends Composite {
 	}
 	
 	void invalidateTiles(Rectangle... regions) {
+		invalidateTiles(Arrays.asList(regions));
+	}
+	
+	void invalidateTiles(Iterable<Rectangle> regions) {
 		tileCache.asMap().keySet().removeIf(p -> {
 			for (Rectangle r: regions) {
 				if (p.x >= r.x && p.x - r.x < r.width)
-					return true;
+//					if (p.y >= r.y) // TODO upper-bound invalidation
+						return true;
 			}
-			// TODO invalidate based on row position
 			return false;
 		});
 		

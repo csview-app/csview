@@ -47,14 +47,16 @@ public class KeyboardHandler implements KeyListener {
 					grid.selection.addRegion(newRegion);
 					grid.invalidateTiles(lastRegion, newRegion);
 				} else {
+					grid.invalidateTiles(grid.selection.selectedRegions);
 					grid.selection.clear();
 					grid.selection.addRegion(cellRegion);
 					grid.invalidateTiles(cellRegion);
 				}
 			} else {
+				grid.invalidateTiles(grid.selection.selectedRegions);
+				grid.invalidateTiles(cellRegion);
 				grid.selection.clear();
 				grid.selection.addRegion(cellRegion);
-				grid.redrawTiles();
 			}
 			
 			grid.redraw();
