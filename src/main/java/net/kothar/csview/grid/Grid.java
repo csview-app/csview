@@ -687,7 +687,7 @@ public class Grid extends Composite {
 			return false;
 		});
 		
-		redraw();
+		canvas.redraw();
 	}
 
 	public void copySelection() {
