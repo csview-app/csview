@@ -59,7 +59,7 @@ public class Grid extends Composite {
 	private Integer columnHeaderSize;
 	private Integer rowHeaderSize;
 
-	private Cache<Point, String> labelCache = 
+	Cache<Point, String> labelCache = 
 			CacheBuilder.newBuilder()
 			.maximumSize(10_000)
 			.build();
@@ -464,7 +464,7 @@ public class Grid extends Composite {
 		canvas.redraw();
 	}
 
-	private void refresh() {
+	void refresh() {
 		updateScroll();
 		labelCache.invalidateAll();
 		redrawTiles();

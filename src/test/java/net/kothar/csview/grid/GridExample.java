@@ -12,14 +12,14 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 
-public class TestGrid extends ApplicationWindow {
+public class GridExample extends ApplicationWindow {
 	
-	public TestGrid(Shell parentShell) {
+	public GridExample(Shell parentShell) {
 		super(parentShell);
 	}
 
 	public static void main(String[] args) {
-		TestGrid grid = new TestGrid(null);
+		GridExample grid = new GridExample(null);
 		grid.open();
 		
 		Shell shell = grid.getShell();

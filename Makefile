@@ -50,8 +50,8 @@ package/windows/CSView-setup-icon.bmp: icon.svg
 	convert setup-icon.png $@
 	rm setup-icon.png
 
-target/$(JAR_FILE):
-	mvn package
+jar:
+	MAVEN_OPTS="-XstartOnFirstThread" mvn package
 
 app:
 	@echo $(VERSION)
@@ -79,7 +79,7 @@ dmg:
 appstore:
 	BUNDLES=mac.appStore make package
 
-package: package/macosx/CSView.icns target/$(JAR_FILE)
+package: package/macosx/CSView.icns jar
 	javapackager -deploy -native $(BUNDLES) \
 		-srcdir target -srcfiles $(JAR_FILE) \
 		-outdir package -outfile $(APP_NAME) \
@@ -93,4 +93,4 @@ package: package/macosx/CSView.icns target/$(JAR_FILE)
 		-Bmac.signing-key-developer-id-app="$(DEVELOPER_KEY)" \
 		-Bmac.signing-key-developer-id-installer="$(INSTALLER_KEY)" 
 
-.PHONY: package icons appstore dmg resign verify sandbox app
+.PHONY: package icons appstore dmg resign verify sandbox app jar
