@@ -1,4 +1,3 @@
-
 APP_NAME = CSView
 VERSION = $(shell mvn -q -Dexec.executable="echo" -Dexec.args='$${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
 DEVELOPER_KEY = Developer ID Application: Michael Houston (D5HSL8R3CY)

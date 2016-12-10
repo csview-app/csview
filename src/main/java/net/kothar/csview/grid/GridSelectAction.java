@@ -35,17 +35,17 @@ public class GridSelectAction implements MouseAction {
 	
 	private int getRowAt(int y) {
 		if (y < 0)
-			return -1;
+			return 0;
 		else if (y >= grid.rows.getTotal())
-			return grid.rows.getCount();
+			return grid.rows.getCount() - 1;
 		return grid.rows.getItemAt(y);
 	}
 
 	private int getColAt(int x) {
 		if (x < 0)
-			return -1;
+			return 0;
 		else if (x >= grid.cols.getTotal())
-			return grid.cols.getCount();
+			return grid.cols.getCount() - 1;
 		return grid.cols.getItemAt(x);
 	}
 	
