@@ -696,6 +696,8 @@ public class Grid extends Composite {
 		if (bounds == null) {
 			return;
 		}
+		
+		String nl = System.getProperty("line.separator");
 
 		// Prepare data
 		HashMap<Integer, Integer> colSizes = new HashMap<>();
@@ -715,10 +717,10 @@ public class Grid extends Composite {
 		}
 		
 		StringBuilder text = new StringBuilder();
-		StringBuilder html = new StringBuilder("<table style=\"border: 1px solid #999;\" cellspacing=\"0\">\n");
+		StringBuilder html = new StringBuilder("<table style=\"border: 1px solid #999;\" cellspacing=\"0\">" + nl);
 		
 		for (int row = 0; row < bounds.height; row++) {
-			html.append("<tr>\n");
+			html.append("<tr>" + nl);
 			for (int col = 0; col < bounds.width; col++) {
 				Integer size = colSizes.get(col);
 				if (size == null || size == 0)
@@ -729,17 +731,17 @@ public class Grid extends Composite {
 					label = getLabel(col + bounds.x, row + bounds.y);
 				
 				text.append(label);
-				html.append("<td style=\"border: 1px dotted #ddd; padding: 3px 5px;\">" + StringEscapeUtils.escapeHtml4(label) + "</td>\n");
+				html.append("<td style=\"border: 1px dotted #ddd; padding: 3px 5px;\">" + StringEscapeUtils.escapeHtml4(label) + "</td>" + nl);
 				
 				if (col < bounds.width -1) {
 					text.append(" ");
 					text.append(Strings.repeat(" ", size - label.length()));
 				}
 			}
-			text.append("\n");
-			html.append("</tr>\n");
+			text.append(nl);
+			html.append("</tr>" + nl);
 		}
-		html.append("</table>\n");
+		html.append("</table>" + nl);
 		
 		Object[] data = new Object[] { text.toString(), html.toString() };
 		
