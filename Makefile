@@ -1,9 +1,9 @@
-
 APP_NAME = CSView
-VERSION = 1.1.0
+VERSION = $(shell mvn -q -Dexec.executable="echo" -Dexec.args='$${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
 DEVELOPER_KEY = Developer ID Application: Michael Houston (D5HSL8R3CY)
 INSTALLER_KEY = Developer ID Installer: Michael Houston (D5HSL8R3CY)
 APP_BUNDLE = package/bundles/$(APP_NAME).app
+JAR_FILE = csview-$(VERSION)-jar-with-dependencies.jar
 
 all: app
 
@@ -50,10 +50,15 @@ package/windows/CSView-setup-icon.bmp: icon.svg
 	convert setup-icon.png $@
 	rm setup-icon.png
 
+jar:
+	MAVEN_OPTS="-XstartOnFirstThread" mvn package
+
 app:
+	@echo $(VERSION)
+	rm -rf target
 	BUNDLES=image make package
 
-$(APP_BUNDLE): build/csview.jar
+$(APP_BUNDLE):
 	make app
 
 sandbox: $(APP_BUNDLE)
@@ -74,13 +79,13 @@ dmg:
 appstore:
 	BUNDLES=mac.appStore make package
 
-package: package/macosx/CSView.icns
+package: package/macosx/CSView.icns jar
 	javapackager -deploy -native $(BUNDLES) \
-		-srcdir build -srcfiles csview.jar \
+		-srcdir target -srcfiles $(JAR_FILE) \
 		-outdir package -outfile $(APP_NAME) \
 		-name $(APP_NAME) \
 		-appclass net.kothar.csview.cocoa.MacLoader \
-		-BmainJar=csview.jar \
+		-BmainJar=$(JAR_FILE) \
 		-BappVersion=$(VERSION) \
 		-Bmac.category=public.app-category.productivity \
 		-Bmac.CFBundleIdentifier=net.kothar.csview \
@@ -88,4 +93,4 @@ package: package/macosx/CSView.icns
 		-Bmac.signing-key-developer-id-app="$(DEVELOPER_KEY)" \
 		-Bmac.signing-key-developer-id-installer="$(INSTALLER_KEY)" 
 
-.PHONY: package icons appstore dmg resign verify sandbox app
+.PHONY: package icons appstore dmg resign verify sandbox app jar

@@ -29,20 +29,20 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.MultiStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.dialogs.ErrorDialog;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
-import org.eclipse.swt.widgets.Shell;
 
 import net.kothar.csview.ApplicationActions;
-import net.kothar.csview.CSView;
-import net.kothar.csview.Menus;
+import net.kothar.csview.ui.CSView;
+import net.kothar.csview.ui.Menus;
 
 public class MacLoader implements ApplicationActions {
 
 	static final String APP_NAME = "CSView";
-	static final String VERSION = "1.1.1";
+	static final String VERSION = "1.2.0";
 
 	private Display display;
 
@@ -127,9 +127,7 @@ public class MacLoader implements ApplicationActions {
 		if (file.exists()) {
 			openFile(file);
 		} else {
-			Shell shell = new Shell(display);
-			shell.setText("File not found: " + filename);
-			shell.open();
+			MessageDialog.openError(null, "File not found", filename);
 		}
 	}
 

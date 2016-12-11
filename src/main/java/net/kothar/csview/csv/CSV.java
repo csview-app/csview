@@ -12,12 +12,11 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
-package net.kothar.csview;
+package net.kothar.csview.csv;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
@@ -25,14 +24,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
+
+import javax.xml.ws.Holder;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.eclipse.swt.events.DisposeEvent;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
+import com.ibm.icu.text.CharsetDetector;
+import com.ibm.icu.text.CharsetMatch;
+
+import net.kothar.csview.ProgressListener;
+import net.kothar.csview.RowListener;
 
 public class CSV {
 
@@ -41,15 +46,15 @@ public class CSV {
 	private RandomAccessFile randomAccessFile;
 	private String file;
 	
+	private CSVFormat format = CSVFormat.DEFAULT;
+	private int maxColumns = -1;
+	
 	private List<ProgressListener> progressListeners = new ArrayList<>();
 	
-	private Cache<Integer, String[]> rowCache;
 	private boolean disposed = false;
+	private String charset = "UTF-8";
 	
 	public CSV() {
-		rowCache = CacheBuilder.newBuilder()
-			.maximumSize(500)
-			.build();
 	}
 
 	public void addRowListener(RowListener listener) {
@@ -87,7 +92,19 @@ public class CSV {
 		this.file = file;
 		try {
 			this.randomAccessFile = new RandomAccessFile(file, "r");
-		} catch (FileNotFoundException e) {
+			
+			// Detect charset
+			byte[] buffer = new byte[(int) Math.min(1024 * 10, randomAccessFile.length())];
+			this.randomAccessFile.read(buffer, 0, buffer.length);
+			CharsetMatch charsetMatch = new CharsetDetector()
+				.setText(buffer)
+				.detect();
+			
+			if (charsetMatch != null) {
+				charset = charsetMatch.getName();
+				System.out.println("Matched charset to " + charset);
+			}
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
@@ -112,20 +129,28 @@ public class CSV {
 		}
 	}
 
-	/* We use two buffers to allow the next block to be read
-	 * while processing the first. We could potentially use more
-	 * threads or a dedicated thread for more throughput.
-	 * 
-	 * I suspect we are currently limited by scanning the buffer or adding
-	 * new position to the list, so profiling is needed.
-	 */
-	private byte[] bbuf, bbuf2;
-
 	private void scan(InputStream input) {
 		long pos = 0;
 		int blockSize = 1024 * 1024 * 4;
-		bbuf = new byte[blockSize];
-		bbuf2 = new byte[blockSize];
+
+		/* We use two buffers to allow the next block to be read
+		 * while processing the first. We could potentially use more
+		 * threads or a dedicated thread for more throughput.
+		 * 
+		 * I suspect we are currently limited by scanning the buffer or adding
+		 * new position to the list, so profiling is needed.
+		 */
+		Holder<byte[]> bbuf, bbuf2;
+		
+		
+		bbuf = new Holder<>(new byte[blockSize]);
+		bbuf2 = new Holder<>(new byte[blockSize]);
+		
+		Character quote = getFormat().getQuoteCharacter();
+		Character escape = getFormat().getEscapeCharacter();
+		if (escape == null) {
+			escape = quote;
+		}
 
 		// Add first row
 		addRow(0);
@@ -133,31 +158,41 @@ public class CSV {
 		long startTime = System.currentTimeMillis();
 		try (InputStream bufferedInput = new BufferedInputStream(input)) {
 
-			int len = bufferedInput.read(bbuf);
+			int len = bufferedInput.read(bbuf.value);
 			byte b1 = 0, b2 = 0;
 			boolean quoted = false;
 			
 			while (len > 0) {
-				CompletableFuture<Integer> nextBuffer = CompletableFuture.supplyAsync(() -> {
-					try {
-						return bufferedInput.read(bbuf2);
-					} catch (Exception e) {
-						e.printStackTrace();
-						return 0;
-					}
-				});
+				
+				CompletableFuture<Integer> nextBuffer = null;
+				if (bufferedInput.available() > 0) {
+					nextBuffer = CompletableFuture.supplyAsync(() -> {
+						try {
+							byte[] buffer;
+							synchronized (bbuf2) {
+								buffer = bbuf2.value;
+							}
+							return bufferedInput.read(buffer);
+						} catch (Exception e) {
+							e.printStackTrace();
+							return 0;
+						}
+					});
+				}
 				
 				// Look for a line terminator
+				// TODO handle comment lines
 				int i;
+				byte[] buffer = bbuf.value;
 				for (i = 0; i < len; i++) {
 					b1 = b2;
-					b2 = bbuf[i];
+					b2 = buffer[i];
 					
 					// Check for quoted values
-					if (quoted && b1 == '"' && b2 == '"') {
+					if (quoted && b1 == escape && b2 == quote) {
 						b1 = 0;
 						b2 = 0;
-					} else if (b1 == '"') {
+					} else if (b1 == quote) {
 						quoted = !quoted;
 						b1 = 0;
 					}
@@ -173,11 +208,17 @@ public class CSV {
 				}
 				pos += i;
 
-				// Swap buffers
-				len = nextBuffer.get();
-				byte[] temp = bbuf;
-				bbuf = bbuf2;
-				bbuf2 = temp;
+				if (nextBuffer == null) {
+					break;
+				} else {
+					// Swap buffers
+					synchronized (bbuf2) {
+						len = nextBuffer.get();
+						byte[] temp = bbuf.value;
+						bbuf.value = bbuf2.value;
+						bbuf2.value = temp;
+					}
+				}
 				
 				// Stop if the CSV has been disposed
 				synchronized (this) {
@@ -200,22 +241,12 @@ public class CSV {
 			e.printStackTrace();
 		} catch (ExecutionException e) {
 			e.printStackTrace();
-		} finally {
-			bbuf = null;
-			bbuf2 = null;
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
 	public synchronized String[] getRow(int row) {
-		try {
-			return rowCache.get(row, () -> loadRow(row));
-		} catch (ExecutionException e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
-	
-	private String[] loadRow(int row) {
 		Long from = rows.getPosition(row);
 		Long to = rows.getPosition(row+1);
 
@@ -224,7 +255,12 @@ public class CSV {
 			return new String[0];
 		}
 		
-		return parseRow(rowContent);
+		String[] values = parseRow(rowContent);
+		if (values.length > maxColumns) {
+			maxColumns = values.length;
+			notifyColumnsChanged(maxColumns);
+		}
+		return values;
 	}
 
 	private String[] parseRow(String rowContent) {
@@ -232,11 +268,11 @@ public class CSV {
 			CSVParser parser;
 			CSVRecord record;
 			try {
-				parser = CSVParser.parse(rowContent, CSVFormat.DEFAULT);
+				parser = CSVParser.parse(rowContent, getFormat());
 				record = parser.iterator().next();
 			} catch (RuntimeException e) {
 				// HACK: Try appending a new terminating quote to complete the line
-				parser = CSVParser.parse(rowContent + "\"", CSVFormat.DEFAULT);
+				parser = CSVParser.parse(rowContent + "\"", getFormat());
 				record = parser.iterator().next();
 			}
 			String[] cols = new String[record.size()];
@@ -248,7 +284,7 @@ public class CSV {
 			e.printStackTrace();
 		}
 
-		return rowContent.split("\\s*,\\s*");
+		return rowContent.split("\\s*" + Pattern.quote(""+getFormat().getDelimiter()) + "\\s*");
 	}
 
 	private String getContent(Long from, Long to) {
@@ -270,7 +306,7 @@ public class CSV {
 				byte[] bs = new byte[(int) (to-from)];
 				randomAccessFile.seek(from);
 				int read = randomAccessFile.read(bs);
-				return new String(bs, 0, read, "UTF-8").trim();
+				return new String(bs, 0, read, charset).trim();
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -287,6 +323,12 @@ public class CSV {
 		progressListeners.add(listener);
 	}
 	
+	private void notifyColumnsChanged(int columns) {
+		for (ProgressListener listener: progressListeners) {
+			listener.columnsChanged(columns);
+		}
+	}
+	
 	private void notifyProgress(long progress) {
 		for (ProgressListener listener: progressListeners) {
 			listener.changed(progress);
@@ -297,6 +339,23 @@ public class CSV {
 		for (ProgressListener listener: progressListeners) {
 			listener.completed();
 		}
+	}
+
+	public CSVFormat getFormat() {
+		return format;
+	}
+
+	public void setFormat(CSVFormat format) {
+		this.format = format;
+		maxColumns = -1;
+	}
+
+	public String getCharset() {
+		return charset;
+	}
+
+	public void setCharset(String charset) {
+		this.charset = charset;
 	}
 	
 }

@@ -1,14 +1,15 @@
 @echo Packaging
 
 set APP_NAME=CSView
-set APP_VERSION=1.1.1
+set APP_VERSION=1.2.0
+set JAR_FILE=csview-%APP_VERSION%-jar-with-dependencies.jar
 
 javapackager -deploy -native msi ^
-		-srcdir build -srcfiles csview.jar ^
+		-srcdir target -srcfiles %JAR_FILE% ^
 		-outdir package -outfile %APP_NAME% ^
 		-name %APP_NAME% ^
 		-appclass net.kothar.csview.SingleInstanceLoader ^
-		-BmainJar=csview.jar ^
+		-BmainJar=%JAR_FILE% ^
 		-BappVersion=%APP_VERSION% ^
 		-BsystemWide=true ^
 		-Bvendor="Kothar Labs"

@@ -12,11 +12,15 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
-package net.kothar.csview;
+package net.kothar.csview.csv;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import net.kothar.csview.RowListener;
+import net.kothar.csview.adt.BlockList;
+import net.kothar.csview.adt.CompactLongList;
 
 public class LineMap {
 	
