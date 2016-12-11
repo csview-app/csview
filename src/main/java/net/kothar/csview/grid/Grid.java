@@ -121,10 +121,20 @@ public class Grid extends Composite {
 		// Determine if there's an overlap between new and old display
 		GC gc = e.gc;
 
-		paintCells(gc);
-		paintRowHeaders(gc);
-		paintColHeaders(gc);
+		if (rows.getTotal() > 0 && cols.getTotal() > 0)
+			paintCells(gc);
+		if (rows.getTotal() > 0)
+			paintRowHeaders(gc);
+		if (cols.getTotal() > 0)
+			paintColHeaders(gc);
 		paintCorner(gc);
+		
+		// Render border with bottom of control
+		gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_HIGHLIGHT_SHADOW));
+		Rectangle bounds = getBounds();
+		int y = bounds.height - 1;
+		int width = bounds.width;
+		gc.drawLine(0, y, width, y);
 
 		long elapsed = System.currentTimeMillis() - start;
 		if (elapsed > 10)
@@ -132,6 +142,7 @@ public class Grid extends Composite {
 	}
 
 	private void paintCells(GC gc) {
+		
 		int xOffset = getXOffset();
 		int yOffset = getYOffset();
 
@@ -275,27 +286,42 @@ public class Grid extends Composite {
 		int horizontalCellPadding = getHorizontalCellPadding();
 		int verticalCellPadding = getVerticalCellPadding();
 
-		gc.setBackground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_BACKGROUND));
+		Device device = gc.getDevice();
+		Color backgroundColor = device.getSystemColor(SWT.COLOR_WIDGET_BACKGROUND);
+		Color textColor = device.getSystemColor(SWT.COLOR_WIDGET_FOREGROUND);
+		Color borderColor = device.getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW);
+		Color borderColor2 = device.getSystemColor(SWT.COLOR_WIDGET_HIGHLIGHT_SHADOW);
+		
+		gc.setBackground(backgroundColor);
 		gc.fillRectangle(0, columnHeaderSize, rowHeaderSize, canvas.getBounds().height - columnHeaderSize);
 
 		int yOffset = getYOffset();
 
-		Color textColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_FOREGROUND);
-		Color borderColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW);
-		Color borderColor2 = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_HIGHLIGHT_SHADOW);
-
 		gc.setClipping(0, 0, rowHeaderSize, bounds.height);
 		
-		for (int i = rows.getItemAt(yOffset); i < rows.getCount(); i++) {
+		int startRow = rows.getItemAt(yOffset);
+		int y = columnHeaderSize + rows.getPosition(startRow) - yOffset;
+		
+		for (int i = startRow; i < rows.getCount(); i++) {
 			int height = rows.getSize(i);
-			int y = columnHeaderSize + rows.getPosition(i) - yOffset;
 
 			if (y > bounds.height)
 				break;
 			if (y < bounds.y)
 				continue;
+			
+			// Shadow header if row contains current cell
+			if (currentCell != null && currentCell.y == i) {
+				gc.setBackground(borderColor);
+				gc.setForeground(borderColor2);
+				
+				gc.fillRectangle(0, y, rowHeaderSize, height);
+			} else {
+				gc.setBackground(backgroundColor);
+				gc.setForeground(textColor);
+			}
 
-			gc.setForeground(textColor);
+			// Render the label
 			String text;
 			if (rowLabelProvider != null) {
 				text = rowLabelProvider.getText(i);
@@ -303,13 +329,15 @@ public class Grid extends Composite {
 				text = Integer.toString(i);
 			}
 			Point extent = gc.stringExtent(text);
-			
 			gc.drawString(text, rowHeaderSize - horizontalCellPadding - extent.x, y + verticalCellPadding);
 
+			// Draw cell border
 			gc.setForeground(borderColor);
 			gc.drawLine(0, y-1, rowHeaderSize-1, y-1);
 			gc.setForeground(borderColor2);
 			gc.drawLine(0, y, rowHeaderSize-1, y);
+			
+			y += height;
 		}
 
 		// Right of row headers
@@ -344,14 +372,15 @@ public class Grid extends Composite {
 		int horizontalCellPadding = getHorizontalCellPadding();
 		int verticalCellPadding = getVerticalCellPadding();
 
-		gc.setBackground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_BACKGROUND));
-		gc.fillRectangle(rowHeaderSize, 0, canvas.getBounds().width - rowHeaderSize, columnHeaderSize);
-
-		int xOffset = getXOffset();
-
+		Color backgroundColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_BACKGROUND);
 		Color textColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_FOREGROUND);
 		Color borderColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW);
 		Color borderColor2 = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_HIGHLIGHT_SHADOW);
+		
+		gc.setBackground(backgroundColor);
+		gc.fillRectangle(rowHeaderSize, 0, canvas.getBounds().width - rowHeaderSize, columnHeaderSize);
+
+		int xOffset = getXOffset();
 		for (int i = cols.getItemAt(xOffset); i < cols.getCount(); i++) {
 			int width = cols.getSize(i);
 			int x = rowHeaderSize + cols.getPosition(i) - xOffset;
@@ -361,7 +390,18 @@ public class Grid extends Composite {
 			if (x < bounds.x)
 				continue;
 
-			gc.setForeground(textColor);
+			// Shadow selected cell's column header
+			if (currentCell != null && currentCell.x == i) {
+				gc.setBackground(borderColor);
+				gc.setForeground(borderColor2);
+				
+				gc.fillRectangle(x, 0, width, columnHeaderSize);
+			} else {
+				gc.setBackground(backgroundColor);
+				gc.setForeground(textColor);
+			}
+			
+			// Render label
 			String text;
 			if (colLabelProvider != null) {
 				text = colLabelProvider.getText(i);
@@ -373,6 +413,7 @@ public class Grid extends Composite {
 			gc.drawString(text, x + horizontalCellPadding, verticalCellPadding);
 			gc.setClipping((Rectangle) null);
 			
+			// Render border between columns
 			gc.setForeground(borderColor);
 			gc.drawLine(x-1, 0, x-1, columnHeaderSize-1);
 			gc.setForeground(borderColor2);
@@ -735,8 +776,7 @@ public class Grid extends Composite {
 				html.append("<td style=\"border: 1px dotted #ddd; padding: 3px 5px;\">" + StringEscapeUtils.escapeHtml4(label) + "</td>" + nl);
 				
 				if (col < bounds.width -1) {
-					text.append(" ");
-					text.append(Strings.repeat(" ", size - label.length()));
+					text.append(Strings.padStart(" ", size - label.length() + 3, ' '));
 				}
 			}
 			text.append(nl);

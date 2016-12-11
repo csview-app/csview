@@ -177,7 +177,6 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	
 	@Override
 	public void create() {
-		
 		addStatusLine();
 		super.create();
 

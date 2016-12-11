@@ -23,8 +23,6 @@ public class GridSelectAction implements MouseAction {
 
 	@Override
 	public void mouseDoubleClick(MouseEvent e) {
-		// TODO Auto-generated method stub
-
 	}
 
 	private Point getCell(MouseEvent e) {
@@ -51,12 +49,26 @@ public class GridSelectAction implements MouseAction {
 	
 	@Override
 	public void mouseDown(MouseEvent e) {
+		
+		// Extend last selection if SHIFT is held down
+		if ((e.stateMask & SWT.MOD2) != 0) {
+			lastSelection = grid.selection.getLastRegion();
+			if (lastSelection != null) {
+				grid.selection.removeRegion(lastSelection);
+				lastSelection.add(new Rectangle(col, row, 1, 1));
+			}
+		}
+		
+		// Add to existing selection if CMD/CTRL is held down
 		if ((e.stateMask & SWT.MOD1) == 0) {
 			System.out.println("Clear existing selection");
 			grid.selection.clear();
 			grid.tileCache.invalidateAll();
-		}
-		lastSelection = new Rectangle(col, row, 1, 1);
+		} 
+		
+		if (lastSelection == null)
+			lastSelection = new Rectangle(col, row, 1, 1);
+		
 		newSelection = grid.selection.addRegion(lastSelection);
 		grid.setCurrentCell(new Point(col, row));
 		grid.invalidateTiles(lastSelection);

@@ -68,17 +68,20 @@ public class MouseHandler implements MouseListener, MouseMoveListener {
 		
 		int rowHeaderSize = grid.getRowHeaderSize();
 		int mouseX = e.x - rowHeaderSize + grid.getXOffset();
-		if (mouseX < 0 || mouseX >= grid.cols.getTotal()) {
-			return;
+		int colIndex;
+		if (mouseX >= grid.cols.getTotal()) {
+			colIndex = grid.cols.getCount() -1;
+		} else {
+			colIndex = grid.cols.getItemAt(mouseX);
 		}
-		int colIndex = grid.cols.getItemAt(mouseX);
+		
 		int colPos = grid.cols.getPosition(colIndex);
 		int colWidth = grid.cols.getSize(colIndex);
 		
-		if (mouseX - colPos < SEPARATOR_SENSITIVITY && colIndex > 0) {
-			nextAction = new ColResizeAction(grid, colIndex - 1);
-		} else if (colPos + colWidth - mouseX < SEPARATOR_SENSITIVITY) {
+		if (Math.abs(colPos + colWidth - mouseX) < SEPARATOR_SENSITIVITY) {
 			nextAction = new ColResizeAction(grid, colIndex);
+		} else if (Math.abs(mouseX - colPos) < SEPARATOR_SENSITIVITY && colIndex > 0) {
+			nextAction = new ColResizeAction(grid, colIndex - 1);
 		} else if (e.x - rowHeaderSize < SEPARATOR_SENSITIVITY) {
 			nextAction = new RowHeaderResizeAction(grid);
 		}

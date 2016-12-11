@@ -38,25 +38,27 @@ public class KeyboardHandler implements KeyListener {
 		if (grid.getCellBounds().contains(newCell)) {
 			grid.setCurrentCell(newCell);
 			
-			Rectangle cellRegion = new Rectangle(newCell.x, newCell.y, 1, 1);
+			Rectangle cellRegion = new Rectangle(cell.x, cell.y, 1, 1);
+			Rectangle newCellRegion = new Rectangle(newCell.x, newCell.y, 1, 1);
 			if ((e.stateMask & (SWT.MOD1 | SWT.MOD2)) != 0) {
 				Rectangle lastRegion = grid.selection.getLastRegion();
 				if (lastRegion != null) {
-					Rectangle newRegion = lastRegion.union(cellRegion);
+					Rectangle newRegion = lastRegion.union(newCellRegion);
 					grid.selection.removeRegion(lastRegion);
 					grid.selection.addRegion(newRegion);
 					grid.invalidateTiles(lastRegion, newRegion);
 				} else {
 					grid.invalidateTiles(grid.selection.selectedRegions);
 					grid.selection.clear();
-					grid.selection.addRegion(cellRegion);
-					grid.invalidateTiles(cellRegion);
+					
+					Rectangle newRegion = cellRegion.union(newCellRegion);
+					grid.selection.addRegion(newRegion);
+					grid.invalidateTiles(newRegion);
 				}
 			} else {
 				grid.invalidateTiles(grid.selection.selectedRegions);
-				grid.invalidateTiles(cellRegion);
+				grid.invalidateTiles(cellRegion, newCellRegion);
 				grid.selection.clear();
-				grid.selection.addRegion(cellRegion);
 			}
 			
 			grid.redraw();
