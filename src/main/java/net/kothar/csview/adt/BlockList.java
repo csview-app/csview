@@ -12,7 +12,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
-package net.kothar.csview;
+package net.kothar.csview.adt;
 
 import java.util.AbstractList;
 import java.util.ArrayList;

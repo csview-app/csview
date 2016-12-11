@@ -12,7 +12,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
-package net.kothar.csview;
+package net.kothar.csview.ui;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
@@ -20,6 +20,9 @@ import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
+
+import net.kothar.csview.ApplicationActions;
+import net.kothar.csview.DocumentActions;
 
 public class Menus {
 
@@ -44,9 +47,28 @@ public class Menus {
 		
 		Menu fileMenu = createFileMenu(menuBar);
 		addDocumentFileActions(fileMenu);
+		
+		createSelectionMenu(menuBar);
+		
 		if (System.getProperties().containsKey("net.kothar.csview.debug")) {
 			createDebugMenu(menuBar);
 		}
+	}
+
+	private Menu createSelectionMenu(Menu menuBar) {
+		MenuItem menuItem = new MenuItem(menuBar, SWT.CASCADE);
+		menuItem.setText("Selection");
+		
+		Menu menu = new Menu(menuBar);
+		menuItem.setMenu(menu);
+		
+		MenuItem copy = new MenuItem(menu, SWT.NORMAL);
+		copy.setText("Copy");
+		copy.setAccelerator(SWT.MOD1 + 'C');
+		
+		copy.addSelectionListener(adapt(docActions::copySelection));
+		
+		return menu;
 	}
 
 	private void addDocumentFileActions(Menu fileMenu) {
