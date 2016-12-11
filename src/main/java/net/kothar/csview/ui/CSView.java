@@ -20,13 +20,13 @@ import java.io.FileNotFoundException;
 import org.apache.commons.csv.CSVFormat;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.action.Action;
-import org.eclipse.jface.action.StatusLineContributionItem;
 import org.eclipse.jface.action.StatusLineManager;
 import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.jface.window.Window;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
@@ -76,8 +76,6 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 	public CSView() {
 		super(null);
-
-		addStatusLine();
 	}
 
 	public CSView(String[] args) {
@@ -139,7 +137,6 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	protected void configureShell(Shell shell) {
 		super.configureShell(shell);
 
-		shell.setSize(1024, 768);
 		if (useAppIcon)
 			shell.setImage(getAppIcon());
 
@@ -148,6 +145,11 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		} else {
 			shell.setText("CSView");
 		}
+	}
+	
+	@Override
+	protected Point getInitialSize() {
+		return new Point(1024,  768);
 	}
 
 	@Override
@@ -168,8 +170,26 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		grid.setContentProvider(new CSVContentProvider(csv));
 		grid.setLabelProvider(new CSVLabelProvider());
 		grid.setRowLabelProvider(new NumberFormatLabelProvider(1));
-		grid.setColumnLabelProvider(new NumberFormatLabelProvider(1));
+		grid.setColumnLabelProvider(new CSVColumnHeaderProvider(csv));
 
+		return composite;
+	}
+	
+	@Override
+	public void create() {
+		
+		addStatusLine();
+		super.create();
+
+		// Load the CSV
+		hookCSVScanListener();
+		csv.scan();
+
+		getShell().getDisplay().asyncExec(this::refreshTable);
+		getShell().addDisposeListener(csv::dispose);
+	}
+
+	private void hookCSVScanListener() {
 		if (file != null) {
 			IProgressMonitor progressMonitor = getStatusLineManager().getProgressMonitor();
 			progressMonitor.beginTask("Scanning", 1000);
@@ -209,14 +229,6 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 			});
 		}
-
-		// Load the CSV
-		csv.scan();
-
-		getShell().getDisplay().asyncExec(this::refreshTable);
-		getShell().addDisposeListener(csv::dispose);
-
-		return composite;
 	}
 
 	protected StatusLineManager createStatusLineManager() {
@@ -224,70 +236,52 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 		createDelimiterMenu(statusLineManager);
 		
-		statusLineManager.add(new StatusLineContributionItem("quote", 10) {{
-			setText("Escape: \"");
-		}});
-		statusLineManager.add(new StatusLineContributionItem("line", 10) {{
-			setText("Line: \\n");
-		}});
+//		statusLineManager.add(new StatusLineContributionItem("quote", 10) {{
+//			setText("Escape: \"");
+//		}});
+//		statusLineManager.add(new StatusLineContributionItem("line", 10) {{
+//			setText("Line: \\n");
+//		}});
 
 		statusLineManager.update(true);
 		return statusLineManager;
 	}
 
+	private String formatDelimiter(char c) {
+		for (Delimiter d: Delimiter.values()) {
+			if (d.character == c)
+				return "Delimiter: " + d + " \u25bc";
+		}
+		return "Delimiter: Custom - " + c + " \u25bc";
+	}
+
 	private void createDelimiterMenu(StatusLineManager statusLineManager) {
-		StatusLineMenuContribution fieldSeparatorMenu = new StatusLineMenuContribution("separator", "Delimiter: COMMA");
+		
+		char currentDelimiter = csv.getFormat().getDelimiter();
+		StatusLineMenuContribution fieldSeparatorMenu = 
+				new StatusLineMenuContribution("separator", formatDelimiter(currentDelimiter));
 		statusLineManager.add(fieldSeparatorMenu);
-		fieldSeparatorMenu.getMenuManager().add(new Action("COMMA") {
-			@Override
-			public void run() {
-				CSVFormat newFormat = csv.getFormat().withDelimiter(',');
-				fieldSeparatorMenu.setText("Delimiter: COMMA");
-				updateFormat(newFormat);
-			}
-		});
-		fieldSeparatorMenu.getMenuManager().add(new Action("TAB") {
-			@Override
-			public void run() {
-				CSVFormat newFormat = csv.getFormat().withDelimiter('\t');
-				fieldSeparatorMenu.setText("Delimiter: TAB");
-				updateFormat(newFormat);
-			}
-		});
-		fieldSeparatorMenu.getMenuManager().add(new Action("PIPE") {
-			@Override
-			public void run() {
-				CSVFormat newFormat = csv.getFormat().withDelimiter('|');
-				fieldSeparatorMenu.setText("Delimiter: PIPE");
-				updateFormat(newFormat);
-			}
-		});
-		fieldSeparatorMenu.getMenuManager().add(new Action("COLON") {
-			@Override
-			public void run() {
-				CSVFormat newFormat = csv.getFormat().withDelimiter(':');
-				fieldSeparatorMenu.setText("Delimiter: COLON");
-				updateFormat(newFormat);
-			}
-		});
-		fieldSeparatorMenu.getMenuManager().add(new Action("SEMICOLON") {
-			@Override
-			public void run() {
-				CSVFormat newFormat = csv.getFormat().withDelimiter(';');
-				fieldSeparatorMenu.setText("Delimiter: SEMICOLON");
-				updateFormat(newFormat);
-			}
-		});
+		
+		for (Delimiter d: Delimiter.values()) {
+			fieldSeparatorMenu.getMenuManager().add(new Action(d.toString()) {
+				@Override
+				public void run() {
+					CSVFormat newFormat = csv.getFormat().withDelimiter(d.character);
+					fieldSeparatorMenu.setText(formatDelimiter(d.character));
+					updateFormat(newFormat);
+				}
+			});
+		}
 		fieldSeparatorMenu.getMenuManager().add(new Action("Custom...") {
 			@Override
 			public void run() {
-				String defaultValue = "" + csv.getFormat().getDelimiter();
+				String defaultValue = "" + currentDelimiter;
 				InputDialog inputDialog = new InputDialog(getShell(), "Select input delimiter", 
 						"Please choose a delimiter character", defaultValue, null);
 				if (inputDialog.open() == Window.OK && !inputDialog.getValue().isEmpty()) {
 					char delimiter = inputDialog.getValue().toCharArray()[0];
 					CSVFormat newFormat = csv.getFormat().withDelimiter(delimiter);
-					fieldSeparatorMenu.setText("Delimiter: Custom - " + delimiter);
+					fieldSeparatorMenu.setText(formatDelimiter(delimiter));
 					updateFormat(newFormat);
 				}
 			}

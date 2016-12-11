@@ -37,16 +37,6 @@ public class StatusLineMenuContribution extends ControlContribution {
 	protected Control createControl(Composite parent) {
 		
 		Label sep = new Label(parent, SWT.SEPARATOR);
-		StatusLineLayoutData layoutData = new StatusLineLayoutData();
-		
-		GC gc = new GC(parent);
-		gc.setFont(parent.getFont());
-		FontMetrics fm = gc.getFontMetrics();
-		heightHint = fm.getHeight();
-		gc.dispose();
-		
-		layoutData.heightHint = heightHint;
-		sep.setLayoutData(layoutData);
 		
 		label = new CLabel(parent, SWT.SHADOW_NONE);
 		label.setText(text);
@@ -57,6 +47,19 @@ public class StatusLineMenuContribution extends ControlContribution {
 				menu.setVisible(true);
 			}
 		});
+
+		
+		// Set layout
+		GC gc = new GC(parent);
+		gc.setFont(parent.getFont());
+		FontMetrics fm = gc.getFontMetrics();
+		heightHint = fm.getHeight();
+		gc.dispose();
+		
+		StatusLineLayoutData layoutData = new StatusLineLayoutData();
+		layoutData.heightHint = heightHint;
+		sep.setLayoutData(layoutData);
+		
 		layoutData = new StatusLineLayoutData();
 		layoutData.widthHint = widthHint;
 		label.setLayoutData(layoutData);

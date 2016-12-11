@@ -22,8 +22,15 @@ public class ColResizeAction implements MouseAction {
 
 	@Override
 	public void mouseDoubleClick(MouseEvent e) {
-		int desiredSize = 5;
 		GC gc = new GC(e.display);
+		int desiredSize = 5;
+
+		int horizontalCellPadding = grid.getHorizontalCellPadding();
+		if (grid.colLabelProvider != null) {
+			String label = grid.colLabelProvider.getText(column);
+			Point extent = gc.stringExtent(label);
+			desiredSize = extent.x + horizontalCellPadding * 2;
+		}
 		
 		int yOffset = grid.getYOffset();
 		int row = grid.rows.getItemAt(yOffset);
@@ -33,17 +40,15 @@ public class ColResizeAction implements MouseAction {
 		
 		while (y - yOffset < height) {
 			String label = grid.getLabel(column, row);
-			
 			Point extent = gc.stringExtent(label);
-			int labelSize = extent.x + grid.getHorizontalCellPadding() * 2;
+			
+			int labelSize = extent.x + horizontalCellPadding * 2;
 			if (labelSize > desiredSize) {
 				desiredSize = labelSize;
 			}
 			
-			if (++row >= rowCount) {
+			if (++row >= rowCount)
 				break;
-			}
-			
 			y = grid.rows.getPosition(row);
 		}
 		

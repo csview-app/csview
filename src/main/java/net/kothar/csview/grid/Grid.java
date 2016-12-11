@@ -51,8 +51,8 @@ public class Grid extends Composite {
 
 	private IGridContentProvider contentProvider;
 	private ITableLabelProvider labelProvider;
-	private ILabelProvider rowLabelProvider;
-	private ILabelProvider colLabelProvider;
+	ILabelProvider rowLabelProvider;
+	ILabelProvider colLabelProvider;
 	
 	Selection selection = new Selection();
 
@@ -368,10 +368,9 @@ public class Grid extends Composite {
 			} else {
 				text = Integer.toString(i);
 			}
-			Point extent = gc.stringExtent(text);
-			
+
 			gc.setClipping(x, 0, width, columnHeaderSize);
-			gc.drawString(text, x + (width - extent.x) / 2, verticalCellPadding);
+			gc.drawString(text, x + horizontalCellPadding, verticalCellPadding);
 			gc.setClipping((Rectangle) null);
 			
 			gc.setForeground(borderColor);
@@ -623,10 +622,12 @@ public class Grid extends Composite {
 
 	public void setRowLabelProvider(ILabelProvider rowLabelProvider) {
 		this.rowLabelProvider = rowLabelProvider;
+		redraw();
 	}
 
 	public void setColumnLabelProvider(ILabelProvider colLabelProvider) {
 		this.colLabelProvider = colLabelProvider;
+		redraw();
 	}
 
 	public Point getCurrentCell() {
