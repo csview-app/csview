@@ -34,6 +34,8 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 
+import com.ibm.icu.text.CharsetDetector;
+
 import net.kothar.csview.DocumentActions;
 import net.kothar.csview.ProgressListener;
 import net.kothar.csview.csv.CSV;
@@ -234,6 +236,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		StatusLineManager statusLineManager = super.createStatusLineManager();
 
 		createDelimiterMenu(statusLineManager);
+		createEncodingMenu(statusLineManager);
 		
 //		statusLineManager.add(new StatusLineContributionItem("quote", 10) {{
 //			setText("Escape: \"");
@@ -244,6 +247,23 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 		statusLineManager.update(true);
 		return statusLineManager;
+	}
+	
+	private void createEncodingMenu(StatusLineManager statusLineManager) {
+		StatusLineMenuContribution menu = 
+				new StatusLineMenuContribution("encoding", "Encoding: " + csv.getCharset() + " \u25bc");
+		statusLineManager.add(menu);
+		
+		for (String encoding: CharsetDetector.getAllDetectableCharsets()) {
+			menu.getMenuManager().add(new Action(encoding) {
+				@Override
+				public void run() {
+					csv.setCharset(encoding);
+					grid.refresh();
+					menu.setText("Encoding: " + encoding + " \u25bc");
+				}
+			});
+		}
 	}
 
 	private String formatDelimiter(char c) {

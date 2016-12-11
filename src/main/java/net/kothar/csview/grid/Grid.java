@@ -504,7 +504,7 @@ public class Grid extends Composite {
 		canvas.redraw();
 	}
 
-	void refresh() {
+	public void refresh() {
 		updateScroll();
 		labelCache.invalidateAll();
 		redrawTiles();

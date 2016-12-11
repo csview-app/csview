@@ -17,7 +17,6 @@ package net.kothar.csview.csv;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
@@ -33,6 +32,9 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.eclipse.swt.events.DisposeEvent;
+
+import com.ibm.icu.text.CharsetDetector;
+import com.ibm.icu.text.CharsetMatch;
 
 import net.kothar.csview.ProgressListener;
 import net.kothar.csview.RowListener;
@@ -50,6 +52,7 @@ public class CSV {
 	private List<ProgressListener> progressListeners = new ArrayList<>();
 	
 	private boolean disposed = false;
+	private String charset = "UTF-8";
 	
 	public CSV() {
 	}
@@ -89,7 +92,19 @@ public class CSV {
 		this.file = file;
 		try {
 			this.randomAccessFile = new RandomAccessFile(file, "r");
-		} catch (FileNotFoundException e) {
+			
+			// Detect charset
+			byte[] buffer = new byte[(int) Math.min(1024 * 10, randomAccessFile.length())];
+			this.randomAccessFile.read(buffer, 0, buffer.length);
+			CharsetMatch charsetMatch = new CharsetDetector()
+				.setText(buffer)
+				.detect();
+			
+			if (charsetMatch != null) {
+				charset = charsetMatch.getName();
+				System.out.println("Matched charset to " + charset);
+			}
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
@@ -291,7 +306,7 @@ public class CSV {
 				byte[] bs = new byte[(int) (to-from)];
 				randomAccessFile.seek(from);
 				int read = randomAccessFile.read(bs);
-				return new String(bs, 0, read, "UTF-8").trim();
+				return new String(bs, 0, read, charset).trim();
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -333,6 +348,14 @@ public class CSV {
 	public void setFormat(CSVFormat format) {
 		this.format = format;
 		maxColumns = -1;
+	}
+
+	public String getCharset() {
+		return charset;
+	}
+
+	public void setCharset(String charset) {
+		this.charset = charset;
 	}
 	
 }
