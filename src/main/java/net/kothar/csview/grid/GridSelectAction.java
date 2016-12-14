@@ -62,8 +62,8 @@ public class GridSelectAction implements MouseAction {
 		// Add to existing selection if CMD/CTRL is held down
 		if ((e.stateMask & SWT.MOD1) == 0) {
 			System.out.println("Clear existing selection");
+			grid.invalidateTiles(grid.selection.selectedRegions);
 			grid.selection.clear();
-			grid.tileCache.invalidateAll();
 		} 
 		
 		if (lastSelection == null)
@@ -100,10 +100,66 @@ public class GridSelectAction implements MouseAction {
 			grid.selection.removeRegion(lastSelection);
 			grid.selection.addRegion(selection);
 			grid.setCurrentCell(cell);
+
 			grid.invalidateTiles(lastSelection, selection);
+			
 			lastSelection = selection;
 		}
 	}
+	
+	/**
+     * Finds the difference between two intersecting rectangles
+     * @see http://stackoverflow.com/a/5155851
+     * 
+     * @param r
+     * @param s
+     * @return An array of rectangle areas that are covered by either r or s, but
+     *         not both
+     */
+    public static Rectangle[] diff( Rectangle r, Rectangle s )
+    {
+        int a = Math.min( r.x, s.x );
+        int b = Math.max( r.x, s.x );
+        int c = Math.min( r.x + r.width, s.x + s.width );
+        int d = Math.max( r.x + r.width, s.x + s.width );
+
+        int e = Math.min( r.y, s.y );
+        int f = Math.max( r.y, s.y );
+        int g = Math.min( r.y + r.height, s.y + s.height );
+        int h = Math.max( r.y + r.height, s.y + s.height );
+
+        // X = intersection, 0-7 = possible difference areas
+        // h +-+-+-+
+        // . |5|6|7|
+        // g +-+-+-+
+        // . |3|X|4|
+        // f +-+-+-+
+        // . |0|1|2|
+        // e +-+-+-+
+        // . a b c d
+
+        Rectangle[] result = new Rectangle[ 6 ];
+
+        // we'll always have rectangles 1, 3, 4 and 6
+        result[ 0 ] = new Rectangle( b, c, e-b, f-c );
+        result[ 1 ] = new Rectangle( a, b, f-a, g-b );
+        result[ 2 ] = new Rectangle( c, d, f-c, g-d );
+        result[ 3 ] = new Rectangle( b, c, g-b, h-c );
+
+        // decide which corners
+        if( r.x == a && r.y == e || s.x == a && s.y == e )
+        { // corners 0 and 7
+            result[ 4 ] = new Rectangle( a, b, e-a, f-b );
+            result[ 5 ] = new Rectangle( c, d, g-c, h-d );
+        }
+        else
+        { // corners 2 and 5
+            result[ 4 ] = new Rectangle( c, d, e-c, f-d );
+            result[ 5 ] = new Rectangle( a, b, g-a, h-b );
+        }
+
+        return result;
+    }
 
 	@Override
 	public Cursor getCursor(MouseEvent e) {

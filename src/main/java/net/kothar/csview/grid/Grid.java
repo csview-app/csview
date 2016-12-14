@@ -40,6 +40,7 @@ public class Grid extends Composite {
 
 	public static final int DEFAULT = -1;
 	private static final int SCROLL_FACTOR = 4;
+	private static final int TILE_ROWS = 10;
 
 	Canvas canvas;
 
@@ -86,7 +87,7 @@ public class Grid extends Composite {
 	}
 
 	private void createContents(Composite parent) {
-		canvas = new Canvas(parent, SWT.H_SCROLL | SWT.V_SCROLL | SWT.DOUBLE_BUFFERED);
+		canvas = new Canvas(parent, SWT.H_SCROLL | SWT.V_SCROLL);
 
 		// Hook painting
 		canvas.addPaintListener(this::paintGrid);
@@ -116,9 +117,6 @@ public class Grid extends Composite {
 	}
 
 	private void paintGrid(PaintEvent e) {
-		long start = System.currentTimeMillis();
-
-		// Determine if there's an overlap between new and old display
 		GC gc = e.gc;
 
 		if (rows.getTotal() > 0 && cols.getTotal() > 0)
@@ -135,10 +133,6 @@ public class Grid extends Composite {
 		int y = bounds.height - 1;
 		int width = bounds.width;
 		gc.drawLine(0, y, width, y);
-
-		long elapsed = System.currentTimeMillis() - start;
-		if (elapsed > 10)
-			System.out.println("Rendered in " + elapsed + "ms");
 	}
 
 	private void paintCells(GC gc) {
@@ -149,6 +143,8 @@ public class Grid extends Composite {
 		int firstCol = cols.getItemAt(xOffset);
 		int firstX = cols.getPosition(firstCol);
 		int firstRow = rows.getItemAt(yOffset);
+		firstRow -= firstRow % TILE_ROWS;
+		
 		int firstY = rows.getPosition(firstRow);
 		int colCount = cols.getCount();
 		int rowCount = rows.getCount();
@@ -168,10 +164,13 @@ public class Grid extends Composite {
 		for (int y = 0; row < rowCount && y + columnHeaderSize - yAdjust < height;) {
 			
 			int col = firstCol;
+			int tileHeight = 0;
 			for (int x = 0; col < colCount && x + rowHeaderSize - xAdjust < width;) {
 				try {
 					Point position = new Point(col, row);
 					Image tile = tileCache.get(position, () -> renderTile(device, position));
+					if (tileHeight == 0)
+						tileHeight = tile.getBounds().height;
 
 					if (tile != nullTile) {
 						gc.drawImage(tile, x + rowHeaderSize - xAdjust, y + columnHeaderSize - yAdjust);
@@ -182,12 +181,13 @@ public class Grid extends Composite {
 					e.printStackTrace();
 				}
 			}
-			y += rows.getSize(row);
-			row++;
+			
+			y += tileHeight;
+			row += TILE_ROWS;
 		}
 	}
 
-	private void renderCell(GC gc, Rectangle viewport) {
+	private void renderCells(GC gc, int y, Rectangle viewport) {
 		if (contentProvider == null || labelProvider == null) {
 			return;
 		}
@@ -207,7 +207,7 @@ public class Grid extends Composite {
 			} else {
 				gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_LIST_FOREGROUND));
 			}
-			gc.drawString(text, getHorizontalCellPadding(), getVerticalCellPadding(), true);
+			gc.drawString(text, getHorizontalCellPadding(), y + getVerticalCellPadding(), true);
 
 		} catch (ExecutionException e) {
 			e.printStackTrace();
@@ -217,19 +217,33 @@ public class Grid extends Composite {
 	private Image renderTile(Device device, Point position) {
 		try {
 			int width = cols.getSize(position.x);
-			int height = rows.getSize(position.y);
+			
+			int lastY = rows.getTotal();
+			if (position.y < rows.getCount() - 1)
+				lastY = rows.getPosition(position.y + TILE_ROWS);
+			int height = lastY - rows.getPosition(position.y);
+			
 			if (width == 0 || height == 0)
 				return nullTile;
 			
 			Image tile = new Image(device, width, height);
 			GC gc = new GC(tile);
-			Rectangle viewport = new Rectangle(position.x, position.y, width, height);
 			
-			renderBackground(gc, viewport);
-			renderSelection(gc, viewport);
-			renderCell(gc, viewport);
-			renderGridlines(gc, viewport);
-			renderCurrentCell(gc, viewport);
+			renderBackground(gc, tile.getBounds());
+
+			int row = position.y;
+			int y = 0;
+			for (int i = 0; i < TILE_ROWS && row < rows.getCount(); i++, row++) {
+				int rowHeight = rows.getSize(row);
+				Rectangle viewport = new Rectangle(position.x, row, width, rowHeight);
+
+				renderSelection(gc, y, viewport);
+				renderCells(gc, y, viewport);
+				renderGridlines(gc, y, viewport);
+				renderCurrentCell(gc, y, viewport);
+
+				y += rowHeight;
+			}
 
 			gc.dispose();
 
@@ -240,10 +254,10 @@ public class Grid extends Composite {
 		}
 	}
 
-	private void renderCurrentCell(GC gc, Rectangle viewport) {
+	private void renderCurrentCell(GC gc, int y, Rectangle viewport) {
 		if (currentCell.x == viewport.x && currentCell.y == viewport.y) {
 			gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_BORDER));
-			gc.drawRectangle(0, 0, viewport.width-1, viewport.height-1);
+			gc.drawRectangle(0, y, viewport.width-1, viewport.height-1);
 		}
 	}
 
@@ -254,12 +268,12 @@ public class Grid extends Composite {
 		return nullTile;
 	}
 
-	private void renderSelection(GC gc, Rectangle viewport) {
+	private void renderSelection(GC gc, int y, Rectangle viewport) {
 		if (!selection.isSelected(viewport.x, viewport.y))
 			return;
 		
 		gc.setBackground(gc.getDevice().getSystemColor(SWT.COLOR_LIST_SELECTION));
-		gc.fillRectangle(0, 0, viewport.width, viewport.height);
+		gc.fillRectangle(0, y, viewport.width, viewport.height);
 	}
 
 	private void paintCorner(GC gc) {
@@ -442,13 +456,13 @@ public class Grid extends Composite {
 		canvas.getHorizontalBar().setSelection(xOffset / SCROLL_FACTOR);
 	}
 
-	private void renderGridlines(GC gc, Rectangle viewport) {
+	private void renderGridlines(GC gc, int y, Rectangle viewport) {
 
 		gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_LIGHT_SHADOW));
 		gc.setLineDash(new int[] {2,2});
 		
-		gc.drawLine(0, viewport.height-1, viewport.width - 1, viewport.height-1);
-		gc.drawLine(viewport.width - 1, 0, viewport.width - 1, viewport.height - 1);
+		gc.drawLine(0, y + viewport.height-1, viewport.width - 1, y + viewport.height-1);
+		gc.drawLine(viewport.width - 1, y, viewport.width - 1, y + viewport.height - 1);
 
 		gc.setLineStyle(SWT.LINE_SOLID);
 	}
@@ -614,9 +628,11 @@ public class Grid extends Composite {
 		int oldCount = rows.getCount();
 		rows.setCount(count);
 		
-		if (count < oldCount) {
-			tileCache.asMap().keySet().removeIf(p -> p.y >= count);
-			labelCache.asMap().keySet().removeIf(p -> p.y >= count);
+		int minCount = Math.min(count, oldCount);
+		int invalidateAfter = minCount - minCount % TILE_ROWS;
+		if (invalidateAfter < count) {
+			tileCache.asMap().keySet().removeIf(p -> p.y >= invalidateAfter);
+			labelCache.asMap().keySet().removeIf(p -> p.y >= invalidateAfter);
 		}
 		updateVerticalScroll();
 		
@@ -679,6 +695,10 @@ public class Grid extends Composite {
 		if (!getCellBounds().contains(cell)) {
 			return;
 		}
+		
+		if (currentCell != null) {
+			invalidateTiles(new Rectangle(currentCell.x, currentCell.y, 1, 1));
+		}
 		currentCell = cell;
 		
 		int x = cols.getPosition(cell.x);
@@ -688,6 +708,7 @@ public class Grid extends Composite {
 		
 		invalidateTiles(new Rectangle(cell.x, cell.y, 1, 1));
 		
+		// Adjust scroll position to ensure current cell is visible
 		int xOffset = getXOffset();
 		if (x + width/2 < xOffset) {
 			setXOffset(x);
@@ -721,10 +742,10 @@ public class Grid extends Composite {
 	
 	void invalidateTiles(Iterable<Rectangle> regions) {
 		tileCache.asMap().keySet().removeIf(p -> {
+			Rectangle tileRegion = new Rectangle(p.x, p.y, 1, TILE_ROWS);
 			for (Rectangle r: regions) {
-				if (p.x >= r.x && p.x - r.x < r.width)
-					if (p.y >= r.y && p.y - r.y < r.height)
-						return true;
+				if (r.intersects(tileRegion))
+					return true;
 			}
 			return false;
 		});
