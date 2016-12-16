@@ -1,5 +1,8 @@
 package net.kothar.csview.grid;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.graphics.Cursor;
@@ -101,7 +104,14 @@ public class GridSelectAction implements MouseAction {
 			grid.selection.addRegion(selection);
 			grid.setCurrentCell(cell);
 
-			grid.invalidateTiles(lastSelection, selection);
+			if (lastSelection.intersects(selection)) {
+				Set<Rectangle> invalidRegions = diff(lastSelection, selection);
+				if (!invalidRegions.isEmpty()) {
+					grid.invalidateTiles(invalidRegions);
+				}
+			} else {
+				grid.invalidateTiles(selection, lastSelection);
+			}
 			
 			lastSelection = selection;
 		}
@@ -116,7 +126,7 @@ public class GridSelectAction implements MouseAction {
      * @return An array of rectangle areas that are covered by either r or s, but
      *         not both
      */
-    public static Rectangle[] diff( Rectangle r, Rectangle s )
+    public static Set<Rectangle> diff( Rectangle r, Rectangle s )
     {
         int a = Math.min( r.x, s.x );
         int b = Math.max( r.x, s.x );
@@ -138,25 +148,35 @@ public class GridSelectAction implements MouseAction {
         // e +-+-+-+
         // . a b c d
 
-        Rectangle[] result = new Rectangle[ 6 ];
+        Set<Rectangle> result = new HashSet<>();
 
+        int w1 = b-a;
+        int w2 = c-b;
+        int w3 = d-c;
+        
+        int h1 = h-g;
+        int h2 = g-f;
+        int h3 = f-e;
+        
         // we'll always have rectangles 1, 3, 4 and 6
-        result[ 0 ] = new Rectangle( b, c, e-b, f-c );
-        result[ 1 ] = new Rectangle( a, b, f-a, g-b );
-        result[ 2 ] = new Rectangle( c, d, f-c, g-d );
-        result[ 3 ] = new Rectangle( b, c, g-b, h-c );
+		result.add(new Rectangle( b, e, w2, h3 ));
+		result.add(new Rectangle( a, f, w1, h2 ));
+		result.add(new Rectangle( c, f, w3, h2 ));
+		result.add(new Rectangle( b, g, w2, h1 ));
 
         // decide which corners
         if( r.x == a && r.y == e || s.x == a && s.y == e )
         { // corners 0 and 7
-            result[ 4 ] = new Rectangle( a, b, e-a, f-b );
-            result[ 5 ] = new Rectangle( c, d, g-c, h-d );
+        	result.add(new Rectangle( a, e, w1, h3 ));
+        	result.add(new Rectangle( c, g, w3, h1 ));
         }
         else
         { // corners 2 and 5
-            result[ 4 ] = new Rectangle( c, d, e-c, f-d );
-            result[ 5 ] = new Rectangle( a, b, g-a, h-b );
+        	result.add(new Rectangle( c, e, w3, h3 ));
+        	result.add(new Rectangle( a, g, w1, h1 ));
         }
+        
+        result.removeIf(x -> x.height == 0 || x.width == 0);
 
         return result;
     }
