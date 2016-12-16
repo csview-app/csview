@@ -1,7 +1,7 @@
 @echo Packaging
 
 set APP_NAME=CSView
-set APP_VERSION=1.2.0
+set APP_VERSION=1.2.1
 set JAR_FILE=csview-%APP_VERSION%-jar-with-dependencies.jar
 
 javapackager -deploy -native msi ^

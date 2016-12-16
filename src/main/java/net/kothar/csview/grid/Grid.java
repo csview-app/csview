@@ -87,7 +87,7 @@ public class Grid extends Composite {
 	}
 
 	private void createContents(Composite parent) {
-		canvas = new Canvas(parent, SWT.H_SCROLL | SWT.V_SCROLL);
+		canvas = new Canvas(parent, SWT.H_SCROLL | SWT.V_SCROLL | SWT.DOUBLE_BUFFERED);
 
 		// Hook painting
 		canvas.addPaintListener(this::paintGrid);
