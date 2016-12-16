@@ -100,33 +100,34 @@ public class GridTest {
 	
 	@Test
 	public void testInvalidate() {
+		Point pos = new Point(2, 0);
 		testShell(() -> {
-			Image cellTile = grid.tileCache.getIfPresent(new Point(2, 2));
-			assertNotNull(cellTile);
-			assertFalse(cellTile.isDisposed());
+			Image tile = grid.tileCache.getIfPresent(pos);
+			assertNotNull(tile);
+			assertFalse(tile.isDisposed());
 			
-			cellData = cellTile.getImageData();
+			cellData = tile.getImageData();
 			
 			grid.invalidateTiles(new Rectangle(2, 2, 1, 1));
-			assertTrue(cellTile.isDisposed());
-			assertFalse(grid.tileCache.asMap().containsKey(new Point(2, 2)));
+			assertTrue(tile.isDisposed());
+			assertFalse(grid.tileCache.asMap().containsKey(pos));
 		}, () -> {
-			Image cellTile = grid.tileCache.getIfPresent(new Point(2, 2));
-			assertNotNull(cellTile);
-			assertFalse(cellTile.isDisposed());
+			Image tile = grid.tileCache.getIfPresent(pos);
+			assertNotNull(tile);
+			assertFalse(tile.isDisposed());
 			
-			assertArrayEquals(cellTile.getImageData().data, cellData.data);
+			assertArrayEquals(tile.getImageData().data, cellData.data);
 			
 			// Change content of cell
-			labels.put(new Point(2, 2), "Override");
+			labels.put(pos, "Override");
 			grid.refresh();
 		}, () -> {
-			Image cellTile = grid.tileCache.getIfPresent(new Point(2, 2));
-			assertNotNull(cellTile);
-			assertFalse(cellTile.isDisposed());
+			Image tile = grid.tileCache.getIfPresent(pos);
+			assertNotNull(tile);
+			assertFalse(tile.isDisposed());
 			
 			try {
-				assertEquals(cellTile.getImageData().data, cellData.data);
+				assertEquals(tile.getImageData().data, cellData.data);
 				throw new RuntimeException("Image data should be different");
 			} catch (AssertionError e) {
 			}
@@ -143,7 +144,7 @@ public class GridTest {
 	public void testRender() {
 		testShell(() -> {
 			assertEquals(50, grid.labelCache.size());
-			assertEquals(50, grid.tileCache.size());
+			assertEquals(50 / grid.TILE_ROWS, grid.tileCache.size());
 		});
 	}
 	

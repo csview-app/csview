@@ -42,7 +42,7 @@ import net.kothar.csview.ui.Menus;
 public class MacLoader implements ApplicationActions {
 
 	static final String APP_NAME = "CSView";
-	static final String VERSION = "1.2.0";
+	static final String VERSION = "1.2.1";
 
 	private Display display;
 
