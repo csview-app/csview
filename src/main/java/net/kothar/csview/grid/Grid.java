@@ -39,8 +39,8 @@ import net.kothar.csview.adt.SizeTree;
 public class Grid extends Composite {
 
 	public static final int DEFAULT = -1;
-	private static final int SCROLL_FACTOR = 4;
-	private static final int TILE_ROWS = 10;
+	static final int SCROLL_FACTOR = 4;
+	static final int TILE_ROWS = 10;
 
 	Canvas canvas;
 
@@ -219,7 +219,7 @@ public class Grid extends Composite {
 			int width = cols.getSize(position.x);
 			
 			int lastY = rows.getTotal();
-			if (position.y < rows.getCount() - 1)
+			if (position.y + TILE_ROWS < rows.getCount() - 1)
 				lastY = rows.getPosition(position.y + TILE_ROWS);
 			int height = lastY - rows.getPosition(position.y);
 			
