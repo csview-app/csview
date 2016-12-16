@@ -64,7 +64,6 @@ public class GridSelectAction implements MouseAction {
 		
 		// Add to existing selection if CMD/CTRL is held down
 		if ((e.stateMask & SWT.MOD1) == 0) {
-			System.out.println("Clear existing selection");
 			grid.invalidateTiles(grid.selection.selectedRegions);
 			grid.selection.clear();
 		} 
@@ -82,7 +81,6 @@ public class GridSelectAction implements MouseAction {
 		// Handle single cell toggle
 		Point cell = getCell(e);
 		if (!newSelection && col == cell.x && row == cell.y && (e.stateMask & SWT.MOD1) != 0) {
-			System.out.println("Toggle selection off");
 			grid.selection.removeRegion(lastSelection);
 			grid.invalidateTiles(lastSelection);
 		}
@@ -99,7 +97,6 @@ public class GridSelectAction implements MouseAction {
 			selection = new Rectangle(selection.x, selection.y + selection.height - 1, selection.width, 2-selection.height);
 		}
 		if (!selection.equals(lastSelection)) {
-			System.out.println("Selection updated: " + selection);
 			grid.selection.removeRegion(lastSelection);
 			grid.selection.addRegion(selection);
 			grid.setCurrentCell(cell);
