@@ -219,7 +219,7 @@ public class Grid extends Composite {
 			int width = cols.getSize(position.x);
 			
 			int lastY = rows.getTotal();
-			if (position.y + TILE_ROWS < rows.getCount() - 1)
+			if (position.y + TILE_ROWS < rows.getCount())
 				lastY = rows.getPosition(position.y + TILE_ROWS);
 			int height = lastY - rows.getPosition(position.y);
 			
