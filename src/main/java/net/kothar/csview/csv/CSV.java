@@ -19,8 +19,10 @@ import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PushbackInputStream;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -41,6 +43,8 @@ import net.kothar.csview.RowListener;
 
 public class CSV {
 
+	private static final byte[] UTF8_BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+	
 	private LineMap rows = new LineMap();
 	private String contents;
 	private RandomAccessFile randomAccessFile;
@@ -152,11 +156,20 @@ public class CSV {
 			escape = quote;
 		}
 
-		// Add first row
-		addRow(0);
-
 		long startTime = System.currentTimeMillis();
-		try (InputStream bufferedInput = new BufferedInputStream(input)) {
+		try (PushbackInputStream bufferedInput = new PushbackInputStream(new BufferedInputStream(input), 3)) {
+
+			// Check for and skip UTF-8 BOM
+			byte[] firstBytes = new byte[3];
+			bufferedInput.read(firstBytes);
+			if (Arrays.equals(firstBytes, UTF8_BOM)) {
+				pos += 3;
+			} else {
+				bufferedInput.unread(firstBytes);
+			}
+			
+			// Add first row
+			addRow(pos);
 
 			int len = bufferedInput.read(bbuf.value);
 			byte b1 = 0, b2 = 0;
