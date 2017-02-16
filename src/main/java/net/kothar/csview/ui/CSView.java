@@ -25,10 +25,10 @@ import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.jface.window.Window;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
-import org.eclipse.swt.layout.GridData;
-import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
@@ -59,6 +59,8 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	private boolean useAppIcon;
 
 	private Grid grid;
+	private SashForm sashForm;
+	private Composite sidebar;
 
 	public static void main(String[] args) {
 		Display display = new Display();
@@ -158,14 +160,11 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	protected Control createContents(Composite parent) {
 
 		Composite composite = (Composite) super.createContents(parent);
+		composite.setLayout(new FillLayout());
+		
+		sashForm = new SashForm(composite, SWT.HORIZONTAL);
 
-		GridLayout layout = new GridLayout(1, false);
-		layout.marginHeight = 0;
-		layout.marginWidth = 0;
-		composite.setLayout(layout);
-
-		grid = new Grid(composite, SWT.NORMAL);
-		grid.setLayoutData(new GridData(GridData.FILL_BOTH));
+		grid = new Grid(sashForm, SWT.NORMAL);
 		grid.setHeaderVisible(true);
 		grid.setLinesVisible(true);
 
@@ -173,8 +172,27 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		grid.setLabelProvider(new CSVLabelProvider(csv));
 		grid.setRowLabelProvider(new NumberFormatLabelProvider(1));
 		grid.setColumnLabelProvider(new CSVColumnHeaderProvider(csv));
+		
+		sidebar = new Composite(sashForm, SWT.NORMAL);
+		sashForm.setWeights(new int[] {70, 30});
+		sashForm.setMaximizedControl(grid);
 
 		return composite;
+	}
+	
+	@Override
+	public void showSearch() {
+		showSidebar();
+		
+		// TODO activate search control
+	}
+	
+	public void showSidebar() {
+		sashForm.setMaximizedControl(null);
+	}
+	
+	public void hideSidebar() {
+		sashForm.setMaximizedControl(grid);
 	}
 	
 	@Override

@@ -112,6 +112,8 @@ public class Menus {
 		
 		Menu debugMenu = new Menu(menuBar);
 		debug.setMenu(debugMenu);
+		
+		// Throw exception
 		MenuItem exception = new MenuItem(debugMenu, SWT.NORMAL);
 		exception.setText("Throw exception");
 		exception.setAccelerator(SWT.MOD1 + 'E');
@@ -119,5 +121,14 @@ public class Menus {
 		exception.addSelectionListener(adapt(() -> {
 			throw new RuntimeException("Test exception", new IllegalArgumentException("Internal exception"));
 		}));
+		
+		// Show search
+		if (docActions != null) {
+			MenuItem search = new MenuItem(debugMenu, SWT.NORMAL);
+			search.setText("Show search sidebar");
+			search.setAccelerator(SWT.MOD1 + 'F');
+
+			search.addSelectionListener(adapt(docActions::showSearch));
+		}
 	}
 }
