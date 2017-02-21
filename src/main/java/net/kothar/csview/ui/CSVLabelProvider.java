@@ -4,9 +4,16 @@ import org.eclipse.jface.viewers.ILabelProviderListener;
 import org.eclipse.jface.viewers.ITableLabelProvider;
 import org.eclipse.swt.graphics.Image;
 
+import net.kothar.csview.csv.CSV;
 import net.kothar.csview.ui.CSVContentProvider.Row;
 
 public class CSVLabelProvider implements ITableLabelProvider {
+
+	private CSV csv;
+
+	public CSVLabelProvider(CSV csv) {
+		this.csv = csv;
+	}
 	
 	@Override
 	public void addListener(ILabelProviderListener listener) {
@@ -25,10 +32,8 @@ public class CSVLabelProvider implements ITableLabelProvider {
 	public String getColumnText(Object element, int column) {
 		Row row = (Row) element;
 		
-		if (column < row.values.length)
-			return row.values[column];
-		else 
-			return "";
+		String cell = csv.getCell(row.row, column);
+		return cell == null ? "" : cell;
 	}
 
 	@Override

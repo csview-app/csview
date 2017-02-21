@@ -230,6 +230,7 @@ public class CompactLongList extends AbstractList<Long> {
 			ByteBuffer buffer = ByteBuffer.allocate(blockSize * newValueLength);
 			
 			items.rewind();
+			assert items.remaining() / valueLength == buffer.remaining() / newValueLength;
 			
 			if (newValueLength == valueLength && newOffset == offset) {
 				// No re-encoding needed if lengths and offsets match

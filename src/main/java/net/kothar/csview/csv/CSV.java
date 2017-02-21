@@ -27,6 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import javax.xml.ws.Holder;
@@ -36,6 +37,8 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.eclipse.swt.events.DisposeEvent;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.ibm.icu.text.CharsetDetector;
 import com.ibm.icu.text.CharsetMatch;
 
@@ -44,6 +47,8 @@ import net.kothar.csview.ProgressListener;
 
 public class CSV {
 
+	private Logger log = Logger.getLogger(getClass().getName());
+	
 	private static final byte[] UTF8_BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
 	
 	private static final int CELL_INDEX_DISTANCE = 10;
@@ -66,7 +71,13 @@ public class CSV {
 	private boolean disposed = false;
 	private String charset = "UTF-8";
 	
+	private Cache<Long, List<String>> cellCache;
+	
 	public CSV() {
+		cellCache = CacheBuilder.newBuilder()
+			.maximumSize(1000)
+			.build();
+		
 	}
 
 	public void addRowListener(IndexListener listener) {
@@ -83,10 +94,10 @@ public class CSV {
 	
 	/**
 	 * Adds a row to the row index at the given character offset
-	 * @param pos
+	 * @param cell
 	 */
-	public synchronized void addRow(long pos) {
-		rows.add(pos);
+	public synchronized void addRow(long cell, long pos) {
+		rows.add(cell);
 		if (rows.size() % 5000 == 0) {
 			notifyProgress(pos);
 		}
@@ -144,6 +155,7 @@ public class CSV {
 	private void scan(InputStream input) {
 		long pos = 0;
 		long cell = 0;
+		int col = 0;
 		int blockSize = 1024 * 1024 * 4;
 
 		/* We use two buffers to allow the next block to be read
@@ -178,8 +190,8 @@ public class CSV {
 			}
 			
 			// Add first row
-			cells.add(pos);
-			addRow(0);
+			addCell(pos);
+			addRow(0, pos);
 
 			int len = bufferedInput.read(bbuf.value);
 			byte b1 = 0, b2 = 0;
@@ -224,18 +236,31 @@ public class CSV {
 						// Check for cell ending
 						if (b2 == format.getDelimiter()) {
 							cell++;
-							if (cell % CELL_INDEX_DISTANCE == 0) cells.add(pos + i);
+							col++;
+							if (cell % CELL_INDEX_DISTANCE == 0) addCell(pos + i + 1);
 						}
 						
 						// Check for line ending
 						if (b2 == '\n') {
 							cell++;
-							if (cell % CELL_INDEX_DISTANCE == 0) cells.add(pos + i);
-							addRow(cell);
+							col++;
+							if (cell % CELL_INDEX_DISTANCE == 0) addCell(pos + i);
+							if (col > maxColumns) {
+								maxColumns = col;
+								notifyColumnsChanged(col);
+							}
+							col = 0;
+							addRow(cell, pos);
 						} else if (b1 == '\r') {
 							cell++;
-							if (cell % CELL_INDEX_DISTANCE == 0) cells.add(pos + i - 1);
-							addRow(cell);
+							col++;
+							if (cell % CELL_INDEX_DISTANCE == 0) addCell(pos + i - 1);
+							if (col > maxColumns) {
+								maxColumns = col;
+								notifyColumnsChanged(col);
+							}
+							col = 0;
+							addRow(cell, pos);
 						}
 					}
 				}
@@ -279,6 +304,10 @@ public class CSV {
 		}
 	}
 
+	private synchronized void addCell(long pos) {
+		cells.add(pos);
+	}
+
 	public synchronized String[] getRow(int row) {
 		Long fromCell = rows.getPosition(row);
 		Long toCell = rows.getPosition(row+1);
@@ -295,11 +324,78 @@ public class CSV {
 		}
 		
 		String[] values = parseRow(rowContent, fromCell % CELL_INDEX_DISTANCE > 0);
-		if (values.length > maxColumns) {
-			maxColumns = values.length;
-			notifyColumnsChanged(maxColumns);
-		}
 		return values;
+	}
+	
+	public synchronized String getCell(int row, int col) {
+		Long rowStart = rows.getPosition(row);
+		Long nextRow = rows.getPosition(row+1);
+		Long colCell = rowStart + col;
+		if (nextRow != null && colCell > nextRow) {
+			return null;
+		}
+		
+		int cellBlockIndex = (int) (colCell / CELL_INDEX_DISTANCE);
+		Long from = cells.getPosition(cellBlockIndex);
+		Long to = cells.getPosition(cellBlockIndex + 1);
+
+		String block = getContent(from, to).trim();
+		if (block.isEmpty()) {
+			return null;
+		}
+		
+		String value = parseCell(block, colCell);
+		return value;
+	}
+
+	private String parseCell(String block, Long cell) {
+		// Check for previously parsed cells
+		long blockStart = cell / CELL_INDEX_DISTANCE;
+		List<String> blockCells = cellCache.getIfPresent(blockStart);
+		
+		// Parse cells
+		if (blockCells == null) {
+			try {
+				blockCells = parseCells(block);
+			} catch (IOException e) {
+				// HACK: Try appending a new terminating quote to complete the line
+				try {
+					blockCells = parseCells(block + "\"");
+				} catch (IOException e1) {
+					// Just split on commas and newlines
+					blockCells = Arrays.asList(block.split("\\s*(" + 
+							Pattern.quote(""+getFormat().getDelimiter()) +
+							"|" + 
+							Pattern.quote(getFormat().getRecordSeparator()) + ")\\s*"));
+				}
+			}
+			
+			if (blockCells != null) {
+				cellCache.put(blockStart, blockCells);
+			}
+		}
+
+		// Return cell at appropriate offset
+		long offset = cell % CELL_INDEX_DISTANCE;
+		if (blockCells != null && blockCells.size() > offset) {
+			return blockCells.get((int) offset);
+		}
+		return null;
+	}
+
+	private List<String> parseCells(String block) throws IOException {
+		List<String> blockCells = new ArrayList<>();
+
+		CSVParser parser = CSVParser.parse(block, getFormat());
+		for (CSVRecord record: parser) {
+			record.forEach(blockCells::add);
+			if (blockCells.size() > CELL_INDEX_DISTANCE + 1) {
+				log.warning("Found more than " + CELL_INDEX_DISTANCE + " cells in cell block");
+				break;
+			}
+		}
+		
+		return blockCells;
 	}
 
 	private String[] parseRow(String rowContent, boolean nextCR) {
