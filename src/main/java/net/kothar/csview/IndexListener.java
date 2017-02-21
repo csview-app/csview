@@ -14,6 +14,6 @@
  */
 package net.kothar.csview;
 
-public interface RowListener {
-	public void rowAdded(int row);
+public interface IndexListener {
+	public void itemAdded(int row);
 }

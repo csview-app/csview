@@ -18,68 +18,68 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import net.kothar.csview.RowListener;
+import net.kothar.csview.IndexListener;
 import net.kothar.csview.adt.BlockList;
 import net.kothar.csview.adt.CompactLongList;
 
-public class LineMap {
+public class Index {
 	
-	private List<Long> linePositions = new CompactLongList();
-	private ArrayList<RowListener> listeners = new ArrayList<>();
+	private List<Long> positions = new CompactLongList();
+	private ArrayList<IndexListener> listeners = new ArrayList<>();
 	long lastPosition;
 	
-	public LineMap() {
+	public Index() {
 	}
 	
-	public LineMap(List<Long> listImpl) {
-		this.linePositions = listImpl;
+	public Index(List<Long> listImpl) {
+		this.positions = listImpl;
 	}
 	
 	public void add(Long position) {
-		if (linePositions.isEmpty() || position > lastPosition) {
-			linePositions.add(position);
+		if (positions.isEmpty() || position > lastPosition) {
+			positions.add(position);
 			lastPosition = position;
 		} else {
-			int line = line(position);
+			int line = item(position);
 			if (line < 0) {
-				linePositions.add(-line, position);
+				positions.add(-line, position);
 			} else {
 				throw new IllegalArgumentException("Duplicate line position added");
 			}
 		}
 		
-		// TODO Fire insertion event if not last line
+		// TODO Fire insertion event if not last item
 		// TODO Fire append event otherwise
-		for (RowListener listener: listeners) {
-			listener.rowAdded(size() - 1);
+		for (IndexListener listener: listeners) {
+			listener.itemAdded(size() - 1);
 		}
 	}
 	
-	/** Find the line at position */
-	private int line(Long position) {
-		return Collections.binarySearch(linePositions, position);
+	/** Find the item at position */
+	private int item(Long position) {
+		return Collections.binarySearch(positions, position);
 	}
 
-	/** The position of line */
-	public Long getPosition(int line) {
-		if (linePositions.isEmpty() || line >= size()) {
+	/** The position of item */
+	public Long getPosition(int item) {
+		if (positions.isEmpty() || item >= size()) {
 			return null;
 		}
-		return linePositions.get(line);
+		return positions.get(item);
 	}
 
 	public int size() {
-		return linePositions.size();
+		return positions.size();
 	}
 
 	public void removePosition(Long position) {
-		int line = line(position);
-		if (line > 0)
-			removeLine(line);
+		int item = item(position);
+		if (item > 0)
+			removeItem(item);
 	}
 	
-	public void removeLine(int line) {
-		linePositions.remove(line);
+	public void removeItem(int item) {
+		positions.remove(item);
 		
 		// TODO Fire removal event
 	}
@@ -87,11 +87,11 @@ public class LineMap {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		for (int i = 0; i < 10 && i < linePositions.size(); i++) {
+		for (int i = 0; i < 10 && i < positions.size(); i++) {
 			sb.append(i + ": " + getPosition(i) + "\n");
 		}
-		if (linePositions.size() >= 10) {
-			sb.append(" + " + (linePositions.size() - 10) + " more lines");
+		if (positions.size() >= 10) {
+			sb.append(" + " + (positions.size() - 10) + " more lines");
 		}
 		return sb.toString();
 	}
@@ -100,26 +100,38 @@ public class LineMap {
 		public static void main(String[] args) {
 			
 			System.out.println("ArrayList");
-			testMap(new LineMap(new ArrayList<>()));
+			Index map = new Index(new ArrayList<>());
+			testMap(map);
 			printmem();
 			
 			System.out.println("\n\nBlockList");
-			testMap(new LineMap(new BlockList<>()));
+			map = new Index(new BlockList<>());
+			Runtime.getRuntime().gc();
+			testMap(map);
 			printmem();
 			
 			System.out.println("\n\nLongBlockList");
-			testMap(new LineMap(new CompactLongList()));
+			map = new Index(new CompactLongList());
+			Runtime.getRuntime().gc();
+			testMap(map);
 			printmem();
 		}
 
 		private static void printmem() {
 			long free = Runtime.getRuntime().freeMemory();
 			long total = Runtime.getRuntime().totalMemory();
-			System.out.println("Memory usage: " + (total - free) + "/" + total);
+			System.out.println("Memory usage pre-GC: " + mb(total - free) + "/" + mb(total));
 			Runtime.getRuntime().gc();
+			free = Runtime.getRuntime().freeMemory();
+			total = Runtime.getRuntime().totalMemory();
+			System.out.println("Memory usage post-GC: " + mb(total - free) + "/" + mb(total));
+		}
+		
+		private static String mb(long value) {
+			return (value >> 20) + " mB";
 		}
 
-		private static void testMap(LineMap map) {
+		private static void testMap(Index map) {
 			long start = System.currentTimeMillis();
 			for (long pos = 0; map.size() < 2_000_000; pos += 48) {
 				map.add(pos);
@@ -127,18 +139,18 @@ public class LineMap {
 			System.out.println("Mapped 2M lines in " + (System.currentTimeMillis() - start)/1000d + "s");
 			
 			start = System.currentTimeMillis();
-			map.removeLine(5);
+			map.removeItem(5);
 			System.out.println("Removed line 5 in " + (System.currentTimeMillis() - start) + "ms");
 
 			start = System.currentTimeMillis();
 			for (int i = 0; i < 10_000; i ++) {
-				map.removeLine((int) (Math.random() * map.size()));
+				map.removeItem((int) (Math.random() * map.size()));
 			}
 			System.out.println("Removed 10K random lines in " + (System.currentTimeMillis() - start)/1000d + "s");
 		}
 	}
 
-	public void addListener(RowListener listener) {
+	public void addListener(IndexListener listener) {
 		listeners .add(listener);
 	}
 }

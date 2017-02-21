@@ -23,6 +23,7 @@ import java.io.PushbackInputStream;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -38,14 +39,21 @@ import org.eclipse.swt.events.DisposeEvent;
 import com.ibm.icu.text.CharsetDetector;
 import com.ibm.icu.text.CharsetMatch;
 
+import net.kothar.csview.IndexListener;
 import net.kothar.csview.ProgressListener;
-import net.kothar.csview.RowListener;
 
 public class CSV {
 
 	private static final byte[] UTF8_BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
 	
-	private LineMap rows = new LineMap();
+	private static final int CELL_INDEX_DISTANCE = 10;
+	
+	/** Maps rows onto the cell that row starts at */
+	private Index rows = new Index();
+	
+	/** Maps every Nth cell to its position in the file */
+	private Index cells = new Index();
+	
 	private String contents;
 	private RandomAccessFile randomAccessFile;
 	private String file;
@@ -61,7 +69,7 @@ public class CSV {
 	public CSV() {
 	}
 
-	public void addRowListener(RowListener listener) {
+	public void addRowListener(IndexListener listener) {
 		rows.addListener(listener);
 	}
 
@@ -135,6 +143,7 @@ public class CSV {
 
 	private void scan(InputStream input) {
 		long pos = 0;
+		long cell = 0;
 		int blockSize = 1024 * 1024 * 4;
 
 		/* We use two buffers to allow the next block to be read
@@ -169,7 +178,8 @@ public class CSV {
 			}
 			
 			// Add first row
-			addRow(pos);
+			cells.add(pos);
+			addRow(0);
 
 			int len = bufferedInput.read(bbuf.value);
 			byte b1 = 0, b2 = 0;
@@ -210,12 +220,22 @@ public class CSV {
 						b1 = 0;
 					}
 					
-					// Check for line ending
 					if (!quoted) {
+						// Check for cell ending
+						if (b2 == format.getDelimiter()) {
+							cell++;
+							if (cell % CELL_INDEX_DISTANCE == 0) cells.add(pos + i);
+						}
+						
+						// Check for line ending
 						if (b2 == '\n') {
-							addRow(pos + i);
+							cell++;
+							if (cell % CELL_INDEX_DISTANCE == 0) cells.add(pos + i);
+							addRow(cell);
 						} else if (b1 == '\r') {
-							addRow(pos + i - 1);
+							cell++;
+							if (cell % CELL_INDEX_DISTANCE == 0) cells.add(pos + i - 1);
+							addRow(cell);
 						}
 					}
 				}
@@ -260,15 +280,21 @@ public class CSV {
 	}
 
 	public synchronized String[] getRow(int row) {
-		Long from = rows.getPosition(row);
-		Long to = rows.getPosition(row+1);
+		Long fromCell = rows.getPosition(row);
+		Long toCell = rows.getPosition(row+1);
+		if (toCell == null) {
+			toCell = (long) cells.size() * CELL_INDEX_DISTANCE;
+		}
+		
+		Long from = cells.getPosition((int) (fromCell / CELL_INDEX_DISTANCE));
+		Long to = cells.getPosition((int) (toCell / CELL_INDEX_DISTANCE + (toCell % CELL_INDEX_DISTANCE == 0 ? 1 : 2)));
 
 		String rowContent = getContent(from, to).trim();
 		if (rowContent.isEmpty()) {
 			return new String[0];
 		}
 		
-		String[] values = parseRow(rowContent);
+		String[] values = parseRow(rowContent, fromCell % CELL_INDEX_DISTANCE > 0);
 		if (values.length > maxColumns) {
 			maxColumns = values.length;
 			notifyColumnsChanged(maxColumns);
@@ -276,17 +302,23 @@ public class CSV {
 		return values;
 	}
 
-	private String[] parseRow(String rowContent) {
+	private String[] parseRow(String rowContent, boolean nextCR) {
 		try {
 			CSVParser parser;
 			CSVRecord record;
 			try {
 				parser = CSVParser.parse(rowContent, getFormat());
-				record = parser.iterator().next();
+				Iterator<CSVRecord> iterator = parser.iterator();
+				record = iterator.next();
+				if (nextCR)
+					record = iterator.next();
 			} catch (RuntimeException e) {
 				// HACK: Try appending a new terminating quote to complete the line
 				parser = CSVParser.parse(rowContent + "\"", getFormat());
-				record = parser.iterator().next();
+				Iterator<CSVRecord> iterator = parser.iterator();
+				record = iterator.next();
+				if (nextCR)
+					record = iterator.next();
 			}
 			String[] cols = new String[record.size()];
 			for (int i = 0; i < cols.length; i++) {
