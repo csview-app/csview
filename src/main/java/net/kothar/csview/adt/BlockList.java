@@ -18,6 +18,12 @@ import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Stores a sorted list of elements in a B-Tree-style tree
+ * @author mhouston
+ *
+ * @param <E>
+ */
 public class BlockList<E> extends AbstractList<E> {
 	
 	private static int BLOCK_SIZE = 10_000;

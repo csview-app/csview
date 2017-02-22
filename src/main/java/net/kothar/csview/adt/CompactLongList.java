@@ -105,10 +105,10 @@ public class CompactLongList extends AbstractList<Long> {
 			if (items != null) {
 				value = get(index);
 				if (index == 0) {
-					items.position(1);
+					items.position(valueLength);
 					items = items.slice();
 				} else if (index == size() - 1) {
-					items.limit(items.limit() - 1);
+					items.limit(items.limit() - valueLength);
 				} else {
 					split(index, index + 1);
 				}
@@ -230,6 +230,7 @@ public class CompactLongList extends AbstractList<Long> {
 			ByteBuffer buffer = ByteBuffer.allocate(blockSize * newValueLength);
 			
 			items.rewind();
+			assert items.remaining() / valueLength == buffer.remaining() / newValueLength;
 			
 			if (newValueLength == valueLength && newOffset == offset) {
 				// No re-encoding needed if lengths and offsets match

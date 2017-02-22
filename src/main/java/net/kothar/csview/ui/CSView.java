@@ -170,7 +170,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		grid.setLinesVisible(true);
 
 		grid.setContentProvider(new CSVContentProvider(csv));
-		grid.setLabelProvider(new CSVLabelProvider());
+		grid.setLabelProvider(new CSVLabelProvider(csv));
 		grid.setRowLabelProvider(new NumberFormatLabelProvider(1));
 		grid.setColumnLabelProvider(new CSVColumnHeaderProvider(csv));
 
@@ -225,7 +225,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 				@Override
 				public void columnsChanged(int columns) {
-					grid.setCols(columns);
+					getShell().getDisplay().asyncExec(() -> grid.setCols(columns));
 				}
 
 			});
