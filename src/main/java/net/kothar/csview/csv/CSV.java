@@ -35,6 +35,7 @@ import javax.xml.ws.Holder;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.eclipse.swt.events.DisposeEvent;
 
 import com.google.common.cache.Cache;
@@ -66,13 +67,11 @@ public class CSV {
 	private CSVFormat format = CSVFormat.DEFAULT;
 	private int maxColumns = -1;
 	
-	private List<ProgressListener> progressListeners = new ArrayList<>();
-	
 	private boolean disposed = false;
 	private String charset = "UTF-8";
 	
 	private Cache<Long, List<String>> cellCache;
-	
+
 	public CSV() {
 		cellCache = CacheBuilder.newBuilder()
 			.maximumSize(1000)
@@ -98,9 +97,6 @@ public class CSV {
 	 */
 	public synchronized void addRow(long cell, long pos) {
 		rows.add(cell);
-		if (rows.size() % 5000 == 0) {
-			notifyProgress(pos);
-		}
 	}
 
 	/**
@@ -132,31 +128,64 @@ public class CSV {
 		}
 	}
 	
-	public void scan() {
+	public void scan(ProgressListener listener) {
+		scan(new ScanHandler() {
+			@Override
+			public void newCell(long cell, long row, int col, long pos) {
+				if (cell % CELL_INDEX_DISTANCE == 0) addCell(pos);
+			}
+
+			@Override
+			public void newRow(long cell, long row, int previousCols, long pos) {
+				if (previousCols > maxColumns) {
+					maxColumns = previousCols;
+					notifyColumnsChanged(previousCols);
+				}
+				
+				addRow(cell, pos);
+				
+				if (row % 5000 == 0) {
+					listener.changed(pos);
+				}
+			}
+
+			private void notifyColumnsChanged(int cols) {
+				listener.columnsChanged(cols);
+			}
+
+			@Override
+			public void notifyCompleted() {
+				listener.completed();
+			}
+		});
+	}
+	
+	public void scan(ScanHandler handler) {
 		if (file != null) {
-			CompletableFuture.runAsync(this::scanFile);
+			CompletableFuture.runAsync(() -> scanFile(handler));
 		} else if (contents != null) {
-			CompletableFuture.runAsync(this::scanContents);
+			CompletableFuture.runAsync(() -> scanContents(handler));
 		}
 	}
 
-	private void scanContents() {
-		scan(new ByteArrayInputStream(contents.getBytes()));
+	private void scanContents(ScanHandler handler) {
+		scan(new ByteArrayInputStream(contents.getBytes()), handler);
 	}
 	
-	private void scanFile() {
+	private void scanFile(ScanHandler handler) {
 		try (FileInputStream input = new FileInputStream(file)) {
-			scan(input);
+			scan(input, handler);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 
-	private void scan(InputStream input) {
+	private void scan(InputStream input, ScanHandler handler) {
 		long pos = 0;
 		long cell = 0;
 		int col = 0;
-		int blockSize = 1024 * 1024 * 4;
+		int row = 0;
+		int blockSize = 4 << 20;
 
 		/* We use two buffers to allow the next block to be read
 		 * while processing the first. We could potentially use more
@@ -190,8 +219,8 @@ public class CSV {
 			}
 			
 			// Add first row
-			addCell(pos);
-			addRow(0, pos);
+			handler.newCell(0, 0, 0, pos);
+			handler.newRow(0, 0, 0, pos);
 
 			int len = bufferedInput.read(bbuf.value);
 			byte b1 = 0, b2 = 0;
@@ -237,30 +266,24 @@ public class CSV {
 						if (b2 == format.getDelimiter()) {
 							cell++;
 							col++;
-							if (cell % CELL_INDEX_DISTANCE == 0) addCell(pos + i + 1);
+							handler.newCell(cell, row, col, pos + i);
 						}
 						
 						// Check for line ending
 						if (b2 == '\n') {
 							cell++;
 							col++;
-							if (cell % CELL_INDEX_DISTANCE == 0) addCell(pos + i);
-							if (col > maxColumns) {
-								maxColumns = col;
-								notifyColumnsChanged(col);
-							}
+							row++;
+							handler.newCell(cell, row, col, pos + i);
+							handler.newRow(cell, row, col, pos + i);
 							col = 0;
-							addRow(cell, pos);
 						} else if (b1 == '\r') {
 							cell++;
 							col++;
-							if (cell % CELL_INDEX_DISTANCE == 0) addCell(pos + i - 1);
-							if (col > maxColumns) {
-								maxColumns = col;
-								notifyColumnsChanged(col);
-							}
+							row++;
+							handler.newCell(cell, row, col, pos + i - 1);
+							handler.newRow(cell, row, col, pos + i - 1);
 							col = 0;
-							addRow(cell, pos);
 						}
 					}
 				}
@@ -291,7 +314,7 @@ public class CSV {
 			double mb = randomAccessFile.length() / (double) (1 << 20);
 			double sec = (System.currentTimeMillis() - startTime) / 1000D;
 			System.out.println((long) (mb / sec) + " MiB/sec");
-			notifyCompleted();
+			handler.notifyCompleted();
 			
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -460,28 +483,6 @@ public class CSV {
 		return rows.size();
 	}
 
-	public void addProgressListener(ProgressListener listener) {
-		progressListeners.add(listener);
-	}
-	
-	private void notifyColumnsChanged(int columns) {
-		for (ProgressListener listener: progressListeners) {
-			listener.columnsChanged(columns);
-		}
-	}
-	
-	private void notifyProgress(long progress) {
-		for (ProgressListener listener: progressListeners) {
-			listener.changed(progress);
-		}
-	}
-	
-	private void notifyCompleted() {
-		for (ProgressListener listener: progressListeners) {
-			listener.completed();
-		}
-	}
-
 	public CSVFormat getFormat() {
 		return format;
 	}
@@ -497,6 +498,58 @@ public class CSV {
 
 	public void setCharset(String charset) {
 		this.charset = charset;
+	}
+
+	public Index search(String searchPattern, ProgressListener listener) {
+		Pattern pattern = Pattern.compile(searchPattern);
+		Index index = new Index();
+		
+		// Scan cells
+		scan(new ScanHandler() {
+			
+			long lastPos = 0;
+			byte[] buffer = new byte[1 << 20];
+			
+			@Override
+			public void newRow(long cell, long row, int previousCols, long pos) {
+				if (row % 5000 == 0) {
+					listener.changed(pos);
+				}
+			}
+			
+			@Override
+			public void newCell(long cell, long row, int col, long pos) {
+				if (pos == lastPos) {
+					return;
+				}
+				
+				try {
+					// Get cell contents
+					randomAccessFile.seek(lastPos);
+					int read = randomAccessFile.read(buffer, 0, (int) (pos - lastPos));
+					String rawCell = new String(buffer, 0, read, charset).trim();
+					
+					// Unescape CSV
+					String unescapedCell = StringEscapeUtils.unescapeCsv(rawCell);
+					
+					// Look for pattern
+					if (pattern.matcher(unescapedCell).find()) {
+						index.add(lastPos);
+					}
+					
+				} catch (IOException e) {
+					e.printStackTrace();
+				} finally {
+					lastPos = pos;
+				}
+			}
+
+			@Override
+			public void notifyCompleted() {
+				listener.completed();
+			}
+		});
+		return index;
 	}
 	
 }

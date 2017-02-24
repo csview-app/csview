@@ -14,10 +14,9 @@
  */
 package net.kothar.csview.ui;
 
+import static net.kothar.csview.ui.Adapters.*;
+
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.events.SelectionAdapter;
-import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 
@@ -33,7 +32,7 @@ public class Menus {
 	public Menus(ApplicationActions actions, Menu menuBar) {
 		this.actions = actions;
 		commands = new Commands(actions);
-		
+
 		createFileMenu(menuBar);
 		if (System.getProperties().containsKey("net.kothar.csview.debug")) {
 			createDebugMenu(menuBar);
@@ -44,12 +43,12 @@ public class Menus {
 		this.actions = actions;
 		this.docActions = docActions;
 		commands = new Commands(actions);
-		
+
 		Menu fileMenu = createFileMenu(menuBar);
 		addDocumentFileActions(fileMenu);
-		
+
 		createSelectionMenu(menuBar);
-		
+
 		if (System.getProperties().containsKey("net.kothar.csview.debug")) {
 			createDebugMenu(menuBar);
 		}
@@ -58,77 +57,68 @@ public class Menus {
 	private Menu createSelectionMenu(Menu menuBar) {
 		MenuItem menuItem = new MenuItem(menuBar, SWT.CASCADE);
 		menuItem.setText("Selection");
-		
+
 		Menu menu = new Menu(menuBar);
 		menuItem.setMenu(menu);
-		
+
 		MenuItem copy = new MenuItem(menu, SWT.NORMAL);
 		copy.setText("Copy");
 		copy.setAccelerator(SWT.MOD1 + 'C');
-		
-		copy.addSelectionListener(adapt(docActions::copySelection));
-		
+
+		copy.addSelectionListener(select(docActions::copySelection));
+
 		return menu;
 	}
 
 	private void addDocumentFileActions(Menu fileMenu) {
-		
+
 		MenuItem close = new MenuItem(fileMenu, SWT.NORMAL);
 		close.setText("Close file");
 		close.setAccelerator(SWT.MOD1 + 'W');
-		
-		close.addSelectionListener(adapt(docActions::close));
-		
+
+		close.addSelectionListener(select(docActions::close));
+
 	}
 
 	public Menu createFileMenu(Menu menuBar) {
 		MenuItem file = new MenuItem(menuBar, SWT.CASCADE);
 		file.setText("File");
-		
+
 		Menu fileMenu = new Menu(menuBar);
 		file.setMenu(fileMenu);
-		
+
 		MenuItem open = new MenuItem(fileMenu, SWT.NORMAL);
 		open.setText("Open file");
 		open.setAccelerator(SWT.MOD1 + 'O');
-		
-		open.addSelectionListener(adapt(commands::openFile));
-		
-		return fileMenu;
-	}
 
-	private SelectionListener adapt(Runnable action) {
-		return new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent e) {
-				action.run();
-			}
-		};
+		open.addSelectionListener(select(commands::openFile));
+
+		return fileMenu;
 	}
 
 	public void createDebugMenu(Menu menuBar) {
 		MenuItem debug = new MenuItem(menuBar, SWT.CASCADE);
 		debug.setText("Debug");
-		
+
 		Menu debugMenu = new Menu(menuBar);
 		debug.setMenu(debugMenu);
-		
+
 		// Throw exception
 		MenuItem exception = new MenuItem(debugMenu, SWT.NORMAL);
 		exception.setText("Throw exception");
 		exception.setAccelerator(SWT.MOD1 + 'E');
-		
-		exception.addSelectionListener(adapt(() -> {
+
+		exception.addSelectionListener(select(() -> {
 			throw new RuntimeException("Test exception", new IllegalArgumentException("Internal exception"));
 		}));
-		
+
 		// Show search
 		if (docActions != null) {
 			MenuItem search = new MenuItem(debugMenu, SWT.NORMAL);
 			search.setText("Show search sidebar");
 			search.setAccelerator(SWT.MOD1 + 'F');
 
-			search.addSelectionListener(adapt(docActions::showSearch));
+			search.addSelectionListener(select(docActions::toggleSearch));
 		}
 	}
 }

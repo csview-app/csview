@@ -6,5 +6,5 @@ public interface DocumentActions {
 	
 	boolean copySelection();
 	
-	void showSearch();
+	void toggleSearch();
 }

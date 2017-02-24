@@ -17,7 +17,9 @@ package net.kothar.csview.cocoa;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
@@ -42,7 +44,7 @@ import net.kothar.csview.ui.Menus;
 public class MacLoader implements ApplicationActions {
 
 	static final String APP_NAME = "CSView";
-	static final String VERSION = "1.2.1";
+	static final String VERSION = "1.3.0";
 
 	private Display display;
 
@@ -58,8 +60,32 @@ public class MacLoader implements ApplicationActions {
 
 		try {
 			logFile = File.createTempFile(APP_NAME, ".log");
+			FileOutputStream logOut = new FileOutputStream(logFile);
+			PrintStream realOut = System.out;
+			PrintStream realErr = System.err;
+			
 			System.out.println("Logging to " + logFile);
-			PrintStream log = new PrintStream(logFile);
+			PrintStream log = new PrintStream(new OutputStream() {
+				@Override
+				public void write(int b) throws IOException {
+					logOut.write(b);
+					realOut.write(b);
+				}
+				
+				@Override
+				public void write(byte[] b) throws IOException {
+					logOut.write(b);
+					realOut.write(b);
+				}
+				
+				@Override
+				public void close() throws IOException {
+					logOut.close();
+					System.setOut(realOut);
+					System.setErr(realErr);
+				}
+			});
+			
 			System.setOut(log);
 			System.setErr(log);
 

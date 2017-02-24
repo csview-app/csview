@@ -14,6 +14,8 @@
  */
 package net.kothar.csview.ui;
 
+import static net.kothar.csview.ui.Adapters.*;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 
@@ -40,7 +42,7 @@ import net.kothar.csview.DocumentActions;
 import net.kothar.csview.ProgressListener;
 import net.kothar.csview.csv.CSV;
 import net.kothar.csview.grid.Grid;
-
+import net.kothar.csview.ui.search.SearchSidebar;
 
 public class CSView extends ApplicationWindow implements DocumentActions {
 
@@ -60,7 +62,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 	private Grid grid;
 	private SashForm sashForm;
-	private Composite sidebar;
+	private SearchSidebar sidebar;
 
 	public static void main(String[] args) {
 		Display display = new Display();
@@ -150,10 +152,10 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 			shell.setText("CSView");
 		}
 	}
-	
+
 	@Override
 	protected Point getInitialSize() {
-		return new Point(1024,  768);
+		return new Point(1024, 768);
 	}
 
 	@Override
@@ -161,10 +163,10 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 		Composite composite = (Composite) super.createContents(parent);
 		composite.setLayout(new FillLayout());
-		
+
 		sashForm = new SashForm(composite, SWT.HORIZONTAL);
 
-		grid = new Grid(sashForm, SWT.NORMAL);
+		grid = new Grid(sashForm, SWT.BORDER);
 		grid.setHeaderVisible(true);
 		grid.setLinesVisible(true);
 
@@ -172,49 +174,55 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		grid.setLabelProvider(new CSVLabelProvider(csv));
 		grid.setRowLabelProvider(new NumberFormatLabelProvider(1));
 		grid.setColumnLabelProvider(new CSVColumnHeaderProvider(csv));
-		
-		sidebar = new Composite(sashForm, SWT.NORMAL);
-		sashForm.setWeights(new int[] {70, 30});
+
+		sidebar = new SearchSidebar(sashForm, csv);
+		sashForm.setWeights(new int[] { 70, 30 });
 		sashForm.setMaximizedControl(grid);
+		sidebar.addCloseListener(select(this::hideSidebar));
 
 		return composite;
 	}
-	
+
 	@Override
-	public void showSearch() {
-		showSidebar();
-		
+	public void toggleSearch() {
 		// TODO activate search control
+		Control maximized = sashForm.getMaximizedControl();
+		if (maximized == null) {
+			hideSidebar();
+		} else {
+			showSidebar();
+		}
+
 	}
-	
+
 	public void showSidebar() {
 		sashForm.setMaximizedControl(null);
+		sidebar.focusInput();
 	}
-	
+
 	public void hideSidebar() {
 		sashForm.setMaximizedControl(grid);
 	}
-	
+
 	@Override
 	public void create() {
 		addStatusLine();
 		super.create();
 
 		// Load the CSV
-		hookCSVScanListener();
-		csv.scan();
+		csv.scan(createProgressListner("Scanning"));
 
 		getShell().getDisplay().asyncExec(this::refreshTable);
 		getShell().addDisposeListener(csv::dispose);
 	}
 
-	private void hookCSVScanListener() {
+	private ProgressListener createProgressListner(String task) {
 		if (file != null) {
 			IProgressMonitor progressMonitor = getStatusLineManager().getProgressMonitor();
-			progressMonitor.beginTask("Scanning", 1000);
+			progressMonitor.beginTask(task, 1000);
 
 			long fileSize = new File(file).length();
-			csv.addProgressListener(new ProgressListener() {
+			ProgressListener listener = new ProgressListener() {
 
 				private long lastProgress = 0;
 
@@ -230,9 +238,9 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 				public void changed(long progress) {
 					if (getShell().isDisposed())
 						return;
-					
+
 					getShell().getDisplay().asyncExec(() -> {
-						int worked = ((int) (((progress - lastProgress)*1000)/fileSize));
+						int worked = ((int) (((progress - lastProgress) * 1000) / fileSize));
 						if (worked > 0) {
 							progressMonitor.worked(worked);
 							lastProgress = progress;
@@ -246,8 +254,25 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 					getShell().getDisplay().asyncExec(() -> grid.setCols(columns));
 				}
 
-			});
+			};
+			
+			return listener;
 		}
+		
+		return new ProgressListener() {
+			@Override
+			public void completed() {
+			}
+			
+			@Override
+			public void columnsChanged(int columns) {
+				getShell().getDisplay().asyncExec(() -> grid.setCols(columns));
+			}
+			
+			@Override
+			public void changed(long progress) {
+			}
+		};
 	}
 
 	protected StatusLineManager createStatusLineManager() {
@@ -255,24 +280,24 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 		createDelimiterMenu(statusLineManager);
 		createEncodingMenu(statusLineManager);
-		
-//		statusLineManager.add(new StatusLineContributionItem("quote", 10) {{
-//			setText("Escape: \"");
-//		}});
-//		statusLineManager.add(new StatusLineContributionItem("line", 10) {{
-//			setText("Line: \\n");
-//		}});
+
+		// statusLineManager.add(new StatusLineContributionItem("quote", 10) {{
+		// setText("Escape: \"");
+		// }});
+		// statusLineManager.add(new StatusLineContributionItem("line", 10) {{
+		// setText("Line: \\n");
+		// }});
 
 		statusLineManager.update(true);
 		return statusLineManager;
 	}
-	
+
 	private void createEncodingMenu(StatusLineManager statusLineManager) {
-		StatusLineMenuContribution menu = 
-				new StatusLineMenuContribution("encoding", "Encoding: " + csv.getCharset() + " \u25bc");
+		StatusLineMenuContribution menu = new StatusLineMenuContribution("encoding",
+				"Encoding: " + csv.getCharset() + " \u25bc");
 		statusLineManager.add(menu);
-		
-		for (String encoding: CharsetDetector.getAllDetectableCharsets()) {
+
+		for (String encoding : CharsetDetector.getAllDetectableCharsets()) {
 			menu.getMenuManager().add(new Action(encoding) {
 				@Override
 				public void run() {
@@ -285,7 +310,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	}
 
 	private String formatDelimiter(char c) {
-		for (Delimiter d: Delimiter.values()) {
+		for (Delimiter d : Delimiter.values()) {
 			if (d.character == c)
 				return "Delimiter: " + d + " \u25bc";
 		}
@@ -293,13 +318,13 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	}
 
 	private void createDelimiterMenu(StatusLineManager statusLineManager) {
-		
+
 		char currentDelimiter = csv.getFormat().getDelimiter();
-		StatusLineMenuContribution fieldSeparatorMenu = 
-				new StatusLineMenuContribution("separator", formatDelimiter(currentDelimiter));
+		StatusLineMenuContribution fieldSeparatorMenu = new StatusLineMenuContribution("separator",
+				formatDelimiter(currentDelimiter));
 		statusLineManager.add(fieldSeparatorMenu);
-		
-		for (Delimiter d: Delimiter.values()) {
+
+		for (Delimiter d : Delimiter.values()) {
 			fieldSeparatorMenu.getMenuManager().add(new Action(d.toString()) {
 				@Override
 				public void run() {
@@ -313,7 +338,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 			@Override
 			public void run() {
 				String defaultValue = "" + currentDelimiter;
-				InputDialog inputDialog = new InputDialog(getShell(), "Select input delimiter", 
+				InputDialog inputDialog = new InputDialog(getShell(), "Select input delimiter",
 						"Please choose a delimiter character", defaultValue, null);
 				if (inputDialog.open() == Window.OK && !inputDialog.getValue().isEmpty()) {
 					char delimiter = inputDialog.getValue().toCharArray()[0];
