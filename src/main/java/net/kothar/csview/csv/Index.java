@@ -56,7 +56,7 @@ public class Index {
 	}
 	
 	/** Find the item at position */
-	private int item(Long position) {
+	public int item(Long position) {
 		return Collections.binarySearch(positions, position);
 	}
 

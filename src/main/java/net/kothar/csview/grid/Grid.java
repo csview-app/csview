@@ -473,9 +473,6 @@ public class Grid extends Composite {
 	}
 
 	public void addRow(int height) {
-		
-		int y = rows.getTotal();
-		
 		if (height == DEFAULT) {
 			// TODO derive from font metrics
 			rows.add();

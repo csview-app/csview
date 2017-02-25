@@ -64,10 +64,18 @@ public class SearchSidebar extends Composite {
 	}
 	
 	private void updateSearch() {
+		grid.setRows(0);
+		
+		String searchString = search.getText();
+		if (searchString.isEmpty()) {
+			return;
+		}
+		
 		System.out.println("Search for " + search.getText());
-		index = csv.search(search.getText(), new ProgressListener() {
+		index = csv.search(searchString, new ProgressListener() {
 			@Override
 			public void completed() {
+				refreshGrid();
 			}
 			
 			@Override
@@ -76,10 +84,16 @@ public class SearchSidebar extends Composite {
 			
 			@Override
 			public void changed() {
+				refreshGrid();
 			}
 		});
 		
-		// TODO listen for events and update grid
+		grid.setContentProvider(new SearchIndexContentProvider(index));
+		grid.setLabelProvider(new SearchIndexLabelProvider(csv, index));
+	}
+
+	protected void refreshGrid() {
+		getDisplay().asyncExec(() -> grid.setRows(index.size()));
 	}
 
 	public void addCloseListener(SelectionListener listener) {
