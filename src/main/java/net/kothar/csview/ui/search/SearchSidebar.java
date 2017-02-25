@@ -68,18 +68,14 @@ public class SearchSidebar extends Composite {
 		index = csv.search(search.getText(), new ProgressListener() {
 			@Override
 			public void completed() {
-				// TODO Auto-generated method stub
-				
 			}
 			
 			@Override
 			public void columnsChanged(int columns) {
-				System.out.println("Found " + index.size() + " results");
 			}
 			
 			@Override
-			public void changed(long progress) {
-				System.out.println("Progress: " + progress);
+			public void changed() {
 			}
 		});
 		

@@ -20,7 +20,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 
 import org.apache.commons.csv.CSVFormat;
-import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.StatusLineManager;
 import org.eclipse.jface.dialogs.InputDialog;
@@ -41,6 +40,7 @@ import com.ibm.icu.text.CharsetDetector;
 import net.kothar.csview.DocumentActions;
 import net.kothar.csview.ProgressListener;
 import net.kothar.csview.csv.CSV;
+import net.kothar.csview.csv.ProgressManager;
 import net.kothar.csview.grid.Grid;
 import net.kothar.csview.ui.search.SearchSidebar;
 
@@ -63,6 +63,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	private Grid grid;
 	private SashForm sashForm;
 	private SearchSidebar sidebar;
+	private String contents;
 
 	public static void main(String[] args) {
 		Display display = new Display();
@@ -88,27 +89,28 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		this();
 
 		if (args.length > 0) {
-			csv = new CSV();
-
-			try {
-				loadCSV(args[0]);
-			} catch (FileNotFoundException e) {
-				loadCSVString(e.getMessage());
-			}
+			file = args[0];
 		} else {
-			loadCSVString("No Data, Please open a file");
+			contents = "No Data, Please open a file";
 		}
 	}
 
 	public CSView(File file) {
 		this();
 
+		this.file = file.toString();
+	}
+	
+	public void load() {
 		csv = new CSV();
-
-		try {
-			loadCSV(file.toString());
-		} catch (FileNotFoundException e) {
-			loadCSVString(e.getMessage());
+		if (file != null) {
+			try {
+				loadCSV(file);
+			} catch (FileNotFoundException e) {
+				loadCSVString(e.getMessage());
+			}
+		} else {
+			loadCSVString(contents);
 		}
 	}
 
@@ -117,7 +119,6 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	}
 
 	private void loadCSVString(String string) {
-		csv = new CSV();
 		csv.setContents(string);
 	}
 
@@ -206,45 +207,37 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 	@Override
 	public void create() {
+		// Load the CSV
+		load();
+		
 		addStatusLine();
 		super.create();
-
-		// Load the CSV
-		csv.scan(createProgressListner("Scanning"));
+		
+		csv.setProgressManger(new ProgressManager(getStatusLineManager(), Display.getCurrent()));
+		csv.scan(createProgressListner());
 
 		getShell().getDisplay().asyncExec(this::refreshTable);
 		getShell().addDisposeListener(csv::dispose);
 	}
 
-	private ProgressListener createProgressListner(String task) {
+	private ProgressListener createProgressListner() {
 		if (file != null) {
-			IProgressMonitor progressMonitor = getStatusLineManager().getProgressMonitor();
-			progressMonitor.beginTask(task, 1000);
 
-			long fileSize = new File(file).length();
 			ProgressListener listener = new ProgressListener() {
-
-				private long lastProgress = 0;
 
 				@Override
 				public void completed() {
 					getShell().getDisplay().asyncExec(() -> {
-						progressMonitor.done();
 						refreshTable();
 					});
 				}
 
 				@Override
-				public void changed(long progress) {
+				public void changed() {
 					if (getShell().isDisposed())
 						return;
 
 					getShell().getDisplay().asyncExec(() -> {
-						int worked = ((int) (((progress - lastProgress) * 1000) / fileSize));
-						if (worked > 0) {
-							progressMonitor.worked(worked);
-							lastProgress = progress;
-						}
 						refreshTable();
 					});
 				}
@@ -262,6 +255,9 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		return new ProgressListener() {
 			@Override
 			public void completed() {
+				getShell().getDisplay().asyncExec(() -> {
+					refreshTable();
+				});
 			}
 			
 			@Override
@@ -270,7 +266,10 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 			}
 			
 			@Override
-			public void changed(long progress) {
+			public void changed() {
+				getShell().getDisplay().asyncExec(() -> {
+					refreshTable();
+				});
 			}
 		};
 	}
