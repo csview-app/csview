@@ -85,12 +85,14 @@ public class SizeTree {
 		}
 
 		private void decreaseChildren(int count) {
+			if (count == 0 ) {
+				left = null;
+				right = null;
+				size = 0;
+			}
+			
 			if (children == 0) {
-				if (count == 0) {
-					// Nothing to do
-				} else {
-					throw new IllegalArgumentException("Node already has 0 children");
-				}
+				throw new IllegalArgumentException("Node already has 0 children");
 			} else if (left == null) {
 				// No child nodes, just reduce to new size
 				assert size == children * defaultSize;

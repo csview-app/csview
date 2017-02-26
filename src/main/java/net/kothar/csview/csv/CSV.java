@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PushbackInputStream;
 import java.io.RandomAccessFile;
+import java.io.UnsupportedEncodingException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel.MapMode;
 import java.time.Duration;
@@ -215,7 +216,16 @@ public class CSV {
 
 	private void scanFile(ScanHandler handler) {
 		try (FileInputStream input = new FileInputStream(file)) {
+
+			long startTime = System.currentTimeMillis();
+			
 			scan(input, handler);
+
+			System.out.println("Scanned " + rows.size() + " rows");
+			double mb = randomAccessFile.length() / (double) (1 << 20);
+			double sec = (System.currentTimeMillis() - startTime) / 1000D;
+			System.out.println((long) (mb / sec) + " MiB/sec");
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -246,8 +256,6 @@ public class CSV {
 		if (escape == null) {
 			escape = quote;
 		}
-
-		long startTime = System.currentTimeMillis();
 		try (PushbackInputStream bufferedInput = new PushbackInputStream(new BufferedInputStream(input), 3)) {
 
 			// Check for and skip UTF-8 BOM
@@ -350,11 +358,6 @@ public class CSV {
 					}
 				}
 			}
-
-			System.out.println("Scanned " + rows.size() + " rows");
-			double mb = randomAccessFile.length() / (double) (1 << 20);
-			double sec = (System.currentTimeMillis() - startTime) / 1000D;
-			System.out.println((long) (mb / sec) + " MiB/sec");
 			handler.notifyCompleted();
 
 		} catch (IOException e) {
@@ -416,15 +419,45 @@ public class CSV {
 			return "";
 		}
 		
-		int blockIndex = 0;//cells.item(position);
+		int blockIndex = cells.itemAt(position);
 		if (blockIndex < 0) {
 			blockIndex = -blockIndex - 1;
 		}
 		
-		List<String> blockCells = parseBlock(blockIndex);
+		String block = getCellBlock(blockIndex);
+		if (block.isEmpty()) {
+			return null;
+		}
 		
-		// Work out which cell we actually asked for
-		return blockCells.get(0);
+		try {
+			// FIXME this is doing the block lookup twice and converting back from strings
+			byte[] blockBytes = block.getBytes(charset);
+			List<String> blockCells = parseBlock(blockIndex);
+			
+			// Work out which cell we actually asked for
+			Holder<Integer> cellHolder = new Holder<>();
+			long offset = position - cells.getPosition(blockIndex);
+			scan(new ByteArrayInputStream(blockBytes), new ScanHandler() {
+				@Override
+				public void notifyCompleted() {
+				}
+
+				@Override
+				public void newRow(long cell, long row, int previousCols, long pos) {
+				}
+
+				@Override
+				public void newCell(long cell, long row, int col, long pos) {
+					if (cellHolder.value == null && pos > offset) {
+						cellHolder.value = (int) (cell - 1);
+					}
+				}
+			});
+			return blockCells.get(cellHolder.value);
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+			return null;
+		}
 	}
 
 	private String getBlockCell(Long cell) {

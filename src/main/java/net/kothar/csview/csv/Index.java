@@ -35,12 +35,12 @@ public class Index {
 		this.positions = listImpl;
 	}
 	
-	public void add(Long position) {
+	public synchronized void add(Long position) {
 		if (positions.isEmpty() || position > lastPosition) {
 			positions.add(position);
 			lastPosition = position;
 		} else {
-			int line = item(position);
+			int line = itemAt(position);
 			if (line < 0) {
 				positions.add(-line, position);
 			} else {
@@ -56,36 +56,39 @@ public class Index {
 	}
 	
 	/** Find the item at position */
-	public int item(Long position) {
+	public synchronized int itemAt(Long position) {
+		if (positions instanceof CompactLongList) {
+			return ((CompactLongList) positions).search(position);
+		}
 		return Collections.binarySearch(positions, position);
 	}
 
 	/** The position of item */
-	public Long getPosition(int item) {
+	public synchronized Long getPosition(int item) {
 		if (positions.isEmpty() || item >= size()) {
 			return null;
 		}
 		return positions.get(item);
 	}
 
-	public int size() {
+	public synchronized int size() {
 		return positions.size();
 	}
 
-	public void removePosition(Long position) {
-		int item = item(position);
+	public synchronized void removePosition(Long position) {
+		int item = itemAt(position);
 		if (item > 0)
 			removeItem(item);
 	}
 	
-	public void removeItem(int item) {
+	public synchronized void removeItem(int item) {
 		positions.remove(item);
 		
 		// TODO Fire removal event
 	}
 	
 	@Override
-	public String toString() {
+	public synchronized String toString() {
 		StringBuilder sb = new StringBuilder();
 		for (int i = 0; i < 10 && i < positions.size(); i++) {
 			sb.append(i + ": " + getPosition(i) + "\n");
@@ -151,6 +154,6 @@ public class Index {
 	}
 
 	public void addListener(IndexListener listener) {
-		listeners .add(listener);
+		listeners.add(listener);
 	}
 }

@@ -63,6 +63,7 @@ public class CompactLongList extends AbstractList<Long> {
 		Long get(int index) {
 			if (items != null) {
 				items.position(index * valueLength);
+				assert items.remaining() >= valueLength;
 				return readItem(items, offset, valueLength);
 			}
 			
@@ -300,11 +301,61 @@ public class CompactLongList extends AbstractList<Long> {
 				throw new IllegalArgumentException();
 			}
 		}
+
+		public int search(long value) {
+			// Binary search items
+			if (items != null) {
+				int min = 0;
+				int max = size();
+				int pivot = max / 2;
+				
+				while (min != max) {
+					Long pvalue = get(pivot);
+					if (pvalue == value) {
+						return pivot;
+					} else if (pvalue > value) {
+						max = pivot - 1;
+					} else {
+						min = pivot;
+					}
+					pivot = (min + max + 1) / 2;
+				}
+				
+				
+				// Found nearest
+				return -pivot - 1;
+			}
+			
+			// Delegate to branches
+			if (right.get(0) > value) {
+				return left.search(value);
+			} else {
+				int rpos = right.search(value);
+				if (rpos < 0) {
+					return rpos - left.size();
+				}
+				return rpos + left.size();
+			}
+		}
 	}
 
 	@Override
 	public Long get(int index) {
 		return root.get(index);
+	}
+
+	/**
+	 * Looks up the index of the item with value less than or equal to the provided value.
+	 * This will only return a valid result if the list contains values in sorted order.
+	 * @param value
+	 * @return
+	 */
+	public int search(long value) {
+		if (root == null) {
+			return -1;
+		}
+		
+		return root.search(value);
 	}
 
 	@Override
