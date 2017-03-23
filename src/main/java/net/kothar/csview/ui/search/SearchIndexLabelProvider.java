@@ -48,7 +48,7 @@ public class SearchIndexLabelProvider implements ITableLabelProvider {
 			return "";
 		}
 		
-		String cell = csv.getCellAt(index.getPosition(row));
+		String cell = csv.getCellContentsAt(index.getPosition(row));
 		return cell;
 	}
 

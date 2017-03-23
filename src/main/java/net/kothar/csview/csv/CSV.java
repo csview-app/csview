@@ -43,6 +43,7 @@ import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.swt.events.DisposeEvent;
+import org.eclipse.swt.graphics.Point;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -414,7 +415,7 @@ public class CSV {
 		return block;
 	}
 	
-	public String getCellAt(Long position) {
+	public String getCellContentsAt(Long position) {
 		if (position == null) {
 			return "";
 		}
@@ -454,6 +455,52 @@ public class CSV {
 				}
 			});
 			return blockCells.get(cellHolder.value);
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+	
+	public Long getCellAt(Long position) {
+		if (position == null) {
+			return null;
+		}
+		
+		int blockIndex = cells.itemAt(position);
+		if (blockIndex < 0) {
+			blockIndex = -blockIndex - 1;
+		}
+		
+		String block = getCellBlock(blockIndex);
+		if (block.isEmpty()) {
+			return null;
+		}
+		
+		try {
+			// FIXME this is doing the block lookup twice and converting back from strings
+			byte[] blockBytes = block.getBytes(charset);
+			List<String> blockCells = parseBlock(blockIndex);
+			
+			// Work out which cell we actually asked for
+			Holder<Integer> cellHolder = new Holder<>();
+			long offset = position - cells.getPosition(blockIndex);
+			scan(new ByteArrayInputStream(blockBytes), new ScanHandler() {
+				@Override
+				public void notifyCompleted() {
+				}
+
+				@Override
+				public void newRow(long cell, long row, int previousCols, long pos) {
+				}
+
+				@Override
+				public void newCell(long cell, long row, int col, long pos) {
+					if (cellHolder.value == null && pos > offset) {
+						cellHolder.value = (int) (cell - 1);
+					}
+				}
+			});
+			return (long) (blockIndex + cellHolder.value);
 		} catch (UnsupportedEncodingException e) {
 			e.printStackTrace();
 			return null;
@@ -671,6 +718,21 @@ public class CSV {
 			}
 		});
 		return index;
+	}
+
+	/**
+	 * Get the coordinates of the cell at the given file position
+	 * @param cellPos
+	 * @return
+	 */
+	public Point getPoint(Long position) {
+		Long cell = getCellAt(position);
+		int row = rows.itemAt(cell);
+		if (row < 0)
+			row = -row - 1;
+		
+		int col = (int) (cell - rows.getPosition(row));
+		return new Point(col, row);
 	}
 
 }

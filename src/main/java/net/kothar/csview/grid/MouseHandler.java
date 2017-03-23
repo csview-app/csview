@@ -8,7 +8,7 @@ import org.eclipse.swt.widgets.Canvas;
 public class MouseHandler implements MouseListener, MouseMoveListener {
 
 	private static final int SEPARATOR_SENSITIVITY = 5;
-	private Grid grid;
+	protected Grid grid;
 	private Canvas canvas;
 	
 	private MouseAction nextAction;
@@ -61,7 +61,11 @@ public class MouseHandler implements MouseListener, MouseMoveListener {
 		}
 		int rowIndex = grid.rows.getItemAt(mouseY);
 		
-		nextAction = new GridSelectAction(grid, colIndex, rowIndex);
+		nextAction = createCellAction(colIndex, rowIndex);
+	}
+
+	protected MouseAction createCellAction(int colIndex, int rowIndex) {
+		return new GridSelectAction(grid, colIndex, rowIndex);
 	}
 
 	private void colHeadersMouseMove(MouseEvent e) {

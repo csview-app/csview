@@ -1,7 +1,9 @@
 package net.kothar.csview.grid;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.lang3.StringEscapeUtils;
@@ -74,6 +76,8 @@ public class Grid extends Composite {
 	private MouseHandler mouseHandler;
 	private Image nullTile;
 	private Point currentCell;
+	
+	private List<CellListener> currentCellListeners = new ArrayList<>();
 
 	public Grid(Composite parent, int style) {
 		super(parent, style);
@@ -111,9 +115,13 @@ public class Grid extends Composite {
 		canvas.getHorizontalBar().addSelectionListener(redraw);
 
 		// Hook mouse handling
-		mouseHandler = new MouseHandler(this);
+		mouseHandler = createMouseHandler();
 		
 		getShell().addKeyListener(new KeyboardHandler(this));
+	}
+
+	protected MouseHandler createMouseHandler() {
+		return new MouseHandler(this);
 	}
 
 	private void paintGrid(PaintEvent e) {
@@ -256,7 +264,7 @@ public class Grid extends Composite {
 
 	private void renderCurrentCell(GC gc, int y, Rectangle viewport) {
 		if (currentCell.x == viewport.x && currentCell.y == viewport.y) {
-			gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_BORDER));
+			gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW));
 			gc.drawRectangle(0, y, viewport.width-1, viewport.height-1);
 		}
 	}
@@ -727,6 +735,8 @@ public class Grid extends Composite {
 				setYOffset(y - canvasHeight + columnHeaderSize + height + 16);
 			}
 		}
+		
+		currentCellListeners.forEach(l -> l.notify(currentCell));
 	}
 
 	public Rectangle getCellBounds() {
@@ -813,4 +823,7 @@ public class Grid extends Composite {
 		clipboard.dispose();
 	}
 
+	public void addCurrentCellListener(CellListener listener) {
+		currentCellListeners.add(listener);
+	}
 }

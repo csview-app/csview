@@ -7,6 +7,7 @@ import java.util.Timer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.SelectionListener;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
@@ -47,7 +48,8 @@ public class SearchSidebar extends Composite {
 		search.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
 		search.addModifyListener(this::handleModify);
 
-		grid = new Grid(this, SWT.BORDER);
+		grid = new SearchGrid(this, SWT.BORDER);
+		grid.addCurrentCellListener(this::selectResult);
 		grid.setLayoutData(new GridData(GridData.FILL, GridData.FILL, true, true, 2, 1));
 
 		close = new Button(this, SWT.NORMAL);
@@ -102,6 +104,14 @@ public class SearchSidebar extends Composite {
 
 	public void focusInput() {
 		search.setFocus();
+	}
+	
+	public void selectResult(Point cell) {
+		System.out.println("Select result: " + cell.y);
+		Long cellPos = index.getPosition(cell.y);
+		Point originalCell = csv.getPoint(cellPos);
+		System.out.println("  Original location: " + originalCell);
+		System.out.println(" =" + csv.getCell(originalCell.y, originalCell.x));
 	}
 
 }
