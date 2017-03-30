@@ -306,7 +306,7 @@ public class CompactLongList extends AbstractList<Long> {
 			// Binary search items
 			if (items != null) {
 				int min = 0;
-				int max = size();
+				int max = size() - 1;
 				int pivot = max / 2;
 				
 				while (min != max) {
