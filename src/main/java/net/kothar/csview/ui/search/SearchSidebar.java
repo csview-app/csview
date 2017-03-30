@@ -2,8 +2,15 @@ package net.kothar.csview.ui.search;
 
 import static net.kothar.csview.ui.Adapters.*;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Timer;
 
+import org.eclipse.jface.viewers.ISelection;
+import org.eclipse.jface.viewers.ISelectionChangedListener;
+import org.eclipse.jface.viewers.ISelectionProvider;
+import org.eclipse.jface.viewers.SelectionChangedEvent;
+import org.eclipse.jface.viewers.StructuredSelection;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.SelectionListener;
@@ -20,7 +27,7 @@ import net.kothar.csview.csv.CSV;
 import net.kothar.csview.csv.Index;
 import net.kothar.csview.grid.Grid;
 
-public class SearchSidebar extends Composite {
+public class SearchSidebar extends Composite implements ISelectionProvider {
 
 	private Text search;
 	private Grid grid;
@@ -29,6 +36,8 @@ public class SearchSidebar extends Composite {
 
 	private CSV csv;
 	private Index index;
+	private StructuredSelection selection;
+	private List<ISelectionChangedListener> listeners = new ArrayList<>();
 
 	public SearchSidebar(Composite parent, CSV csv) {
 		super(parent, SWT.BORDER);
@@ -107,11 +116,32 @@ public class SearchSidebar extends Composite {
 	}
 	
 	public void selectResult(Point cell) {
-		System.out.println("Select result: " + cell.y);
 		Long cellPos = index.getPosition(cell.y);
 		Point originalCell = csv.getPoint(cellPos);
-		System.out.println("  Original location: " + originalCell);
-		System.out.println(" =" + csv.getCell(originalCell.y, originalCell.x));
+		selection = new StructuredSelection(originalCell);
+		for (ISelectionChangedListener listener: listeners) {
+			listener.selectionChanged(new SelectionChangedEvent(this, selection));
+		}
+	}
+
+	@Override
+	public void addSelectionChangedListener(ISelectionChangedListener listener) {
+		listeners.add(listener);
+	}
+
+	@Override
+	public ISelection getSelection() {
+		return selection;
+	}
+
+	@Override
+	public void removeSelectionChangedListener(ISelectionChangedListener listener) {
+		listeners.remove(listener);
+	}
+
+	@Override
+	public void setSelection(ISelection selection) {
+		// Not implemented
 	}
 
 }

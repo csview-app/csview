@@ -117,7 +117,8 @@ public class Grid extends Composite {
 		// Hook mouse handling
 		mouseHandler = createMouseHandler();
 		
-		getShell().addKeyListener(new KeyboardHandler(this));
+		KeyboardHandler keyListener = new KeyboardHandler(this);
+		canvas.addKeyListener(keyListener);
 	}
 
 	protected MouseHandler createMouseHandler() {

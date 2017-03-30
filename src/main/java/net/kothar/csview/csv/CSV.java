@@ -479,7 +479,6 @@ public class CSV {
 		try {
 			// FIXME this is doing the block lookup twice and converting back from strings
 			byte[] blockBytes = block.getBytes(charset);
-			List<String> blockCells = parseBlock(blockIndex);
 			
 			// Work out which cell we actually asked for
 			Holder<Integer> cellHolder = new Holder<>();
@@ -500,7 +499,7 @@ public class CSV {
 					}
 				}
 			});
-			return (long) (blockIndex + cellHolder.value);
+			return (long) (blockIndex * CELL_INDEX_DISTANCE + cellHolder.value);
 		} catch (UnsupportedEncodingException e) {
 			e.printStackTrace();
 			return null;
@@ -727,11 +726,13 @@ public class CSV {
 	 */
 	public Point getPoint(Long position) {
 		Long cell = getCellAt(position);
+		
 		int row = rows.itemAt(cell);
 		if (row < 0)
 			row = -row - 1;
 		
-		int col = (int) (cell - rows.getPosition(row));
+		Long rowStart = rows.getPosition(row);
+		int col = (int) (cell - rowStart);
 		return new Point(col, row);
 	}
 

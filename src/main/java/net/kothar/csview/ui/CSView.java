@@ -23,6 +23,8 @@ import org.apache.commons.csv.CSVFormat;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.StatusLineManager;
 import org.eclipse.jface.dialogs.InputDialog;
+import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.jface.window.Window;
 import org.eclipse.swt.SWT;
@@ -180,6 +182,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		sashForm.setWeights(new int[] { 70, 30 });
 		sashForm.setMaximizedControl(grid);
 		sidebar.addCloseListener(select(this::hideSidebar));
+		sidebar.addSelectionChangedListener(this::handleSidebarSelection);
 
 		return composite;
 	}
@@ -203,6 +206,12 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 	public void hideSidebar() {
 		sashForm.setMaximizedControl(grid);
+	}
+	
+	public void handleSidebarSelection(SelectionChangedEvent e) {
+		IStructuredSelection selection = (IStructuredSelection) e.getSelection();
+		Point point = (Point) selection.getFirstElement();
+		grid.setCurrentCell(point);
 	}
 
 	@Override
