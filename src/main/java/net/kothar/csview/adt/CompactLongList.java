@@ -18,40 +18,40 @@ import java.nio.ByteBuffer;
 import java.util.AbstractList;
 
 /**
- * Specialises the behaviour of BlockList by storing longs in a byte array;
+ * Specialises the behaviour of BlockList by storing positive longs in a byte array;
  * @author mhouston
  */
 public class CompactLongList extends AbstractList<Long> {
-	
+
 	private static final int DEFAULT_BLOCK_SIZE = 10_000;
 	Block root;
 	int blockSize = DEFAULT_BLOCK_SIZE;
-	
+
 	class Block {
 		ByteBuffer items;
 		int valueLength;
 		long offset;
-		
+
 		Block left;
 		Block right;
-		
-		private int height = 0;
+
+		int height = 0;
 		private int treeSize = 0;
-		
+
 		public Block() {
 			valueLength = 8;
 			items = ByteBuffer.allocate(blockSize * valueLength);
 			items.limit(0);
 			offset = 0;
 		}
-		
+
 		Block(ByteBuffer items, int valueLength, long offset) {
 			this.items = items;
 			this.valueLength = valueLength;
 			this.offset = offset;
 			compact();
 		}
-		
+
 		int size() {
 			if (items != null) {
 				return items.limit() / valueLength;
@@ -59,14 +59,18 @@ public class CompactLongList extends AbstractList<Long> {
 				return treeSize;
 			}
 		}
-		
+
 		Long get(int index) {
 			if (items != null) {
-				items.position(index * valueLength);
+				try {
+					items.position(index * valueLength);
+				} catch (IllegalArgumentException e) {
+					throw new IndexOutOfBoundsException("Unable to get element at " + index);
+				}
 				assert items.remaining() >= valueLength;
 				return readItem(items, offset, valueLength);
 			}
-			
+
 			if (index < left.size()) {
 				return left.get(index);
 			} else {
@@ -77,27 +81,27 @@ public class CompactLongList extends AbstractList<Long> {
 		void split(int index) {
 			split(index, index);
 		}
-		
+
 		void split(int index1, int index2) {
 			items.position(index2 * valueLength);
 			right = new Block(items.slice(), valueLength, offset);
-			
+
 			items.position(0);
 			items.limit(index1 * valueLength);
 			left = new Block(items, valueLength, offset);
-			
+
 			items = null;
 			updateTree();
 		}
-		
+
 		void split() {
 			left = new Block(items, valueLength, offset);
 			right = new Block();
-			
+
 			items = null;
 			valueLength = 0;
 			offset = 0;
-			
+
 			updateTree();
 		}
 
@@ -115,14 +119,35 @@ public class CompactLongList extends AbstractList<Long> {
 				}
 			} else if (index < left.size()) {
 				value = left.remove(index);
-				updateTree();
+				cleanTree();
 			} else {
 				value = right.remove(index - left.size());
-				updateTree();
+				cleanTree();
 			}
 			return value;
 		}
-		
+
+		private void cleanTree() {
+			updateTree();
+			if (left.size() == 0) {
+				items = right.items;
+				offset = right.offset;
+				valueLength = right.valueLength;
+				height = right.height;
+				left = right.left;
+				right = right.right;
+			} else if (right.size() == 0) {
+				items = left.items;
+				offset = left.offset;
+				valueLength = left.valueLength;
+				height = left.height;
+				right = left.right;
+				left = left.left;
+			} else {
+				balance();
+			}
+		}
+
 		public void add(int index, Long e) {
 			if (index == size()) {
 				append(e);
@@ -137,7 +162,7 @@ public class CompactLongList extends AbstractList<Long> {
 			}
 			treeSize++;
 		}
-		
+
 		public void append(Long e) {
 			if (items != null) {
 				if (size() >= blockSize) {
@@ -146,10 +171,17 @@ public class CompactLongList extends AbstractList<Long> {
 					split();
 				}
 			}
-			
+
 			if (items != null) {
 				int limit = items.limit();
-				items.limit(limit + valueLength);
+				int newLimit = limit + valueLength;
+				if (newLimit > items.capacity()) {
+					ByteBuffer newItems = ByteBuffer.allocate(blockSize * valueLength);
+					items.rewind();
+					newItems.put(items);
+					items = newItems;
+				}
+				items.limit(newLimit);
 				items.position(limit);
 				writeItem(e, items, offset, valueLength);
 			} else {
@@ -176,15 +208,15 @@ public class CompactLongList extends AbstractList<Long> {
 			if (right.height > left.height + 1) {
 				Block A = right;
 				Block B = this;
-				
+
 				Block a = left;
 				Block b = right.left;
 				Block c = right.right;
-				
+
 				A.left = a;
 				A.right = b;
 				A.updateTree();
-				
+
 				B.left = A;
 				B.right = c;
 				B.updateTree();
@@ -192,21 +224,21 @@ public class CompactLongList extends AbstractList<Long> {
 			} else if (left.height > right.height + 1) {
 				Block A = this;
 				Block B = left;
-				
+
 				Block a = left.left;
 				Block b = left.right;
 				Block c = right;
-				
+
 				B.left = b;
 				B.right = c;
 				B.updateTree();
-				
+
 				A.left = a;
 				A.right = B;
 				A.updateTree();
 				return true;
 			}
-			
+
 			return false;
 		}
 
@@ -214,25 +246,25 @@ public class CompactLongList extends AbstractList<Long> {
 			// Choose a new offset
 			long min = Long.MAX_VALUE;
 			long max = Long.MIN_VALUE;
-			
+
 			for (int i = 0; i < size(); i++) {
 				Long value = get(i);
 				if (value < min) min = value;
 				if (value > max) max = value;
 			}
-			
+
 			long newOffset = (min + max) / 2;
 			long distance = max - newOffset;
-			
+
 			// Choose a new valueLength
 			int newValueLength = requiredValueLength(distance);
 			if (newValueLength == 8) newOffset = 0;
-			
+
 			ByteBuffer buffer = ByteBuffer.allocate(blockSize * newValueLength);
-			
+
 			items.rewind();
-			assert items.remaining() / valueLength == buffer.remaining() / newValueLength;
-			
+			assert items.remaining() / valueLength <= buffer.remaining() / newValueLength;
+
 			if (newValueLength == valueLength && newOffset == offset) {
 				// No re-encoding needed if lengths and offsets match
 				buffer.put(items);
@@ -243,63 +275,11 @@ public class CompactLongList extends AbstractList<Long> {
 					writeItem(value, buffer, newOffset, newValueLength);
 				}
 			}
-			
+
 			buffer.flip();
 			items = buffer;
 			offset = newOffset;
 			valueLength = newValueLength;
-		}
-
-		private long readItem(ByteBuffer buffer, long offset, int valueLength) {
-			switch (valueLength) {
-			case 1:
-				return buffer.get() + offset;
-			case 2:
-				return buffer.getShort() + offset;
-			case 3:
-				long value = 0xFFL & buffer.get();
-				value |= (0xFFL & buffer.get()) << 8;
-				value |= buffer.get() << 16;
-				return value + offset;
-			case 4:
-				return buffer.getInt() + offset;
-			case 5:
-			case 6:
-			case 7:
-			case 8:
-				return buffer.getLong();
-			default:
-				throw new IllegalArgumentException();
-			}
-		}
-
-		private void writeItem(long value, ByteBuffer buffer, long offset, int valueLength) {
-			switch (valueLength) {
-			case 1:
-				buffer.put((byte) (value - offset));
-			case 2:
-				buffer.putShort((short) (value - offset));
-				return;
-			case 3:
-				value = value - offset;
-				buffer.put((byte) (value & 0xFF));
-				value >>= 8;
-				buffer.put((byte) (value & 0xFF));
-				value >>= 8;
-				buffer.put((byte) value);
-				return;
-			case 4:
-				buffer.putInt((int) (value - offset));
-				return;
-			case 5:
-			case 6:
-			case 7:
-			case 8:
-				buffer.putLong(value);
-				return;
-			default:
-				throw new IllegalArgumentException();
-			}
 		}
 
 		public int search(long value) {
@@ -307,25 +287,33 @@ public class CompactLongList extends AbstractList<Long> {
 			if (items != null) {
 				int min = 0;
 				int max = size() - 1;
-				int pivot = max / 2;
 				
-				while (min != max) {
-					Long pvalue = get(pivot);
+				int pivot = max / 2;
+				long pvalue = get(pivot);
+
+				while (min < max) {
 					if (pvalue == value) {
 						return pivot;
 					} else if (pvalue > value) {
 						max = pivot - 1;
 					} else {
-						min = pivot;
+						min = pivot + 1;
 					}
-					pivot = (min + max + 1) / 2;
+					pivot = (min + max) / 2;
+					pvalue = get(pivot);
+				}
+
+				if (pvalue == value) {
+					return pivot;
 				}
 				
-				
 				// Found nearest
-				return -pivot - 1;
+				if (pvalue < value)
+					return -(pivot + 1) - 1;
+				else
+					return -pivot - 1;
 			}
-			
+
 			// Delegate to branches
 			if (right.get(0) > value) {
 				return left.search(value);
@@ -354,7 +342,7 @@ public class CompactLongList extends AbstractList<Long> {
 		if (root == null) {
 			return -1;
 		}
-		
+
 		return root.search(value);
 	}
 
@@ -363,10 +351,10 @@ public class CompactLongList extends AbstractList<Long> {
 		if (root == null) {
 			return 0;
 		}
-		
+
 		return root.size();
 	}
-	
+
 	@Override
 	public void add(int index, Long e) {
 		if (root == null) {
@@ -374,7 +362,7 @@ public class CompactLongList extends AbstractList<Long> {
 		}
 		root.add(index, e);
 	}
-	
+
 	@Override
 	public Long remove(int index) {
 		if (root == null) {
@@ -383,25 +371,87 @@ public class CompactLongList extends AbstractList<Long> {
 		return root.remove(index);
 	}
 
-	public static class Test {
-		public static void main(String[] args) {
-			CompactLongList list = new CompactLongList();
-			list.blockSize = 2;
-			
-			for (long i = 0; i < 100; i++) {
-				list.add(i);
-			}
-			for (long i = 0; i < 100; i++) {
-				list.add((int) (i * 2), i);
-			}
-			
-			for (int i = 0; i < 100; i++) {
-				Long value = list.get(i * 2);
-				if (value != i) {
-					throw new RuntimeException("List value does not match at " + i + ": got " + value);
-				}
-			}
+	static long readItem(ByteBuffer buffer, long offset, int valueLength) {
+		switch (valueLength) {
+		case 1:
+			return buffer.get() + offset;
+		case 2:
+			return buffer.getShort() + offset;
+		case 3:
+			long value = 0xFFFFL & buffer.getShort();
+			value |= ((long) buffer.get()) << 16;
+			return value + offset;
+		case 4:
+			return buffer.getInt() + offset;
+		case 5:
+			value = 0xFFFFFFFFL & buffer.getInt();
+			value |= ((long) buffer.get()) << 32;
+			return value + offset;
+		case 6:
+			value = 0xFFFFFFFFL & buffer.getInt();
+			value |= ((long) buffer.getShort()) << 32;
+			return value + offset;
+		case 7:
+			value = 0xFFFFFFFFL & buffer.getInt();
+			value |= (0xFFFFL & buffer.getShort()) << 32;
+			value |= ((long) buffer.get()) << 48;
+			return value + offset;
+		case 8:
+			return buffer.getLong();
+		default:
+			throw new IllegalArgumentException();
 		}
 	}
-	
+
+	static void writeItem(long value, ByteBuffer buffer, long offset, int valueLength) {
+		switch (valueLength) {
+		case 1:
+			assert Math.abs(value - offset) <= 1L << 7;
+			buffer.put((byte) (value - offset));
+			return;
+		case 2:
+			assert Math.abs(value - offset) <= 1L << 15;
+			buffer.putShort((short) (value - offset));
+			return;
+		case 3:
+			assert Math.abs(value - offset) <= 1L << 23;
+			value = value - offset;
+			buffer.putShort((short) (value & 0xFFFF));
+			value >>= 16;
+			buffer.put((byte) value);
+			return;
+		case 4:
+			assert Math.abs(value - offset) <= 1L << 31;
+			buffer.putInt((int) (value - offset));
+			return;
+		case 5:
+			assert Math.abs(value - offset) <= 1L << 39;
+			value = value - offset;
+			buffer.putInt((int) (value & 0xFFFFFFFFL));
+			value >>= 32;
+			buffer.put((byte) value);
+			return;
+		case 6:
+			assert Math.abs(value - offset) <= 1L << 47;
+			value = value - offset;
+			buffer.putInt((int) (value & 0xFFFFFFFFL));
+			value >>= 32;
+			buffer.putShort((short) value);
+			return;
+		case 7:
+			assert Math.abs(value - offset) <= 1L << 55;
+			value = value - offset;
+			buffer.putInt((int) (value & 0xFFFFFFFFL));
+			value >>= 32;
+			buffer.putShort((short) (value & 0xFFFF));
+			value >>= 16;
+			buffer.put((byte) value);
+			return;
+		case 8:
+			buffer.putLong(value);
+			return;
+		default:
+			throw new IllegalArgumentException();
+		}
+	}
 }
