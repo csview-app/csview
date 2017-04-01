@@ -149,9 +149,9 @@ public class Grid extends Composite {
 		int xOffset = getXOffset();
 		int yOffset = getYOffset();
 
-		int firstCol = cols.getItemAt(xOffset);
+		int firstCol = xOffset < cols.getTotal() ? cols.getItemAt(xOffset) : cols.getCount() - 1;
 		int firstX = cols.getPosition(firstCol);
-		int firstRow = rows.getItemAt(yOffset);
+		int firstRow = yOffset < rows.getTotal() ? rows.getItemAt(yOffset) : rows.getCount() - 1;
 		firstRow -= firstRow % TILE_ROWS;
 		
 		int firstY = rows.getPosition(firstRow);
@@ -322,7 +322,12 @@ public class Grid extends Composite {
 
 		gc.setClipping(0, 0, rowHeaderSize, bounds.height);
 		
-		int startRow = rows.getItemAt(yOffset);
+		int startRow;
+		if (rows.getTotal() < yOffset) {
+			startRow = rows.getCount() - 1;
+		} else {
+			startRow = rows.getItemAt(yOffset);
+		}
 		int y = columnHeaderSize + rows.getPosition(startRow) - yOffset;
 		
 		for (int i = startRow; i < rows.getCount(); i++) {
@@ -380,10 +385,11 @@ public class Grid extends Composite {
 		gc.setClipping((Rectangle) null);
 	}
 
-	int getYOffset() {
+	public int getYOffset() {
 		return canvas.getVerticalBar().getSelection() * SCROLL_FACTOR;
 	}
-	void setYOffset(int yOffset) {
+	
+	public void setYOffset(int yOffset) {
 		canvas.getVerticalBar().setSelection(yOffset / SCROLL_FACTOR);
 	}
 
@@ -458,10 +464,11 @@ public class Grid extends Composite {
 		gc.drawLine(0, 0, bounds.width, 0);
 	}
 
-	int getXOffset() {
+	public int getXOffset() {
 		return canvas.getHorizontalBar().getSelection() * SCROLL_FACTOR;
 	}
-	void setXOffset(int xOffset) {
+	
+	public void setXOffset(int xOffset) {
 		canvas.getHorizontalBar().setSelection(xOffset / SCROLL_FACTOR);
 	}
 

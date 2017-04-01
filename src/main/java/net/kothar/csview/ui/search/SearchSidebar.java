@@ -9,6 +9,7 @@ import java.util.Timer;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.ISelectionChangedListener;
 import org.eclipse.jface.viewers.ISelectionProvider;
+import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.StructuredSelection;
 import org.eclipse.swt.SWT;
@@ -51,19 +52,29 @@ public class SearchSidebar extends Composite implements ISelectionProvider {
 
 		Label label = new Label(this, SWT.NORMAL);
 		label.setText("Search");
-		label.setLayoutData(new GridData(GridData.BEGINNING, GridData.BEGINNING, false, false, 2, 1));
+		label.setLayoutData(new GridData(GridData.BEGINNING, GridData.BEGINNING, false, false, 1, 1));
+
+		close = new Button(this, SWT.ARROW | SWT.RIGHT);
+		close.setText("Close");
+		close.setLayoutData(new GridData(GridData.END, GridData.END, false, false, 1, 1));
 
 		search = new Text(this, SWT.NORMAL);
-		search.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+		search.setLayoutData(new GridData(GridData.FILL, GridData.FILL, true, false, 2, 1));
 		search.addModifyListener(this::handleModify);
 
 		grid = new SearchGrid(this, SWT.BORDER);
 		grid.addCurrentCellListener(this::selectResult);
 		grid.setLayoutData(new GridData(GridData.FILL, GridData.FILL, true, true, 2, 1));
-
-		close = new Button(this, SWT.NORMAL);
-		close.setText("Cancel");
-		close.setLayoutData(new GridData(GridData.END, GridData.END, false, false, 2, 1));
+		grid.setColumnSize(0, 400);
+		
+		LabelProvider emptyLabelProvider = new LabelProvider() {
+			@Override
+			public String getText(Object element) {
+				return "";
+			}
+		};
+		grid.setColumnLabelProvider(emptyLabelProvider);
+		grid.setRowLabelProvider(emptyLabelProvider);
 	}
 
 	public void handleModify(ModifyEvent e) {
@@ -76,6 +87,8 @@ public class SearchSidebar extends Composite implements ISelectionProvider {
 
 	private void updateSearch() {
 		grid.setRows(0);
+		grid.setXOffset(0);
+		grid.setYOffset(0);
 
 		String searchString = search.getText().trim();
 		if (searchString.isEmpty()) {
@@ -101,6 +114,28 @@ public class SearchSidebar extends Composite implements ISelectionProvider {
 
 		grid.setContentProvider(new SearchIndexContentProvider(index));
 		grid.setLabelProvider(new SearchIndexLabelProvider(csv, index));
+		grid.setColumnLabelProvider(new LabelProvider() {
+			@Override
+			public String getText(Object element) {
+				return index.size() + " results for " + searchString;
+			}
+		});
+		grid.setRowLabelProvider(new LabelProvider() {
+			@Override
+			public String getText(Object element) {
+				Integer result = (Integer) element;
+				Long position = index.getPosition(result);
+				Point p = csv.getPoint(position);
+				String[] header = csv.getRow(0);
+				String colLabel;
+				if (header.length > p.x) {
+					colLabel = header[p.x];
+				} else {
+					colLabel = Integer.toString(p.x + 1);
+				}
+				return String.format("%s:%d", colLabel, p.y + 1);
+			}
+		});
 	}
 
 	protected void refreshGrid() {

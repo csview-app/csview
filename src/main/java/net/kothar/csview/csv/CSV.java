@@ -469,7 +469,9 @@ public class CSV {
 		
 		int blockIndex = cells.itemAt(position);
 		if (blockIndex < 0) {
-			blockIndex = -blockIndex - 1;
+			// Subtract 2 because we want the index before where the lookup value
+			// would be inserted
+			blockIndex = -blockIndex - 2;
 		}
 		
 		String block = getCellBlock(blockIndex);

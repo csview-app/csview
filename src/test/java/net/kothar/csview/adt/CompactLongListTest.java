@@ -107,6 +107,18 @@ public class CompactLongListTest {
 		pos = list.search(50);
 		assertEquals(50, pos);
 	}
+	
+	@Test
+	public void sparse_binary_search() {
+		list.blockSize = 1000;
+		for (long i = 0; i < 10000; i++) {
+			list.add(i * 100L);
+		}
+		
+		assertEquals(100, list.search(10000));
+		assertEquals(-101, list.search(9990));
+		assertEquals(-102, list.search(10001));
+	}
 
 	@Test
 	public void add_at_index() {

@@ -42,7 +42,7 @@ public class Index {
 		} else {
 			int line = itemAt(position);
 			if (line < 0) {
-				positions.add(-line, position);
+				positions.add(-line - 1, position);
 			} else {
 				throw new IllegalArgumentException("Duplicate line position added");
 			}
