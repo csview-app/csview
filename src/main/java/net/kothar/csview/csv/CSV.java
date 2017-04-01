@@ -422,7 +422,7 @@ public class CSV {
 		
 		int blockIndex = cells.itemAt(position);
 		if (blockIndex < 0) {
-			blockIndex = -blockIndex - 1;
+			blockIndex = -blockIndex - 2;
 		}
 		
 		String block = getCellBlock(blockIndex);
@@ -438,6 +438,7 @@ public class CSV {
 			// Work out which cell we actually asked for
 			Holder<Integer> cellHolder = new Holder<>();
 			long offset = position - cells.getPosition(blockIndex);
+			assert offset > 0;
 			scan(new ByteArrayInputStream(blockBytes), new ScanHandler() {
 				@Override
 				public void notifyCompleted() {
@@ -729,7 +730,7 @@ public class CSV {
 		
 		int row = rows.itemAt(cell);
 		if (row < 0)
-			row = -row - 1;
+			row = -row - 2;
 		
 		Long rowStart = rows.getPosition(row);
 		int col = (int) (cell - rowStart);
