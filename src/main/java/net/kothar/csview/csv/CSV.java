@@ -558,13 +558,17 @@ public class CSV {
 	private List<String> parseCells(String block) throws IOException {
 		List<String> blockCells = new ArrayList<>();
 
-		CSVParser parser = CSVParser.parse(block, getFormat());
-		for (CSVRecord record: parser) {
-			record.forEach(blockCells::add);
-			if (blockCells.size() > CELL_INDEX_DISTANCE + 1) {
-				log.warning("Found more than " + CELL_INDEX_DISTANCE + " cells in cell block");
-				break;
+		try {
+			CSVParser parser = CSVParser.parse(block, getFormat());
+			for (CSVRecord record: parser) {
+				record.forEach(blockCells::add);
+				if (blockCells.size() > CELL_INDEX_DISTANCE + 1) {
+					log.warning("Found more than " + CELL_INDEX_DISTANCE + " cells in cell block");
+					break;
+				}
 			}
+		} catch (Exception e) {
+			log.warning(e.getMessage());
 		}
 
 		return blockCells;
