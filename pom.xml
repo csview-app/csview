@@ -9,22 +9,33 @@
 	<properties>
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
-		<swt.version>4.6.1</swt.version>
+		<jface.version>3.13.2</jface.version>
+		<swt.version>3.106.2</swt.version>
 	</properties>
 
-	<repositories>
-		<repository>
-			<id>maven-eclipse-repo</id>
-			<url>http://maven-eclipse.github.io/maven</url>
-		</repository>
-	</repositories>
-
 	<dependencies>
+		<!-- https://mvnrepository.com/artifact/org.eclipse.platform/org.eclipse.jface -->
 		<dependency>
-			<groupId>org.mod4j.org.eclipse</groupId>
-			<artifactId>jface</artifactId>
-			<version>3.5.0</version>
+			<groupId>org.eclipse.platform</groupId>
+			<artifactId>org.eclipse.jface</artifactId>
+			<version>${jface.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.eclipse.platform</groupId>
+					<artifactId>org.eclipse.swt.gtk.linux.aarch64</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.eclipse.platform</groupId>
+					<artifactId>org.eclipse.swt.gtk.linux.arm</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.eclipse.platform</groupId>
+					<artifactId>org.eclipse.swt</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
+
+		<!-- https://mvnrepository.com/artifact/org.eclipse.platform/org.eclipse.swt -->
 
 		<dependency>
 			<groupId>org.apache.commons</groupId>
@@ -103,11 +114,22 @@
 					<arch>x86_64</arch>
 				</os>
 			</activation>
+
 			<dependencies>
 				<dependency>
-					<groupId>org.eclipse.swt</groupId>
+					<groupId>org.eclipse.platform</groupId>
 					<artifactId>org.eclipse.swt.cocoa.macosx.x86_64</artifactId>
 					<version>${swt.version}</version>
+					<exclusions>
+						<exclusion>
+							<groupId>org.eclipse.platform</groupId>
+							<artifactId>org.eclipse.swt.gtk.linux.aarch64</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.eclipse.platform</groupId>
+							<artifactId>org.eclipse.swt.gtk.linux.arm</artifactId>
+						</exclusion>
+					</exclusions>
 				</dependency>
 			</dependencies>
 
@@ -179,13 +201,6 @@
 					<arch>x86</arch>
 				</os>
 			</activation>
-			<dependencies>
-				<dependency>
-					<groupId>org.eclipse.swt</groupId>
-					<artifactId>org.eclipse.swt.win32.win32.x86</artifactId>
-					<version>${swt.version}</version>
-				</dependency>
-			</dependencies>
 		</profile>
 		<profile>
 			<id>win64</id>
@@ -195,13 +210,6 @@
 					<arch>amd64</arch>
 				</os>
 			</activation>
-			<dependencies>
-				<dependency>
-					<groupId>org.eclipse.swt</groupId>
-					<artifactId>org.eclipse.swt.win32.win32.x86_64</artifactId>
-					<version>${swt.version}</version>
-				</dependency>
-			</dependencies>
 		</profile>
 		<profile>
 			<id>linux</id>
@@ -210,18 +218,6 @@
 					<name>Linux</name>
 				</os>
 			</activation>
-			<dependencies>
-				<dependency>
-					<groupId>org.eclipse.swt</groupId>
-					<artifactId>org.eclipse.swt.gtk.linux.x86_64</artifactId>
-					<version>${swt.version}</version>
-				</dependency>
-				<dependency>
-					<groupId>org.eclipse.swt</groupId>
-					<artifactId>org.eclipse.swt.gtk.linux.x86</artifactId>
-					<version>${swt.version}</version>
-				</dependency>
-			</dependencies>
 		</profile>
 	</profiles>
 </project>
