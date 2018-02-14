@@ -25,6 +25,7 @@ import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.graphics.Transform;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Composite;
@@ -75,7 +76,9 @@ public class Grid extends Composite {
 	private Image			nullTile;
 	private Point			currentCell;
 
-	private List<CellListener> currentCellListeners = new ArrayList<>();
+	private List<CellListener>	currentCellListeners	= new ArrayList<>();
+	private double				deviceZoom				= 1.0;
+	private Transform			tileTransform;
 
 	public Grid(Composite parent, int style) {
 		super(parent, style);
@@ -84,8 +87,21 @@ public class Grid extends Composite {
 		rows.setCount(1);
 		currentCell = new Point(0, 0);
 
+		String deviceZoomProperty = System.getProperty("org.eclipse.swt.internal.deviceZoom");
+		tileTransform = new Transform(parent.getDisplay());
+		if (deviceZoomProperty != null) {
+			deviceZoom = Double.parseDouble(deviceZoomProperty) / 100;
+			tileTransform.scale((float) deviceZoom, (float) deviceZoom);
+		}
+
 		setLayout(new FillLayout());
 		createContents(this);
+	}
+
+	@Override
+	public void dispose() {
+		super.dispose();
+		tileTransform.dispose();
 	}
 
 	private void createContents(Composite parent) {
@@ -177,11 +193,16 @@ public class Grid extends Composite {
 					Point position = new Point(col, row);
 					Image tile = tileCache.get(position, () -> renderTile(device, position));
 					if (tileHeight == 0)
-						tileHeight = tile.getBounds().height;
+						tileHeight = (int) (tile.getBounds().height / deviceZoom);
 
 					if (tile != nullTile) {
-						gc.drawImage(tile, x + rowHeaderSize - xAdjust, y + columnHeaderSize - yAdjust);
-						x += tile.getBounds().width;
+						int tileWidth = (int) (tile.getBounds().width / deviceZoom);
+						gc.drawImage(tile,
+							0, 0,
+							tile.getBounds().width, tile.getBounds().height,
+							x + rowHeaderSize - xAdjust, y + columnHeaderSize - yAdjust,
+							tileWidth, tileHeight);
+						x += tileWidth;
 					}
 					col++;
 				} catch (ExecutionException e) {
@@ -233,10 +254,13 @@ public class Grid extends Composite {
 			if (width == 0 || height == 0)
 				return nullTile;
 
-			Image tile = new Image(device, width, height);
+			int zoomedWidth = (int) (width * deviceZoom);
+			int zoomedHeight = (int) (height * deviceZoom);
+			Image tile = new Image(device, zoomedWidth, zoomedHeight);
 			GC gc = new GC(tile);
+			gc.setTransform(tileTransform);
 
-			renderBackground(gc, tile.getBounds());
+			renderBackground(gc, new Rectangle(0, 0, width, height));
 
 			int row = position.y;
 			int y = 0;
