@@ -382,8 +382,12 @@ public class CocoaUIEnhancer extends CocoaUtil {
 	}
 
 	private static void showAbout() {
-		MessageDialog.openInformation(null, "About " + MacLoader.APP_NAME, 
-				MacLoader.APP_NAME + " v" + MacLoader.VERSION + "\n© 2016 Kothar Labs - https://www.kothar.net\n"
+		MessageDialog.openInformation(null, "About " + MacLoader.APP_NAME,
+			MacLoader.APP_NAME + " v" + MacLoader.VERSION + "\n© Kothar Labs 2016 - 2018\n\n"
+				+ "https://www.kothar.net/csview\n\n"
+				+ "Souce code available under the Apache License Version 2.0\n"
+				+ "Parts under the Eclipse Public License v1.0\n"
+				+ "https://bitbucket.org/mikehouston/csview\n\n"
 				+ "Icon by Honza Dousek - http://jandousek.cz");
 	}
 
