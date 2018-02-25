@@ -1,16 +1,15 @@
-/* Copyright 2016 Kothar Labs
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+/*
+ * Copyright 2016 Kothar Labs
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 package net.kothar.csview.adt;
 
@@ -20,37 +19,40 @@ import java.util.List;
 
 /**
  * Stores a sorted list of elements in a B-Tree-style tree
+ * 
  * @author mhouston
  *
  * @param <E>
+ * @deprecated
  */
+@Deprecated
 public class BlockList<E> extends AbstractList<E> {
-	
+
 	private static int BLOCK_SIZE = 10_000;
-	
+
 	static abstract class Block<E, L extends Block<E, L, I>, I> {
 		I items;
-		
-		L left;
-		L right;
-		
-		protected int height = 0;
-		protected int treeSize = 0;
-		
+
+		L	left;
+		L	right;
+
+		protected int	height		= 0;
+		protected int	treeSize	= 0;
+
 		@SuppressWarnings("unchecked")
 		protected boolean balance() {
 			if (right.height > left.height + 1) {
 				L A = right;
 				L B = (L) this;
-				
+
 				L a = left;
 				L b = right.left;
 				L c = right.right;
-				
+
 				A.left = a;
 				A.right = b;
 				A.updateTree();
-				
+
 				B.left = A;
 				B.right = c;
 				B.updateTree();
@@ -58,21 +60,21 @@ public class BlockList<E> extends AbstractList<E> {
 			} else if (left.height > right.height + 1) {
 				L A = (L) this;
 				L B = left;
-				
+
 				L a = left.left;
 				L b = left.right;
 				L c = right;
-				
+
 				B.left = b;
 				B.right = c;
 				B.updateTree();
-				
+
 				A.left = a;
 				A.right = B;
 				A.updateTree();
 				return true;
 			}
-			
+
 			return false;
 		}
 
@@ -122,7 +124,7 @@ public class BlockList<E> extends AbstractList<E> {
 			treeSize = left.size() + right.size();
 			height = Math.max(right.height, left.height) + 1;
 		}
-		
+
 		protected void checkMerge() {
 			if (treeSize > BLOCK_SIZE / 2 && treeSize < BLOCK_SIZE) {
 				merge();
@@ -137,7 +139,7 @@ public class BlockList<E> extends AbstractList<E> {
 			if (items != null) {
 				return getItem(index);
 			}
-			
+
 			if (index < left.size()) {
 				return left.get(index);
 			} else {
@@ -151,7 +153,7 @@ public class BlockList<E> extends AbstractList<E> {
 			if (items != null && countItems() >= BLOCK_SIZE) {
 				split();
 			}
-			
+
 			if (items != null) {
 				appendItem(e);
 			} else {
@@ -162,15 +164,15 @@ public class BlockList<E> extends AbstractList<E> {
 			}
 		}
 	}
-	
+
 	Block<E, ?, ?> root;
 
-	static class ArrayListBlock<E> extends Block<E, ArrayListBlock<E>, List<E>>{
-		
+	static class ArrayListBlock<E> extends Block<E, ArrayListBlock<E>, List<E>> {
+
 		public ArrayListBlock() {
 			items = new ArrayList<E>(BLOCK_SIZE);
 		}
-		
+
 		ArrayListBlock(List<E> items) {
 			this.items = new ArrayList<>(items);
 		}
@@ -179,7 +181,7 @@ public class BlockList<E> extends AbstractList<E> {
 		protected int countItems() {
 			return items.size();
 		}
-		
+
 		@Override
 		protected E getItem(int index) {
 			return items.get(index);
@@ -189,16 +191,16 @@ public class BlockList<E> extends AbstractList<E> {
 		protected void split(int index1, int index2) {
 			left = new ArrayListBlock<>(items.subList(0, index1));
 			right = new ArrayListBlock<>(items.subList(index2, items.size()));
-			
+
 			items = null;
 			updateTree();
 		}
-		
+
 		@Override
 		protected void split() {
 			left = new ArrayListBlock<>();
 			left.items = items;
-			
+
 			right = new ArrayListBlock<>();
 			updateTree();
 		}
@@ -224,17 +226,17 @@ public class BlockList<E> extends AbstractList<E> {
 			}
 			return value;
 		}
-		
+
 		@Override
 		void appendItem(E e) {
 			items.add(e);
 		}
-		
+
 		@Override
 		protected void merge() {
 			ArrayList<E> newItems = new ArrayList<>();
 			merge(newItems);
-			
+
 			items = newItems;
 			left = null;
 			right = null;
@@ -269,12 +271,12 @@ public class BlockList<E> extends AbstractList<E> {
 	public int size() {
 		return root.size();
 	}
-	
+
 	@Override
 	public void add(int index, E e) {
 		root.add(index, e);
 	}
-	
+
 	@Override
 	public E remove(int index) {
 		return root.remove(index);
@@ -284,25 +286,25 @@ public class BlockList<E> extends AbstractList<E> {
 		public static void main(String[] args) {
 			BlockList<Integer> list = new BlockList<>();
 			BLOCK_SIZE = 10;
-			
+
 			for (int i = 0; i < 100; i++) {
 				list.add(i);
 			}
 			for (int i = 0; i < 100; i++) {
 				list.add(i * 2, i);
 			}
-			
+
 			for (int i = 0; i < 100; i++) {
 				Integer value = list.get(i * 2);
 				if (value != i) {
 					throw new RuntimeException("List value does not match at " + i + ": got " + value);
 				}
 			}
-			
+
 			for (int i = 99; i >= 0; i--) {
 				list.remove(i * 2);
 			}
-			
+
 			for (int i = 0; i < 100; i++) {
 				Integer value = list.get(i);
 				if (value != i) {
@@ -311,5 +313,5 @@ public class BlockList<E> extends AbstractList<E> {
 			}
 		}
 	}
-	
+
 }

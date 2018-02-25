@@ -1,16 +1,15 @@
-/* Copyright 2016 Kothar Labs
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+/*
+ * Copyright 2016 Kothar Labs
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 package net.kothar.csview.adt;
 
@@ -19,24 +18,28 @@ import java.util.AbstractList;
 
 /**
  * Specialises the behaviour of BlockList by storing positive longs in a byte array;
+ * 
  * @author mhouston
+ * @deprecated The new external library CompactList has been created based on the concepts here.
+ *             Performance is much better in most cases.
  */
+@Deprecated
 public class CompactLongList extends AbstractList<Long> {
 
-	private static final int DEFAULT_BLOCK_SIZE = 10_000;
-	Block root;
-	int blockSize = DEFAULT_BLOCK_SIZE;
+	private static final int	DEFAULT_BLOCK_SIZE	= 10_000;
+	Block						root;
+	int							blockSize			= DEFAULT_BLOCK_SIZE;
 
 	class Block {
-		ByteBuffer items;
-		int valueLength;
-		long offset;
+		ByteBuffer	items;
+		int			valueLength;
+		long		offset;
 
-		Block left;
-		Block right;
+		Block	left;
+		Block	right;
 
-		int height = 0;
-		private int treeSize = 0;
+		int			height		= 0;
+		private int	treeSize	= 0;
 
 		public Block() {
 			valueLength = 8;
@@ -249,8 +252,10 @@ public class CompactLongList extends AbstractList<Long> {
 
 			for (int i = 0; i < size(); i++) {
 				Long value = get(i);
-				if (value < min) min = value;
-				if (value > max) max = value;
+				if (value < min)
+					min = value;
+				if (value > max)
+					max = value;
 			}
 
 			long newOffset = (min + max) / 2;
@@ -258,7 +263,8 @@ public class CompactLongList extends AbstractList<Long> {
 
 			// Choose a new valueLength
 			int newValueLength = requiredValueLength(distance);
-			if (newValueLength == 8) newOffset = 0;
+			if (newValueLength == 8)
+				newOffset = 0;
 
 			ByteBuffer buffer = ByteBuffer.allocate(blockSize * newValueLength);
 
@@ -287,7 +293,7 @@ public class CompactLongList extends AbstractList<Long> {
 			if (items != null) {
 				int min = 0;
 				int max = size() - 1;
-				
+
 				int pivot = max / 2;
 				long pvalue = get(pivot);
 
@@ -306,7 +312,7 @@ public class CompactLongList extends AbstractList<Long> {
 				if (pvalue == value) {
 					return pivot;
 				}
-				
+
 				// Found nearest
 				if (pvalue < value)
 					return -(pivot + 1) - 1;
@@ -333,8 +339,9 @@ public class CompactLongList extends AbstractList<Long> {
 	}
 
 	/**
-	 * Looks up the index of the item with value less than or equal to the provided value.
-	 * This will only return a valid result if the list contains values in sorted order.
+	 * Looks up the index of the item with value less than or equal to the provided value. This will
+	 * only return a valid result if the list contains values in sorted order.
+	 * 
 	 * @param value
 	 * @return
 	 */
