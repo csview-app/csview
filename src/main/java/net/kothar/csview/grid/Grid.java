@@ -581,7 +581,7 @@ public class Grid extends Composite {
 
 		int max = getTotalWidth() - canvas.getBounds().width;
 		ScrollBar bar = canvas.getHorizontalBar();
-		if (max > 0) {
+		if (max > 0 || bar.getSelection() > 0) {
 			bar.setVisible(true);
 			int total = (max + canvas.getVerticalBar().getSize().x + getRowHeaderSize()) / SCROLL_FACTOR + 11;
 			bar.setMaximum(total);

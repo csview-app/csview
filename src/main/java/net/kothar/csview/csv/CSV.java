@@ -1,16 +1,15 @@
-/* Copyright 2016 Kothar Labs
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+/*
+ * Copyright 2016 Kothar Labs
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 package net.kothar.csview.csv;
 
@@ -57,7 +56,7 @@ public class CSV {
 
 	private Logger log = Logger.getLogger(getClass().getName());
 
-	private static final byte[] UTF8_BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+	private static final byte[] UTF8_BOM = { (byte) 0xEF, (byte) 0xBB, (byte) 0xBF };
 
 	private static final int CELL_INDEX_DISTANCE = 10;
 
@@ -67,15 +66,15 @@ public class CSV {
 	/** Maps every Nth cell to its position in the file */
 	private Index cells = new Index();
 
-	private String contents;
-	private RandomAccessFile randomAccessFile;
-	private String file;
+	private String				contents;
+	private RandomAccessFile	randomAccessFile;
+	private String				file;
 
-	private CSVFormat format = CSVFormat.DEFAULT;
-	private int maxColumns = -1;
+	private CSVFormat	format		= CSVFormat.DEFAULT;
+	private int			maxColumns	= -1;
 
-	private boolean disposed = false;
-	private String charset = "UTF-8";
+	private boolean	disposed	= false;
+	private String	charset		= "UTF-8";
 
 	private Cache<Long, List<String>> cellCache;
 
@@ -83,8 +82,8 @@ public class CSV {
 
 	public CSV() {
 		cellCache = CacheBuilder.newBuilder()
-				.maximumSize(1000)
-				.build();
+			.maximumSize(1000)
+			.build();
 
 	}
 
@@ -97,8 +96,7 @@ public class CSV {
 	}
 
 	/**
-	 * Stop any active scan and dispose of any resources this
-	 * instance may be holding onto
+	 * Stop any active scan and dispose of any resources this instance may be holding onto
 	 */
 	public synchronized void dispose(DisposeEvent e) {
 		disposed = true;
@@ -106,6 +104,7 @@ public class CSV {
 
 	/**
 	 * Adds a row to the row index at the given cell
+	 * 
 	 * @param cell
 	 */
 	public synchronized void addRow(long cell) {
@@ -114,6 +113,7 @@ public class CSV {
 
 	/**
 	 * Sets the in-memory contents of this CSV
+	 * 
 	 * @param string
 	 */
 	public synchronized void setContents(String contents) {
@@ -129,8 +129,8 @@ public class CSV {
 			byte[] buffer = new byte[(int) Math.min(1024 * 10, randomAccessFile.length())];
 			this.randomAccessFile.read(buffer, 0, buffer.length);
 			CharsetMatch charsetMatch = new CharsetDetector()
-					.setText(buffer)
-					.detect();
+				.setText(buffer)
+				.detect();
 
 			if (charsetMatch != null) {
 				charset = charsetMatch.getName();
@@ -168,7 +168,8 @@ public class CSV {
 
 			@Override
 			public void newCell(long cell, long row, int col, long pos) {
-				if (cell % CELL_INDEX_DISTANCE == 0) addCell(pos);
+				if (cell % CELL_INDEX_DISTANCE == 0)
+					addCell(pos);
 			}
 
 			@Override
@@ -219,14 +220,14 @@ public class CSV {
 		try (FileInputStream input = new FileInputStream(file)) {
 
 			long startTime = System.currentTimeMillis();
-			
+
 			scan(input, handler);
 
 			System.out.println("Scanned " + rows.size() + " rows");
 			double mb = randomAccessFile.length() / (double) (1 << 20);
 			double sec = (System.currentTimeMillis() - startTime) / 1000D;
 			System.out.println((long) (mb / sec) + " MiB/sec");
-			
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -239,15 +240,14 @@ public class CSV {
 		int row = 0;
 		int blockSize = 4 << 20;
 
-		/* We use two buffers to allow the next block to be read
-		 * while processing the first. We could potentially use more
-		 * threads or a dedicated thread for more throughput.
+		/*
+		 * We use two buffers to allow the next block to be read while processing the first. We
+		 * could potentially use more threads or a dedicated thread for more throughput.
 		 * 
-		 * I suspect we are currently limited by scanning the buffer or adding
-		 * new position to the list, so profiling is needed.
+		 * I suspect we are currently limited by scanning the buffer or adding new position to the
+		 * list, so profiling is needed.
 		 */
 		Holder<byte[]> bbuf, bbuf2;
-
 
 		bbuf = new Holder<>(new byte[blockSize]);
 		bbuf2 = new Holder<>(new byte[blockSize]);
@@ -378,7 +378,7 @@ public class CSV {
 
 	public synchronized String[] getRow(int row) {
 		Long fromCell = rows.getPosition(row);
-		Long toCell = rows.getPosition(row+1);
+		Long toCell = rows.getPosition(row + 1);
 		if (toCell == null) {
 			toCell = (long) cells.size() * CELL_INDEX_DISTANCE;
 		}
@@ -397,7 +397,7 @@ public class CSV {
 
 	public synchronized String getCell(int row, int col) {
 		Long rowStart = rows.getPosition(row);
-		Long nextRow = rows.getPosition(row+1);
+		Long nextRow = rows.getPosition(row + 1);
 		Long colCell = rowStart + col;
 		if (nextRow != null && colCell > nextRow) {
 			return null;
@@ -414,34 +414,39 @@ public class CSV {
 		String block = getContent(from, to).trim();
 		return block;
 	}
-	
+
 	public String getCellContentsAt(Long position) {
 		if (position == null) {
 			return "";
 		}
-		
+
 		int blockIndex = cells.itemAt(position);
 		if (blockIndex < 0) {
 			blockIndex = -blockIndex - 2;
 		}
-		
+
 		String block = getCellBlock(blockIndex);
 		if (block.isEmpty()) {
 			return null;
 		}
-		
+
 		try {
 			// FIXME this is doing the block lookup twice and converting back from strings
 			byte[] blockBytes = block.getBytes(charset);
 			List<String> blockCells = parseBlock(blockIndex);
-			
+
 			// Work out which cell we actually asked for
 			Holder<Integer> cellHolder = new Holder<>();
 			long offset = position - cells.getPosition(blockIndex);
 			assert offset > 0;
 			scan(new ByteArrayInputStream(blockBytes), new ScanHandler() {
+				private long lastValue;
+
 				@Override
 				public void notifyCompleted() {
+					if (cellHolder.value == null) {
+						cellHolder.value = (int) lastValue;
+					}
 				}
 
 				@Override
@@ -452,6 +457,8 @@ public class CSV {
 				public void newCell(long cell, long row, int col, long pos) {
 					if (cellHolder.value == null && pos > offset) {
 						cellHolder.value = (int) (cell - 1);
+					} else {
+						lastValue = cell;
 					}
 				}
 			});
@@ -461,34 +468,39 @@ public class CSV {
 			return null;
 		}
 	}
-	
+
 	public Long getCellAt(Long position) {
 		if (position == null) {
 			return null;
 		}
-		
+
 		int blockIndex = cells.itemAt(position);
 		if (blockIndex < 0) {
 			// Subtract 2 because we want the index before where the lookup value
 			// would be inserted
 			blockIndex = -blockIndex - 2;
 		}
-		
+
 		String block = getCellBlock(blockIndex);
 		if (block.isEmpty()) {
 			return null;
 		}
-		
+
 		try {
 			// FIXME this is doing the block lookup twice and converting back from strings
 			byte[] blockBytes = block.getBytes(charset);
-			
+
 			// Work out which cell we actually asked for
 			Holder<Integer> cellHolder = new Holder<>();
 			long offset = position - cells.getPosition(blockIndex);
 			scan(new ByteArrayInputStream(blockBytes), new ScanHandler() {
+				private long lastValue;
+
 				@Override
 				public void notifyCompleted() {
+					if (cellHolder.value == null) {
+						cellHolder.value = (int) lastValue;
+					}
 				}
 
 				@Override
@@ -499,6 +511,8 @@ public class CSV {
 				public void newCell(long cell, long row, int col, long pos) {
 					if (cellHolder.value == null && pos > offset) {
 						cellHolder.value = (int) (cell - 1);
+					} else {
+						lastValue = cell;
 					}
 				}
 			});
@@ -527,12 +541,12 @@ public class CSV {
 
 		// Parse cells
 		if (blockCells == null) {
-			
+
 			String block = getCellBlock((int) blockIndex);
 			if (block.isEmpty()) {
 				return null;
 			}
-			
+
 			try {
 				blockCells = parseCells(block);
 			} catch (IOException e) {
@@ -541,10 +555,10 @@ public class CSV {
 					blockCells = parseCells(block + "\"");
 				} catch (IOException e1) {
 					// Just split on commas and newlines
-					blockCells = Arrays.asList(block.split("\\s*(" + 
-							Pattern.quote(""+getFormat().getDelimiter()) +
-							"|" + 
-							Pattern.quote(getFormat().getRecordSeparator()) + ")\\s*"));
+					blockCells = Arrays.asList(block.split("\\s*(" +
+						Pattern.quote("" + getFormat().getDelimiter()) +
+						"|" +
+						Pattern.quote(getFormat().getRecordSeparator()) + ")\\s*"));
 				}
 			}
 
@@ -560,7 +574,7 @@ public class CSV {
 
 		try {
 			CSVParser parser = CSVParser.parse(block, getFormat());
-			for (CSVRecord record: parser) {
+			for (CSVRecord record : parser) {
 				record.forEach(blockCells::add);
 				if (blockCells.size() > CELL_INDEX_DISTANCE + 1) {
 					log.warning("Found more than " + CELL_INDEX_DISTANCE + " cells in cell block");
@@ -601,7 +615,7 @@ public class CSV {
 			e.printStackTrace();
 		}
 
-		return rowContent.split("\\s*" + Pattern.quote(""+getFormat().getDelimiter()) + "\\s*");
+		return rowContent.split("\\s*" + Pattern.quote("" + getFormat().getDelimiter()) + "\\s*");
 	}
 
 	private String getContent(Long from, Long to) {
@@ -620,7 +634,7 @@ public class CSV {
 			if (contents != null) {
 				return contents.substring(from.intValue(), to.intValue());
 			} else if (randomAccessFile != null) {
-				byte[] bs = new byte[(int) (to-from)];
+				byte[] bs = new byte[(int) (to - from)];
 				randomAccessFile.seek(from);
 				int read = randomAccessFile.read(bs);
 				return new String(bs, 0, read, charset).trim();
@@ -671,6 +685,8 @@ public class CSV {
 				byte[] searchBytes = trimmedSearchString.getBytes(charset);
 
 				// TODO preprocess pattern for Boyer-Moore
+				// TODO handle case-insensitive patterns
+				// TODO handle regexes
 
 				// We can't mmap pages larger than 2G, so proceed in blocks of 100M
 				int blockSize = 100 << 20;
@@ -684,21 +700,23 @@ public class CSV {
 						lastProgress = progress;
 					}
 
+					// TODO parallelize block processing
+
 					// Map a buffer long enough to match the whole pattern at the end of the block
 					// if we start on the last byte of the block
 					long mapSize = Math.min(blockSize + searchBytes.length - 1, randomAccessFile.length() - offset);
 					MappedByteBuffer mappedBuffer = randomAccessFile.getChannel().map(
-							MapMode.READ_ONLY, offset, mapSize);
+						MapMode.READ_ONLY, offset, mapSize);
 
 					// Perform the search
 					int maxMatch = (int) (mapSize - searchBytes.length);
 					match: for (int matchPos = 0; matchPos < maxMatch;) {
 
 						// Match from suffix
-						for (int pos = searchBytes.length - 1; pos >= 0; pos --) {
+						for (int pos = searchBytes.length - 1; pos >= 0; pos--) {
 							if (searchBytes[pos] != mappedBuffer.get(pos + matchPos)) {
 								// TODO compute maximum shift
-								matchPos ++;
+								matchPos++;
 								continue match;
 							}
 						}
@@ -712,7 +730,8 @@ public class CSV {
 				// Log performance
 				Duration duration = Duration.ofNanos(System.nanoTime() - start);
 				System.out.println("Search complete in " + duration);
-				double bytesPerSec = randomAccessFile.length() / (TimeUnit.NANOSECONDS.toMillis(duration.toNanos()) / 1000.0);
+				double bytesPerSec = randomAccessFile.length()
+					/ (TimeUnit.NANOSECONDS.toMillis(duration.toNanos()) / 1000.0);
 				System.out.println(((int) bytesPerSec >> 20) + " MiB/sec");
 				System.out.println("Found " + index.size() + " matches");
 
@@ -728,16 +747,17 @@ public class CSV {
 
 	/**
 	 * Get the coordinates of the cell at the given file position
+	 * 
 	 * @param cellPos
 	 * @return
 	 */
 	public Point getPoint(Long position) {
 		Long cell = getCellAt(position);
-		
+
 		int row = rows.itemAt(cell);
 		if (row < 0)
 			row = -row - 2;
-		
+
 		Long rowStart = rows.getPosition(row);
 		int col = (int) (cell - rowStart);
 		return new Point(col, row);
