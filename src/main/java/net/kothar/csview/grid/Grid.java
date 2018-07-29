@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Stream;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.eclipse.jface.viewers.ILabelProvider;
@@ -30,6 +31,7 @@ import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Monitor;
 import org.eclipse.swt.widgets.ScrollBar;
 
 import com.google.common.base.Strings;
@@ -87,12 +89,13 @@ public class Grid extends Composite {
 		rows.setCount(1);
 		currentCell = new Point(0, 0);
 
-		String deviceZoomProperty = System.getProperty("org.eclipse.swt.internal.deviceZoom");
 		tileTransform = new Transform(parent.getDisplay());
-		if (deviceZoomProperty != null) {
-			deviceZoom = Double.parseDouble(deviceZoomProperty) / 100;
+		int maxZoom = Stream.of(Display.getCurrent().getMonitors()).mapToInt(Monitor::getZoom).max().orElse(100);
+		if (maxZoom > 100) {
+			deviceZoom = maxZoom / 100.0;
 			tileTransform.scale((float) deviceZoom, (float) deviceZoom);
 		}
+		System.out.println("Render zoom factor: " + deviceZoom);
 
 		setLayout(new FillLayout());
 		createContents(this);
