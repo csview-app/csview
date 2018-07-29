@@ -50,12 +50,27 @@ public class Menus {
 		Menu fileMenu = createFileMenu(menuBar);
 		addDocumentFileActions(fileMenu);
 
+		createSearchMenu(menuBar);
 		createSelectionMenu(menuBar);
 		createWindowMenu(menuBar);
 
 		if (System.getProperties().containsKey("net.kothar.csview.debug")) {
 			createDebugMenu(menuBar);
 		}
+	}
+
+	private void createSearchMenu(Menu menuBar) {
+		MenuItem menuItem = new MenuItem(menuBar, SWT.CASCADE);
+		menuItem.setText("Search");
+
+		Menu menu = new Menu(menuBar);
+		menuItem.setMenu(menu);
+
+		MenuItem search = new MenuItem(menu, SWT.NORMAL);
+		search.setText("Show search sidebar");
+		search.setAccelerator(SWT.MOD1 + 'F');
+
+		search.addSelectionListener(select(docActions::toggleSearch));
 	}
 
 	private Menu createSelectionMenu(Menu menuBar) {
@@ -151,14 +166,5 @@ public class Menus {
 		exception.addSelectionListener(select(() -> {
 			throw new RuntimeException("Test exception", new IllegalArgumentException("Internal exception"));
 		}));
-
-		// Show search
-		if (docActions != null) {
-			MenuItem search = new MenuItem(debugMenu, SWT.NORMAL);
-			search.setText("Show search sidebar");
-			search.setAccelerator(SWT.MOD1 + 'F');
-
-			search.addSelectionListener(select(docActions::toggleSearch));
-		}
 	}
 }
