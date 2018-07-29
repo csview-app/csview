@@ -102,4 +102,8 @@ public class Index implements Iterable<Long> {
 		positions.clear();
 		lastPosition = 0;
 	}
+
+	public void compact() {
+		positions.compact();
+	}
 }

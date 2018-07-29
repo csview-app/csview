@@ -38,7 +38,6 @@ public class SearchSidebar extends Composite implements ISelectionProvider {
 
 	private Text	search;
 	private Grid	grid;
-	private Button	close;
 	private Timer	debounce;
 
 	private CSV								csv;
@@ -48,14 +47,15 @@ public class SearchSidebar extends Composite implements ISelectionProvider {
 	private Button							regular;
 	private Button							caseInsensitive;
 
-	private SelectionListener	updateSearch	= new SelectionAdapter() {
-													@Override
-													public void widgetSelected(SelectionEvent e) {
-														updateSearch();
-													}
-												};
-	private Label				message;
-	private String				searchString;
+	private Label	message;
+	private String	searchString;
+
+	private SelectionListener updateSearch = new SelectionAdapter() {
+		@Override
+		public void widgetSelected(SelectionEvent e) {
+			updateSearch();
+		}
+	};
 
 	public SearchSidebar(Composite parent, CSV csv) {
 		super(parent, SWT.BORDER);
@@ -66,15 +66,6 @@ public class SearchSidebar extends Composite implements ISelectionProvider {
 
 	protected void createContents() {
 		setLayout(new GridLayout(2, false));
-
-		Label label = new Label(this, SWT.NORMAL);
-		label.setText("Search");
-		label.setFont(JFaceResources.getBannerFont());
-		label.setLayoutData(new GridData(GridData.BEGINNING, GridData.BEGINNING, false, false, 1, 1));
-
-		close = new Button(this, SWT.ARROW | SWT.RIGHT);
-		close.setText("Close");
-		close.setLayoutData(new GridData(GridData.END, GridData.END, false, false, 1, 1));
 
 		regular = new Button(this, SWT.CHECK);
 		regular.setText("Regular expression");
@@ -192,10 +183,6 @@ public class SearchSidebar extends Composite implements ISelectionProvider {
 			grid.setRows(index.size());
 			message.setText(String.format("%,d results", index.size()));
 		});
-	}
-
-	public void addCloseListener(SelectionListener listener) {
-		close.addSelectionListener(listener);
 	}
 
 	public void focusInput() {

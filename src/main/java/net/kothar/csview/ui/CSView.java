@@ -13,8 +13,6 @@
  */
 package net.kothar.csview.ui;
 
-import static net.kothar.csview.ui.Adapters.select;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
@@ -29,6 +27,10 @@ import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.jface.window.Window;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.CTabFolder;
+import org.eclipse.swt.custom.CTabFolder2Adapter;
+import org.eclipse.swt.custom.CTabFolderEvent;
+import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.graphics.Image;
@@ -67,13 +69,17 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 	private boolean useAppIcon;
 
-	private Grid			grid;
-	private SashForm		sashForm;
-	private SearchSidebar	sidebar;
-	private String			contents;
+	private Grid		grid;
+	private SashForm	sashForm;
+	private CTabFolder	sidebar;
+	private String		contents;
 
 	private StatusLineMenuContribution	rowCountStatus;
 	private StatusLineMenuContribution	colCountStatus;
+
+	private SearchSidebar search;
+
+	private CTabItem searchItem;
 
 	public static void main(String[] args) {
 		Display display = new Display();
@@ -187,11 +193,20 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		grid.setRowLabelProvider(new NumberFormatLabelProvider(1));
 		grid.setColumnLabelProvider(new CSVColumnHeaderProvider(csv));
 
-		sidebar = new SearchSidebar(sashForm, csv);
+		sidebar = new CTabFolder(sashForm, SWT.CLOSE);
+		sidebar.setSimple(false);
+		sidebar.setUnselectedCloseVisible(true);
+		sidebar.addCTabFolder2Listener(new CTabFolder2Adapter() {
+			@Override
+			public void close(CTabFolderEvent event) {
+				if (sidebar.getItemCount() == 1) {
+					hideSidebar();
+				}
+			}
+		});
+
 		sashForm.setWeights(new int[] { 70, 30 });
 		sashForm.setMaximizedControl(grid);
-		sidebar.addCloseListener(select(this::hideSidebar));
-		sidebar.addSelectionChangedListener(this::handleSidebarSelection);
 
 		return composite;
 	}
@@ -209,8 +224,20 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	}
 
 	public void showSidebar() {
+		if (search == null || search.isDisposed()) {
+			search = new SearchSidebar(sidebar, csv);
+			search.addSelectionChangedListener(this::handleSidebarSelection);
+		}
+
+		if (searchItem == null || searchItem.isDisposed()) {
+			searchItem = new CTabItem(sidebar, SWT.CLOSE, 0);
+			searchItem.setText("Search");
+			searchItem.setControl(search);
+		}
+
+		sidebar.setSelection(0);
 		sashForm.setMaximizedControl(null);
-		sidebar.focusInput();
+		search.focusInput();
 	}
 
 	public void hideSidebar() {

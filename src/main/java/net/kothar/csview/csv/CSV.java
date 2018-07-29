@@ -200,6 +200,8 @@ public class CSV {
 
 			@Override
 			public void notifyCompleted() {
+				rows.compact();
+				cells.compact();
 				listener.completed();
 				progressMonitor.done();
 			}
@@ -732,6 +734,7 @@ public class CSV {
 					/ (TimeUnit.NANOSECONDS.toMillis(duration.toNanos()) / 1000.0);
 				System.out.println(((int) bytesPerSec >> 20) + " MiB/sec");
 				System.out.println("Found " + results.size() + " matches");
+				results.compact();
 
 			} catch (Exception e) {
 				e.printStackTrace();
