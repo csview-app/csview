@@ -91,4 +91,9 @@ public class Index {
 	public void addListener(IndexListener listener) {
 		listeners.add(listener);
 	}
+
+	public void clear() {
+		positions.clear();
+		lastPosition = 0;
+	}
 }

@@ -157,6 +157,10 @@ public class CSV {
 			return;
 		}
 
+		// Clear previous index
+		rows.clear();
+		cells.clear();
+
 		// Perform scan
 		IProgressMonitor progressMonitor = progressManager.getProgressMonitor();
 		progressMonitor.beginTask("Scanning...", 1000);

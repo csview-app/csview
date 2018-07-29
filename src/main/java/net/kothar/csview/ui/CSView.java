@@ -365,6 +365,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	private void updateFormat(CSVFormat newFormat) {
 		grid.setCols(1);
 		csv.setFormat(newFormat);
+		csv.scan(createProgressListner());
 	}
 
 	@Override
