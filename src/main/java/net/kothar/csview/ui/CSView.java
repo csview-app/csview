@@ -71,6 +71,8 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	private SearchSidebar	sidebar;
 	private String			contents;
 
+	private StatusLineMenuContribution lineCountStatus;
+
 	public static void main(String[] args) {
 		Display display = new Display();
 
@@ -297,6 +299,8 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	protected StatusLineManager createStatusLineManager() {
 		StatusLineManager statusLineManager = super.createStatusLineManager();
 
+		createLineCountStatus(statusLineManager);
+
 		createDelimiterMenu(statusLineManager);
 		createEncodingMenu(statusLineManager);
 
@@ -309,6 +313,11 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 		statusLineManager.update(true);
 		return statusLineManager;
+	}
+
+	private void createLineCountStatus(StatusLineManager statusLineManager) {
+		lineCountStatus = new StatusLineMenuContribution("lineCount", "Row count: 0");
+		statusLineManager.add(lineCountStatus);
 	}
 
 	private void createEncodingMenu(StatusLineManager statusLineManager) {
@@ -371,6 +380,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 	public void refreshTable() {
 		grid.setRows(csv.getRowCount());
+		lineCountStatus.setText(String.format("Row count: %,d", csv.getRowCount()));
 	}
 
 	private void updateFormat(CSVFormat newFormat) {
