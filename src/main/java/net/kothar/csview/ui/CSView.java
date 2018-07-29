@@ -1,23 +1,24 @@
-/* Copyright 2016 Kothar Labs
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+/*
+ * Copyright 2016 - 2018 Kothar Labs
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 package net.kothar.csview.ui;
 
-import static net.kothar.csview.ui.Adapters.*;
+import static net.kothar.csview.ui.Adapters.select;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.csv.CSVFormat;
 import org.eclipse.jface.action.Action;
@@ -29,6 +30,7 @@ import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.jface.window.Window;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
+import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.FillLayout;
@@ -48,6 +50,8 @@ import net.kothar.csview.ui.search.SearchSidebar;
 
 public class CSView extends ApplicationWindow implements DocumentActions {
 
+	public static final List<CSView> instances = new ArrayList<>();
+
 	private static Image appIcon;
 
 	public static Image getAppIcon() {
@@ -57,15 +61,15 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		return appIcon;
 	}
 
-	private CSV csv;
-	private String file;
+	private CSV		csv;
+	private String	file;
 
 	private boolean useAppIcon;
 
-	private Grid grid;
-	private SashForm sashForm;
-	private SearchSidebar sidebar;
-	private String contents;
+	private Grid			grid;
+	private SashForm		sashForm;
+	private SearchSidebar	sidebar;
+	private String			contents;
 
 	public static void main(String[] args) {
 		Display display = new Display();
@@ -102,7 +106,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 		this.file = file.toString();
 	}
-	
+
 	public void load() {
 		csv = new CSV();
 		if (file != null) {
@@ -114,6 +118,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		} else {
 			loadCSVString(contents);
 		}
+		instances.add(this);
 	}
 
 	public void useAppIcon() {
@@ -150,7 +155,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 			shell.setImage(getAppIcon());
 
 		if (file != null) {
-			shell.setText(file + " - CSView");
+			shell.setText(file);
 		} else {
 			shell.setText("CSView");
 		}
@@ -207,7 +212,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	public void hideSidebar() {
 		sashForm.setMaximizedControl(grid);
 	}
-	
+
 	public void handleSidebarSelection(SelectionChangedEvent e) {
 		IStructuredSelection selection = (IStructuredSelection) e.getSelection();
 		Point point = (Point) selection.getFirstElement();
@@ -218,15 +223,20 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	public void create() {
 		// Load the CSV
 		load();
-		
+
 		addStatusLine();
 		super.create();
-		
+
 		csv.setProgressManger(new ProgressManager(getStatusLineManager(), Display.getCurrent()));
 		csv.scan(createProgressListner());
 
 		getShell().getDisplay().asyncExec(this::refreshTable);
-		getShell().addDisposeListener(csv::dispose);
+		getShell().addDisposeListener(this::dispose);
+	}
+
+	private void dispose(DisposeEvent e) {
+		csv.dispose(e);
+		instances.remove(this);
 	}
 
 	private ProgressListener createProgressListner() {
@@ -257,10 +267,10 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 				}
 
 			};
-			
+
 			return listener;
 		}
-		
+
 		return new ProgressListener() {
 			@Override
 			public void completed() {
@@ -268,12 +278,12 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 					refreshTable();
 				});
 			}
-			
+
 			@Override
 			public void columnsChanged(int columns) {
 				getShell().getDisplay().asyncExec(() -> grid.setCols(columns));
 			}
-			
+
 			@Override
 			public void changed() {
 				getShell().getDisplay().asyncExec(() -> {
@@ -283,6 +293,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		};
 	}
 
+	@Override
 	protected StatusLineManager createStatusLineManager() {
 		StatusLineManager statusLineManager = super.createStatusLineManager();
 
@@ -302,7 +313,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 	private void createEncodingMenu(StatusLineManager statusLineManager) {
 		StatusLineMenuContribution menu = new StatusLineMenuContribution("encoding",
-				"Encoding: " + csv.getCharset() + " \u25bc");
+			"Encoding: " + csv.getCharset() + " \u25bc");
 		statusLineManager.add(menu);
 
 		for (String encoding : CharsetDetector.getAllDetectableCharsets()) {
@@ -329,7 +340,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 		char currentDelimiter = csv.getFormat().getDelimiter();
 		StatusLineMenuContribution fieldSeparatorMenu = new StatusLineMenuContribution("separator",
-				formatDelimiter(currentDelimiter));
+			formatDelimiter(currentDelimiter));
 		statusLineManager.add(fieldSeparatorMenu);
 
 		for (Delimiter d : Delimiter.values()) {
@@ -347,7 +358,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 			public void run() {
 				String defaultValue = "" + currentDelimiter;
 				InputDialog inputDialog = new InputDialog(getShell(), "Select input delimiter",
-						"Please choose a delimiter character", defaultValue, null);
+					"Please choose a delimiter character", defaultValue, null);
 				if (inputDialog.open() == Window.OK && !inputDialog.getValue().isEmpty()) {
 					char delimiter = inputDialog.getValue().toCharArray()[0];
 					CSVFormat newFormat = csv.getFormat().withDelimiter(delimiter);
