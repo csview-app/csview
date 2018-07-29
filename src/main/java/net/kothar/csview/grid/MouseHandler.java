@@ -50,17 +50,15 @@ public class MouseHandler implements MouseListener, MouseMoveListener {
 	}
 
 	protected void cellsMouseMove(MouseEvent e) {
-		int mouseX = e.x - grid.getRowHeaderSize() + grid.getXOffset();
-		if (mouseX < 0 || mouseX >= grid.cols.getTotal()) {
+		int colIndex = grid.getColAt(e.x);
+		if (colIndex < 0) {
 			return;
 		}
-		int colIndex = grid.cols.getItemAt(mouseX);
 
-		int mouseY = e.y - grid.getColumnHeaderSize() + grid.getYOffset();
-		if (mouseY < 0 || mouseY >= grid.rows.getTotal()) {
+		int rowIndex = grid.getRowAt(e.y);
+		if (rowIndex < 0) {
 			return;
 		}
-		int rowIndex = grid.rows.getItemAt(mouseY);
 
 		nextAction = createCellAction(colIndex, rowIndex);
 	}
@@ -147,6 +145,9 @@ public class MouseHandler implements MouseListener, MouseMoveListener {
 
 	@Override
 	public void mouseDown(MouseEvent e) {
+		// Mouse events are not sent if not active window, but click will be the first event on
+		// focus.
+		mouseMove(e);
 		if (nextAction != null) {
 			nextAction.mouseDown(e);
 			activeAction = nextAction;

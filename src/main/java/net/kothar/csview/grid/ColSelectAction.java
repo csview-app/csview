@@ -7,12 +7,14 @@ import org.eclipse.swt.graphics.Rectangle;
 
 public class ColSelectAction implements MouseAction {
 
-	private Grid	grid;
-	private int		column;
+	private Grid		grid;
+	private int			startColumn;
+	private Rectangle	selection;
+	private int			lastColumn;
 
 	public ColSelectAction(Grid grid, int column) {
 		this.grid = grid;
-		this.column = column;
+		this.startColumn = column;
 	}
 
 	@Override
@@ -21,12 +23,25 @@ public class ColSelectAction implements MouseAction {
 
 	@Override
 	public void mouseDown(MouseEvent e) {
-		Rectangle region = new Rectangle(column, 0, 1, grid.getRowCount());
 		if ((e.stateMask & SWT.MODIFIER_MASK) == 0) {
 			grid.getSelection().clear();
 		}
-		grid.getSelection().addRegion(region);
+		selectColumn(startColumn);
+	}
+
+	private void selectColumn(int column) {
+		int from = column >= startColumn ? startColumn : column;
+		int to = column >= startColumn ? column : startColumn;
+
+		if (selection != null) {
+			grid.getSelection().removeRegion(selection);
+		}
+
+		selection = new Rectangle(from, 0, to - from + 1, grid.getRowCount());
+		grid.getSelection().addRegion(selection);
 		grid.refresh();
+
+		lastColumn = column;
 	}
 
 	@Override
@@ -35,11 +50,19 @@ public class ColSelectAction implements MouseAction {
 
 	@Override
 	public void mouseMove(MouseEvent e) {
+		int thisCol = grid.getColAt(e.x);
+		if (thisCol != lastColumn) {
+			selectColumn(thisCol);
+		}
 	}
 
 	@Override
 	public Cursor getCursor(MouseEvent e) {
-		return null;
+		if (selection == null) {
+			return null;
+		}
+
+		return e.display.getSystemCursor(SWT.CURSOR_SIZEWE);
 	}
 
 }

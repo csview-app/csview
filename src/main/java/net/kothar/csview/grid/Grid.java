@@ -497,6 +497,24 @@ public class Grid extends Composite {
 		canvas.getHorizontalBar().setSelection(xOffset / SCROLL_FACTOR);
 	}
 
+	public int getColAt(int x) {
+		int cellX = x - getRowHeaderSize() + getXOffset();
+		if (cellX < 0 || cellX >= cols.getTotal()) {
+			return -1;
+		}
+		int colIndex = cols.getItemAt(cellX);
+		return colIndex;
+	}
+
+	public int getRowAt(int y) {
+		int cellY = y - getColumnHeaderSize() + getYOffset();
+		if (cellY < 0 || cellY >= rows.getTotal()) {
+			return -1;
+		}
+		int rowIndex = rows.getItemAt(cellY);
+		return rowIndex;
+	}
+
 	private void renderGridlines(GC gc, int y, Rectangle viewport) {
 
 		gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_LIGHT_SHADOW));
