@@ -85,8 +85,28 @@ public class SizeTree {
 		}
 
 		private void decreaseChildren(int count) {
-			// TODO Auto-generated method stub
+			if (count == 0 ) {
+				left = null;
+				right = null;
+				size = 0;
+			}
 			
+			if (children == 0) {
+				throw new IllegalArgumentException("Node already has 0 children");
+			} else if (left == null) {
+				// No child nodes, just reduce to new size
+				assert size == children * defaultSize;
+				children = count;
+				size = children * defaultSize;
+			} else {
+				// Remove from children
+				if (left.size > count) {
+					right.setChildren(0);
+					left.setChildren(count);
+				} else {
+					right.setChildren(count - left.size);
+				}
+			}
 		}
 
 		private void increaseChildren(int count) {

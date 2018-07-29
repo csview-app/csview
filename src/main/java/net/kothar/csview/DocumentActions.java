@@ -5,4 +5,6 @@ public interface DocumentActions {
 	boolean close();
 	
 	boolean copySelection();
+	
+	void toggleSearch();
 }

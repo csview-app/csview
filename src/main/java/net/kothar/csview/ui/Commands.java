@@ -44,7 +44,7 @@ public class Commands {
 			if (filename != null) {
 				File file = new File(filename);
 				if (file.exists()) {
-					actions.openFile(file);
+					display.asyncExec(() ->	actions.openFile(file));
 					return true;
 				}
 			}
