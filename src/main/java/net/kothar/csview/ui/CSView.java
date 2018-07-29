@@ -46,6 +46,7 @@ import net.kothar.csview.ProgressListener;
 import net.kothar.csview.csv.CSV;
 import net.kothar.csview.csv.ProgressManager;
 import net.kothar.csview.grid.Grid;
+import net.kothar.csview.ui.csv.CSVGrid;
 import net.kothar.csview.ui.search.SearchSidebar;
 
 public class CSView extends ApplicationWindow implements DocumentActions {
@@ -176,7 +177,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 		sashForm = new SashForm(composite, SWT.HORIZONTAL);
 
-		grid = new Grid(sashForm, SWT.BORDER);
+		grid = new CSVGrid(sashForm, SWT.BORDER);
 		grid.setHeaderVisible(true);
 		grid.setLinesVisible(true);
 
