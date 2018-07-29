@@ -32,12 +32,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.graphics.Point;
@@ -652,6 +652,10 @@ public class CSV {
 		return rows.size();
 	}
 
+	public synchronized int getColCount() {
+		return maxColumns;
+	}
+
 	public CSVFormat getFormat() {
 		return format;
 	}
@@ -669,8 +673,8 @@ public class CSV {
 		this.charset = charset;
 	}
 
-	public Index search(String searchString, ProgressListener listener) {
-		Index index = new Index();
+	public Index search(Pattern pattern, ProgressListener listener) {
+		Index results = new Index();
 		long start = System.nanoTime();
 
 		IProgressMonitor progressMonitor = progressManager.getProgressMonitor();
@@ -680,15 +684,8 @@ public class CSV {
 			try {
 				long lastProgress = 0;
 				long totalProgress = randomAccessFile.length();
-
-				// Prepare the pattern to search for
-				String escapedSearchString = StringEscapeUtils.escapeCsv(searchString);
-				String trimmedSearchString = escapedSearchString.replaceAll("^\"|\"$", "");
-				byte[] searchBytes = trimmedSearchString.getBytes(charset);
-
-				// TODO preprocess pattern for Boyer-Moore
-				// TODO handle case-insensitive patterns
-				// TODO handle regexes
+				long lastCell = -1;
+				Iterator<Long> cellIterator = cells.iterator();
 
 				// We can't mmap pages larger than 2G, so proceed in blocks of 100M
 				int blockSize = 100 << 20;
@@ -706,26 +703,25 @@ public class CSV {
 
 					// Map a buffer long enough to match the whole pattern at the end of the block
 					// if we start on the last byte of the block
-					long mapSize = Math.min(blockSize + searchBytes.length - 1, randomAccessFile.length() - offset);
+					long mapSize = Math.min(blockSize + (1 << 10), randomAccessFile.length() - offset);
 					MappedByteBuffer mappedBuffer = randomAccessFile.getChannel().map(
 						MapMode.READ_ONLY, offset, mapSize);
 
 					// Perform the search
-					int maxMatch = (int) (mapSize - searchBytes.length);
-					match: for (int matchPos = 0; matchPos < maxMatch;) {
+					int maxMatch = (int) Math.min(blockSize, mapSize);
+					Matcher matcher = pattern.matcher(new ByteCharSequence(mappedBuffer));
+					while (matcher.find() && matcher.start() < maxMatch) {
+						long position = offset + matcher.start();
 
-						// Match from suffix
-						for (int pos = searchBytes.length - 1; pos >= 0; pos--) {
-							if (searchBytes[pos] != mappedBuffer.get(pos + matchPos)) {
-								// TODO compute maximum shift
-								matchPos++;
-								continue match;
-							}
+						boolean newCell = false;
+						while (lastCell <= position && cellIterator.hasNext()) {
+							lastCell = Math.abs(cellIterator.next());
+							newCell = true;
 						}
 
-						// We've matched the whole pattern
-						index.add(offset + matchPos);
-						matchPos += searchBytes.length;
+						if (newCell) {
+							results.add(position);
+						}
 					}
 				}
 
@@ -735,7 +731,7 @@ public class CSV {
 				double bytesPerSec = randomAccessFile.length()
 					/ (TimeUnit.NANOSECONDS.toMillis(duration.toNanos()) / 1000.0);
 				System.out.println(((int) bytesPerSec >> 20) + " MiB/sec");
-				System.out.println("Found " + index.size() + " matches");
+				System.out.println("Found " + results.size() + " matches");
 
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -744,7 +740,7 @@ public class CSV {
 				progressMonitor.done();
 			}
 		});
-		return index;
+		return results;
 	}
 
 	/**

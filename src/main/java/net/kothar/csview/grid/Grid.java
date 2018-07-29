@@ -780,7 +780,7 @@ public class Grid extends Composite {
 			int canvasWidth = canvas.getBounds().width;
 			int rowHeaderSize = getRowHeaderSize();
 			if (x + 16 > xOffset + canvasWidth - rowHeaderSize - 16) {
-				setXOffset(x - canvasWidth + rowHeaderSize + width + 16);
+				setXOffset(x - canvasWidth + rowHeaderSize + width + 32);
 			}
 		}
 
@@ -791,7 +791,7 @@ public class Grid extends Composite {
 			int canvasHeight = canvas.getBounds().height;
 			int columnHeaderSize = getColumnHeaderSize();
 			if (y + height > yOffset + canvasHeight - columnHeaderSize - 16) {
-				setYOffset(y - canvasHeight + columnHeaderSize + height + 16);
+				setYOffset(y - canvasHeight + columnHeaderSize + height + 32);
 			}
 		}
 

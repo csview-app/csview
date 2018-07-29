@@ -14,11 +14,12 @@
 package net.kothar.csview.csv;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 import net.kothar.compactlist.CompactList;
 import net.kothar.csview.IndexListener;
 
-public class Index {
+public class Index implements Iterable<Long> {
 
 	private CompactList					positions	= new CompactList();
 	private ArrayList<IndexListener>	listeners	= new ArrayList<>();
@@ -36,7 +37,7 @@ public class Index {
 			if (line < 0) {
 				positions.add(-line - 1, position);
 			} else {
-				throw new IllegalArgumentException("Duplicate line position added");
+				throw new IllegalArgumentException("Duplicate position added");
 			}
 		}
 
@@ -62,6 +63,11 @@ public class Index {
 
 	public synchronized int size() {
 		return positions.size();
+	}
+
+	@Override
+	public Iterator<Long> iterator() {
+		return positions.iterator();
 	}
 
 	public synchronized void removePosition(Long position) {
