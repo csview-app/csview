@@ -19,8 +19,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.csv.CSVFormat;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.StatusLineManager;
+import org.eclipse.jface.dialogs.ErrorDialog;
 import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
@@ -400,8 +403,17 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 				InputDialog inputDialog = new InputDialog(getShell(), "Select input delimiter",
 					"Please choose a delimiter character", defaultValue, null);
 				if (inputDialog.open() == Window.OK && !inputDialog.getValue().isEmpty()) {
+					CSVFormat newFormat = null;
 					char delimiter = inputDialog.getValue().toCharArray()[0];
-					CSVFormat newFormat = csv.getFormat().withDelimiter(delimiter);
+
+					try {
+						newFormat = csv.getFormat().withDelimiter(delimiter);
+					} catch (IllegalArgumentException e) {
+						ErrorDialog.openError(getShell(), "Input error", "Unable to set delimiter",
+							new Status(IStatus.WARNING, "CSView", e.getMessage(), e));
+						return;
+					}
+
 					fieldSeparatorMenu.setText(formatDelimiter(delimiter));
 					updateFormat(newFormat);
 				}

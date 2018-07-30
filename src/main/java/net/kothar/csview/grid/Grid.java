@@ -435,7 +435,9 @@ public class Grid extends Composite {
 		gc.fillRectangle(rowHeaderSize, 0, canvas.getBounds().width - rowHeaderSize, columnHeaderSize);
 
 		int xOffset = getXOffset();
-		for (int i = cols.getItemAt(xOffset); i < cols.getCount(); i++) {
+
+		int startCol = xOffset < cols.getTotal() ? cols.getItemAt(xOffset) : cols.getCount();
+		for (int i = startCol; i < cols.getCount(); i++) {
 			int width = cols.getSize(i);
 			int x = rowHeaderSize + cols.getPosition(i) - xOffset;
 

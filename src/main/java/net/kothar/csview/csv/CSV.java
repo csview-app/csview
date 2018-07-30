@@ -401,6 +401,10 @@ public class CSV {
 
 	public synchronized String getCell(int row, int col) {
 		Long rowStart = rows.getPosition(row);
+		if (rowStart == null) {
+			return null;
+		}
+
 		Long nextRow = rows.getPosition(row + 1);
 		Long colCell = rowStart + col;
 		if (nextRow != null && colCell > nextRow) {
@@ -585,8 +589,10 @@ public class CSV {
 					break;
 				}
 			}
-		} catch (Exception e) {
-			log.warning(e.getMessage());
+		} catch (Throwable e) {
+			while (blockCells.size() < CELL_INDEX_DISTANCE) {
+				blockCells.add("<ERROR>");
+			}
 		}
 
 		return blockCells;
@@ -665,6 +671,7 @@ public class CSV {
 	public void setFormat(CSVFormat format) {
 		this.format = format;
 		maxColumns = -1;
+		cellCache.invalidateAll();
 	}
 
 	public String getCharset() {
