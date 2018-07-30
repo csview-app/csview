@@ -95,7 +95,7 @@
 					</descriptorRefs>
 					<archive>
 						<manifest>
-							<mainClass>net.kothar.csview.cocoa.MacLoader</mainClass>
+							<mainClass>${csview.mainClass}</mainClass>
 						</manifest>
 					</archive>
 				</configuration>
@@ -119,6 +119,10 @@
 					<arch>x86_64</arch>
 				</os>
 			</activation>
+
+			<properties>
+				<csview.mainClass>net.kothar.csview.cocoa.MacLoader</csview.mainClass>
+			</properties>
 
 			<dependencies>
 				<dependency>
@@ -176,6 +180,10 @@
 				</os>
 			</activation>
 
+			<properties>
+				<csview.mainClass>net.kothar.csview.SingleInstanceLoader</csview.mainClass>
+			</properties>
+
 			<build>
 				<plugins>
 					<plugin>
@@ -215,6 +223,24 @@
 					<arch>amd64</arch>
 				</os>
 			</activation>
+
+			<dependencies>
+				<dependency>
+					<groupId>org.eclipse.platform</groupId>
+    				<artifactId>org.eclipse.swt.win32.win32.x86_64</artifactId>
+					<version>${swt.version}</version>
+					<exclusions>
+						<exclusion>
+							<groupId>org.eclipse.platform</groupId>
+							<artifactId>org.eclipse.swt.gtk.linux.aarch64</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.eclipse.platform</groupId>
+							<artifactId>org.eclipse.swt.gtk.linux.arm</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+			</dependencies>
 		</profile>
 		<profile>
 			<id>linux</id>
@@ -223,6 +249,24 @@
 					<name>Linux</name>
 				</os>
 			</activation>
+
+			<dependencies>
+				<dependency>
+					<groupId>org.eclipse.platform</groupId>
+					<artifactId>org.eclipse.swt.gtk.linux.x86_64</artifactId>
+					<version>${swt.version}</version>
+					<exclusions>
+						<exclusion>
+							<groupId>org.eclipse.platform</groupId>
+							<artifactId>org.eclipse.swt.gtk.linux.aarch64</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.eclipse.platform</groupId>
+							<artifactId>org.eclipse.swt.gtk.linux.arm</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+			</dependencies>
 		</profile>
 	</profiles>
 </project>

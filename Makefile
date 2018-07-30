@@ -51,7 +51,7 @@ package/windows/CSView-setup-icon.bmp: icon.svg
 	rm setup-icon.png
 
 jar:
-	MAVEN_OPTS="-XstartOnFirstThread" mvn package
+	mvn package
 
 app:
 	@echo $(VERSION)
