@@ -680,6 +680,7 @@ public class CSV {
 
 	public void setCharset(String charset) {
 		this.charset = charset;
+		cellCache.invalidateAll();
 	}
 
 	public Index search(Pattern pattern, ProgressListener listener) {
