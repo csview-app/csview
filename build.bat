@@ -1,5 +1,8 @@
 @echo off
 
+echo Building
+mvn.exe package
+
 echo Packaging
 
 set APP_NAME=CSView
