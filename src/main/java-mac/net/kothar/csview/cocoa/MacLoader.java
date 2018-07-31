@@ -1,4 +1,4 @@
-/* Copyright 2016 Kothar Labs
+/* Copyright 2016 - 2018 Kothar Labs
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -41,66 +41,17 @@ import net.kothar.csview.ApplicationActions;
 import net.kothar.csview.ui.CSView;
 import net.kothar.csview.ui.Menus;
 
-public class MacLoader implements ApplicationActions {
-
-	static final String APP_NAME = "CSView";
-	static final String VERSION = "1.3.0";
-
-	private Display display;
-
-	private File logFile;
+public class MacLoader extends BaseLoader {
 
 	public static void main(String[] args) {
 		new MacLoader().start(args);
 	}
-	
+
+	@Override
 	public void start(String[] args) {
-		Display.setAppName(APP_NAME);
 		new CocoaUIEnhancer().earlyStartup();
 
-		try {
-			logFile = File.createTempFile(APP_NAME, ".log");
-			FileOutputStream logOut = new FileOutputStream(logFile);
-			PrintStream realOut = System.out;
-			PrintStream realErr = System.err;
-			
-			System.out.println("Logging to " + logFile);
-			PrintStream log = new PrintStream(new OutputStream() {
-				@Override
-				public void write(int b) throws IOException {
-					logOut.write(b);
-					realOut.write(b);
-				}
-				
-				@Override
-				public void write(byte[] b) throws IOException {
-					logOut.write(b);
-					realOut.write(b);
-				}
-				
-				@Override
-				public void close() throws IOException {
-					logOut.close();
-					System.setOut(realOut);
-					System.setErr(realErr);
-				}
-			});
-			
-			System.setOut(log);
-			System.setErr(log);
-
-			System.out.println("\nStarted new session: " + new Date());
-
-			for (Entry<Object, Object> prop: System.getProperties().entrySet()) {
-				System.out.println(prop.getKey() + "=" + prop.getValue());
-			}
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		display = Display.getDefault();
+		super.start(args);
 		display.addListener(SWT.OpenDocument, new Listener() {
 			@Override
 			public void handleEvent(Event event) {
@@ -112,41 +63,7 @@ public class MacLoader implements ApplicationActions {
 
 		new Menus(this, display.getMenuBar());
 
-		Thread.setDefaultUncaughtExceptionHandler(this::handleUnexpectedException);
-		while (!display.isDisposed()) {
-			if (!display.readAndDispatch()) {
-				display.sleep();
-			}
-		}
-	}
-
-	private void handleUnexpectedException(Thread t, Throwable e) {
-		e.printStackTrace();
-		
-		String message = e.getLocalizedMessage();
-		if (logFile != null) {
-			message += "\n\nFull log can be found at " + logFile;
-		}
-		
-		String stack;
-		try {
-			ByteArrayOutputStream bs = new ByteArrayOutputStream();
-			e.printStackTrace(new PrintStream(bs, true, "UTF-8"));
-			stack = bs.toString("UTF-8");
-		} catch (UnsupportedEncodingException e1) {
-			stack = e.getLocalizedMessage();
-		}
-
-		String[] stackLines = stack.split("\n");
-		IStatus[] children = Arrays.stream(stackLines)
-			.map((line) -> new Status(Status.ERROR, "net.kothar.csview", line))
-			.collect(Collectors.toList())
-			.toArray(new IStatus[0]);
-		
-		ErrorDialog.openError(null, "Unexpected error", message, 
-				new MultiStatus("net.kothar.csview", Status.ERROR, children, e.getLocalizedMessage(), e));
-		
-		System.exit(-1);
+		displayLoop();
 	}
 
 	public void openFile(String filename, File file) {
