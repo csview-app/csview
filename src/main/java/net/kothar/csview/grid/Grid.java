@@ -358,10 +358,6 @@ public class Grid extends Composite {
         gc.fillRectangle(0, 0, rowHeaderSize, columnHeaderSize);
         gc.drawLine(0, columnHeaderSize - 1, rowHeaderSize - 1, columnHeaderSize - 1);
         gc.drawLine(rowHeaderSize - 1, 0, rowHeaderSize - 1, columnHeaderSize - 1);
-
-        gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_HIGHLIGHT_SHADOW));
-        gc.drawLine(0, columnHeaderSize, rowHeaderSize - 1, columnHeaderSize);
-        gc.drawLine(rowHeaderSize, 0, rowHeaderSize, columnHeaderSize - 1);
     }
 
     private void paintRowHeaders(PaintEvent e) {
