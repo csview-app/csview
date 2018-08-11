@@ -107,8 +107,8 @@ public class Grid extends Composite {
 		tileTransform.dispose();
 	}
 
-	private void createContents(Composite parent) {
-		canvas = new Canvas(parent, SWT.H_SCROLL | SWT.V_SCROLL | SWT.DOUBLE_BUFFERED);
+    private void createContents(Composite parent) {
+        canvas = new Canvas(parent, SWT.H_SCROLL | SWT.V_SCROLL | SWT.NO_BACKGROUND | SWT.NO_REDRAW_RESIZE);
 
 		// Hook painting
 		canvas.addPaintListener(this::paintGrid);
