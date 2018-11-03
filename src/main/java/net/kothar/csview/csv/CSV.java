@@ -112,7 +112,7 @@ public class CSV {
 	/**
 	 * Sets the in-memory contents of this CSV
 	 * 
-	 * @param string
+	 * @param contents
 	 */
 	public synchronized void setContents(String contents) {
 		this.contents = contents;
@@ -383,6 +383,9 @@ public class CSV {
 	public synchronized String[] getRow(int row) {
 		Long fromCell = rows.getPosition(row);
 		Long toCell = rows.getPosition(row + 1);
+		if (fromCell == null) {
+			fromCell = 0L;
+		}
 		if (toCell == null) {
 			toCell = (long) cells.size() * CELL_INDEX_DISTANCE;
 		}
@@ -757,7 +760,7 @@ public class CSV {
 	/**
 	 * Get the coordinates of the cell at the given file position
 	 * 
-	 * @param cellPos
+	 * @param position
 	 * @return
 	 */
 	public Point getPoint(Long position) {
