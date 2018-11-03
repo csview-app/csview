@@ -82,6 +82,9 @@ public class Grid extends Composite {
     private double deviceZoom = 1.0;
     private Transform tileTransform;
 
+    private int lastPaintX = 0;
+    private int lastPaintY = 0;
+
     public Grid(Composite parent, int style) {
         super(parent, style);
 
@@ -123,25 +126,30 @@ public class Grid extends Composite {
 
         // Hook scrolling
         canvas.getHorizontalBar().addSelectionListener(new SelectionAdapter() {
-            int lastPos = 0;
-
             @Override
             public void widgetSelected(SelectionEvent e) {
-                ScrollBar bar = (ScrollBar) e.getSource();
-                int pos = bar.getSelection();
-                int shift = Math.abs(pos - lastPos) * SCROLL_FACTOR;
+                int xOffset = getXOffset();
+                int shift = Math.abs(xOffset - lastPaintX);
 
                 int rowHeader = getRowHeaderSize();
                 if (shift > canvas.getBounds().width - rowHeader) {
                     refresh();
                 } else {
-                    if (pos < lastPos) {
-                        canvas.scroll(shift + rowHeader, 0, rowHeader, 0, canvas.getSize().x - shift - rowHeader, canvas.getSize().y, false);
+                    if (xOffset < lastPaintX) {
+                        // Shift pixels right
+                        canvas.scroll(shift + rowHeader, 0, rowHeader, 0,
+                                canvas.getSize().x - shift - rowHeader, canvas.getSize().y, false);
+
+                        // Repaint first column
+                        int repaintWidth = shift + rowHeader * 2;
+                        canvas.redraw(0, 0, repaintWidth, canvas.getSize().y, false);
                     } else {
-                        canvas.scroll(rowHeader, 0, shift + rowHeader, 0, canvas.getSize().x - shift - rowHeader, canvas.getSize().y, false);
+                        // Shift pixels left
+                        canvas.scroll(rowHeader, 0, shift + rowHeader, 0,
+                                canvas.getSize().x, canvas.getSize().y, false);
+//                        canvas.redraw(0, 0, shift + rowHeader, canvas.getSize().y, false);
                     }
                 }
-                lastPos = pos;
             }
         });
         canvas.getVerticalBar().addSelectionListener(new SelectionAdapter() {
@@ -195,6 +203,13 @@ public class Grid extends Composite {
         int y = bounds.height - 1;
         int width = bounds.width;
         gc.drawLine(0, y, width, y);
+
+        lastPaintX = getXOffset();
+        lastPaintY = getYOffset();
+
+//        gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_RED));
+//        gc.drawRectangle(gc.getClipping().x, gc.getClipping().y, gc.getClipping().width - 1, gc.getClipping().height - 1);
+//        System.out.printf("clip: %s\n", gc.getClipping());
     }
 
     private void paintCells(PaintEvent e) {
