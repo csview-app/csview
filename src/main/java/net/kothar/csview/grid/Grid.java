@@ -48,6 +48,7 @@ public class Grid extends Composite {
     static final int TILE_ROWS = 10;
 
     Canvas canvas;
+    Theme theme = new DefaultTheme(this);
 
     private int horizontalCellPadding = 5;
     private int verticalCellPadding = 2;
@@ -93,7 +94,9 @@ public class Grid extends Composite {
         currentCell = new Point(0, 0);
 
         tileTransform = new Transform(parent.getDisplay());
-        int maxZoom = Stream.of(Display.getCurrent().getMonitors()).mapToInt(Monitor::getZoom).max().orElse(100);
+        int maxZoom = Stream.of(Display.getCurrent().getMonitors())
+                .mapToInt(Monitor::getZoom)
+                .max().orElse(100);
         if (maxZoom > 100) {
             deviceZoom = maxZoom / 100.0;
             tileTransform.scale((float) deviceZoom, (float) deviceZoom);
@@ -222,7 +225,7 @@ public class Grid extends Composite {
         paintCorner(e);
 
         // Render border with bottom of control
-        gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_HIGHLIGHT_SHADOW));
+        gc.setForeground(theme.getOuterBorderColor());
         Rectangle bounds = getBounds();
         int y = bounds.height - 1;
         int width = bounds.width;
@@ -305,9 +308,9 @@ public class Grid extends Composite {
                 return;
 
             if (selection.isSelected(col, row)) {
-                gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_LIST_SELECTION_TEXT));
+                gc.setForeground(theme.getSelectionTextColor());
             } else {
-                gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_LIST_FOREGROUND));
+                gc.setForeground(theme.getDefaultTextColor());
             }
             gc.drawString(text, getHorizontalCellPadding(), y + getVerticalCellPadding(), true);
 
@@ -361,7 +364,7 @@ public class Grid extends Composite {
 
     private void renderCurrentCell(GC gc, int y, Rectangle viewport) {
         if (currentCell.x == viewport.x && currentCell.y == viewport.y) {
-            gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW));
+            gc.setForeground(theme.getCurrentCellBorderColor());
             gc.drawRectangle(0, y, viewport.width - 1, viewport.height - 1);
         }
     }
@@ -377,14 +380,14 @@ public class Grid extends Composite {
         if (!selection.isSelected(viewport.x, viewport.y))
             return;
 
-        gc.setBackground(gc.getDevice().getSystemColor(SWT.COLOR_LIST_SELECTION));
+        gc.setBackground(theme.getSelectionBackgroundColor());
         gc.fillRectangle(0, y, viewport.width, viewport.height);
     }
 
     private void paintCorner(PaintEvent e) {
         GC gc = e.gc;
-        gc.setBackground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_BACKGROUND));
-        gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW));
+        gc.setBackground(theme.getHeaderBackgroundColor());
+        gc.setForeground(theme.getHeaderShadowColor());
 
         int rowHeaderSize = getRowHeaderSize();
         int columnHeaderSize = getColumnHeaderSize();
@@ -403,11 +406,10 @@ public class Grid extends Composite {
         int horizontalCellPadding = getHorizontalCellPadding();
         int verticalCellPadding = getVerticalCellPadding();
 
-        Device device = gc.getDevice();
-        Color backgroundColor = device.getSystemColor(SWT.COLOR_WIDGET_BACKGROUND);
-        Color textColor = device.getSystemColor(SWT.COLOR_WIDGET_FOREGROUND);
-        Color borderColor = device.getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW);
-        Color borderColor2 = device.getSystemColor(SWT.COLOR_WIDGET_HIGHLIGHT_SHADOW);
+        Color backgroundColor = theme.getHeaderBackgroundColor();
+        Color textColor = theme.getHeaderTextColor();
+        Color shadowColor = theme.getHeaderShadowColor();
+        Color highlightColor = theme.getHeaderHighlightColor();
 
         gc.setBackground(backgroundColor);
         gc.fillRectangle(0, columnHeaderSize, rowHeaderSize, canvas.getBounds().height - columnHeaderSize);
@@ -434,8 +436,8 @@ public class Grid extends Composite {
 
             // Shadow header if row contains current cell
             if (currentCell != null && currentCell.y == i) {
-                gc.setBackground(borderColor);
-                gc.setForeground(borderColor2);
+                gc.setBackground(shadowColor);
+                gc.setForeground(highlightColor);
 
                 gc.fillRectangle(0, y, rowHeaderSize, height);
             } else {
@@ -454,16 +456,16 @@ public class Grid extends Composite {
             gc.drawString(text, rowHeaderSize - horizontalCellPadding - extent.x, y + verticalCellPadding);
 
             // Draw cell border
-            gc.setForeground(borderColor);
+            gc.setForeground(shadowColor);
             gc.drawLine(0, y - 1, rowHeaderSize - 1, y - 1);
-            gc.setForeground(borderColor2);
+            gc.setForeground(highlightColor);
             gc.drawLine(0, y, rowHeaderSize - 1, y);
 
             y += height;
         }
 
         // Right of row headers
-        gc.setForeground(borderColor);
+        gc.setForeground(shadowColor);
         gc.drawLine(rowHeaderSize - 1, columnHeaderSize, rowHeaderSize - 1, bounds.height);
 
         // Last row
@@ -471,10 +473,6 @@ public class Grid extends Composite {
         if (bottomEdge < bounds.height) {
             gc.drawLine(0, bottomEdge, rowHeaderSize, bottomEdge);
         }
-
-        // Highlight to left of row headers
-        gc.setForeground(borderColor2);
-        gc.drawLine(0, 0, 0, bounds.height);
 
         gc.setClipping((Rectangle) null);
     }
@@ -497,10 +495,10 @@ public class Grid extends Composite {
         int horizontalCellPadding = getHorizontalCellPadding();
         int verticalCellPadding = getVerticalCellPadding();
 
-        Color backgroundColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_BACKGROUND);
-        Color textColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_FOREGROUND);
-        Color borderColor = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW);
-        Color borderColor2 = gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_HIGHLIGHT_SHADOW);
+        Color backgroundColor = theme.getHeaderBackgroundColor();
+        Color textColor = theme.getHeaderTextColor();
+        Color shadowColor = theme.getHeaderShadowColor();
+        Color highlightColor = theme.getHeaderHighlightColor();
 
         gc.setBackground(backgroundColor);
         gc.fillRectangle(rowHeaderSize, 0, canvas.getBounds().width - rowHeaderSize, columnHeaderSize);
@@ -519,8 +517,8 @@ public class Grid extends Composite {
 
             // Shadow selected cell's column header
             if (currentCell != null && currentCell.x == i) {
-                gc.setBackground(borderColor);
-                gc.setForeground(borderColor2);
+                gc.setBackground(shadowColor);
+                gc.setForeground(highlightColor);
 
                 gc.fillRectangle(x, 0, width, columnHeaderSize);
             } else {
@@ -541,14 +539,14 @@ public class Grid extends Composite {
             gc.setClipping((Rectangle) null);
 
             // Render border between columns
-            gc.setForeground(borderColor);
+            gc.setForeground(shadowColor);
             gc.drawLine(x - 1, 0, x - 1, columnHeaderSize - 1);
-            gc.setForeground(borderColor2);
+            gc.setForeground(highlightColor);
             gc.drawLine(x, 0, x, columnHeaderSize - 1);
         }
 
         // Bottom of header
-        gc.setForeground(borderColor);
+        gc.setForeground(shadowColor);
         gc.drawLine(rowHeaderSize, columnHeaderSize - 1, bounds.width, columnHeaderSize - 1);
 
         // Last column
@@ -556,10 +554,6 @@ public class Grid extends Composite {
         if (rightEdge < bounds.width) {
             gc.drawLine(rightEdge, 0, rightEdge, columnHeaderSize);
         }
-
-        // Top highlight
-        gc.setForeground(borderColor2);
-        gc.drawLine(0, 0, bounds.width, 0);
     }
 
     public int getXOffset() {
@@ -591,7 +585,7 @@ public class Grid extends Composite {
 
     private void renderGridlines(GC gc, int y, Rectangle viewport) {
 
-        gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_WIDGET_LIGHT_SHADOW));
+        gc.setForeground(theme.getCellBorderColor());
         gc.setLineDash(new int[]{2, 2});
 
         gc.drawLine(0, y + viewport.height - 1, viewport.width - 1, y + viewport.height - 1);
@@ -601,7 +595,7 @@ public class Grid extends Composite {
     }
 
     private void renderBackground(GC gc, Rectangle viewport) {
-        gc.setBackground(gc.getDevice().getSystemColor(SWT.COLOR_LIST_BACKGROUND));
+        gc.setBackground(theme.getCellBackgroundColor());
         gc.fillRectangle(0, 0, viewport.width, viewport.height);
     }
 
@@ -960,5 +954,10 @@ public class Grid extends Composite {
 
     public void addCurrentCellListener(CellListener listener) {
         currentCellListeners.add(listener);
+    }
+
+    public void setTheme(Theme theme) {
+        this.theme = theme;
+        redrawTiles();
     }
 }
