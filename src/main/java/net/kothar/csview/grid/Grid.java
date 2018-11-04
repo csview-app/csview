@@ -130,6 +130,7 @@ public class Grid extends Composite {
             public void widgetSelected(SelectionEvent e) {
                 int xOffset = getXOffset();
                 int shift = Math.abs(xOffset - lastPaintX);
+                System.out.println("Scroll to " + xOffset + ": shift " + shift);
 
                 int rowHeader = getRowHeaderSize();
                 if (shift > canvas.getBounds().width - rowHeader) {
@@ -188,6 +189,8 @@ public class Grid extends Composite {
 
     private void paintGrid(PaintEvent e) {
         GC gc = e.gc;
+
+        System.out.println("Paint at " + getXOffset());
 
         if (rows.getTotal() > 0 && cols.getTotal() > 0)
             paintCells(e);
