@@ -139,30 +139,7 @@ public class Grid extends Composite {
                     return;
                 }
 
-                int newX = canvas.getHorizontalBar().getSelection() * SCROLL_FACTOR;
-                int oldX = origin.x;
-                int shift = newX - oldX;
-
-                if (shift == 0) {
-                    return;
-                }
-
-                scrolling = true;
-                origin.x = newX;
-                int rowHeader = getRowHeaderSize();
-                if (Math.abs(shift) > canvas.getBounds().width - rowHeader) {
-                    refresh();
-                } else {
-                    if (shift < 0) {
-                        // Shift pixels right
-                        canvas.scroll(-shift + rowHeader, 0, rowHeader, 0,
-                                canvas.getSize().x + shift - rowHeader, canvas.getSize().y, false);
-                    } else {
-                        // Shift pixels left
-                        canvas.scroll(rowHeader, 0, shift + rowHeader, 0,
-                                canvas.getSize().x - shift - rowHeader, canvas.getSize().y, false);
-                    }
-                }
+                renderHorizontalScroll();
 
             }
         });
@@ -175,30 +152,7 @@ public class Grid extends Composite {
                     return;
                 }
 
-                int newY = canvas.getVerticalBar().getSelection() * SCROLL_FACTOR;
-                int oldY = origin.y;
-                int shift = newY - oldY;
-
-                if (shift == 0) {
-                    return;
-                }
-
-                scrolling = true;
-                origin.y = newY;
-                int colHeader = getColumnHeaderSize();
-                if (Math.abs(shift) > canvas.getBounds().height - colHeader) {
-                    refresh();
-                } else {
-                    if (shift < 0) {
-                        // Shift pixels up
-                        canvas.scroll(0, -shift + colHeader, 0, colHeader,
-                                 canvas.getSize().x, canvas.getSize().y + shift - colHeader, false);
-                    } else {
-                        // Shift pixels down
-                        canvas.scroll(0, colHeader, 0, shift + colHeader,
-                                canvas.getSize().x, canvas.getSize().y - shift - colHeader, false);
-                    }
-                }
+                renderVerticalScroll();
             }
         });
 
@@ -207,6 +161,60 @@ public class Grid extends Composite {
 
         KeyboardHandler keyListener = new KeyboardHandler(this);
         canvas.addKeyListener(keyListener);
+    }
+
+    private void renderVerticalScroll() {
+        int newY = canvas.getVerticalBar().getSelection() * SCROLL_FACTOR;
+        int oldY = origin.y;
+        int shift = newY - oldY;
+
+        if (shift == 0) {
+            return;
+        }
+
+        scrolling = true;
+        origin.y = newY;
+        int colHeader = getColumnHeaderSize();
+        if (Math.abs(shift) > canvas.getBounds().height - colHeader) {
+            refresh();
+        } else {
+            if (shift < 0) {
+                // Shift pixels up
+                canvas.scroll(0, -shift + colHeader, 0, colHeader,
+                        canvas.getSize().x, canvas.getSize().y + shift - colHeader, false);
+            } else {
+                // Shift pixels down
+                canvas.scroll(0, colHeader, 0, shift + colHeader,
+                        canvas.getSize().x, canvas.getSize().y - shift - colHeader, false);
+            }
+        }
+    }
+
+    private void renderHorizontalScroll() {
+        int newX = canvas.getHorizontalBar().getSelection() * SCROLL_FACTOR;
+        int oldX = origin.x;
+        int shift = newX - oldX;
+
+        if (shift == 0) {
+            return;
+        }
+
+        scrolling = true;
+        origin.x = newX;
+        int rowHeader = getRowHeaderSize();
+        if (Math.abs(shift) > canvas.getBounds().width - rowHeader) {
+            refresh();
+        } else {
+            if (shift < 0) {
+                // Shift pixels right
+                canvas.scroll(-shift + rowHeader, 0, rowHeader, 0,
+                        canvas.getSize().x + shift - rowHeader, canvas.getSize().y, false);
+            } else {
+                // Shift pixels left
+                canvas.scroll(rowHeader, 0, shift + rowHeader, 0,
+                        canvas.getSize().x - shift - rowHeader, canvas.getSize().y, false);
+            }
+        }
     }
 
     protected MouseHandler createMouseHandler() {
@@ -230,6 +238,9 @@ public class Grid extends Composite {
         int y = bounds.height - 1;
         int width = bounds.width;
         gc.drawLine(0, y, width, y);
+
+//        gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_RED));
+//        gc.drawRectangle(gc.getClipping().x, gc.getClipping().y, gc.getClipping().width - 1, gc.getClipping().height - 1);
 
         scrolling = false;
     }
@@ -482,8 +493,8 @@ public class Grid extends Composite {
     }
 
     public void setYOffset(int yOffset) {
-        origin.y = yOffset;
         canvas.getVerticalBar().setSelection(yOffset / SCROLL_FACTOR);
+        getDisplay().asyncExec(this::renderVerticalScroll);
     }
 
     private void paintColHeaders(PaintEvent e) {
@@ -562,7 +573,7 @@ public class Grid extends Composite {
 
     public void setXOffset(int xOffset) {
         canvas.getHorizontalBar().setSelection(xOffset / SCROLL_FACTOR);
-        origin.x = xOffset;
+        getDisplay().asyncExec(this::renderHorizontalScroll);
     }
 
     public int getColAt(int x) {
@@ -829,17 +840,10 @@ public class Grid extends Composite {
             return;
         }
 
-        if (currentCell != null) {
-            invalidateTiles(new Rectangle(currentCell.x, currentCell.y, 1, 1));
-        }
-        currentCell = cell;
-
         int x = cols.getPosition(cell.x);
         int y = rows.getPosition(cell.y);
         int width = cols.getSize(cell.x);
         int height = rows.getSize(cell.y);
-
-        invalidateTiles(new Rectangle(cell.x, cell.y, 1, 1));
 
         // Adjust scroll position to ensure current cell is visible
         int xOffset = getXOffset();
@@ -864,6 +868,13 @@ public class Grid extends Composite {
             }
         }
 
+        invalidateTiles(new Rectangle(cell.x, cell.y, 1, 1));
+
+        if (currentCell != null) {
+            invalidateTiles(new Rectangle(currentCell.x, currentCell.y, 1, 1));
+        }
+        currentCell = cell;
+
         currentCellListeners.forEach(l -> l.notify(currentCell));
     }
 
@@ -885,7 +896,30 @@ public class Grid extends Composite {
             return false;
         });
 
-        canvas.redraw();
+        Rectangle repaintRegion = null;
+        for (Rectangle region : regions) {
+            if (repaintRegion == null) {
+                repaintRegion = region;
+            } else {
+                repaintRegion = repaintRegion.union(region);
+            }
+        }
+        if (repaintRegion != null && repaintRegion.width > 0 && repaintRegion.height > 0) {
+            int firstCol = cols.getPosition(repaintRegion.x);
+            SizeTree.SizeInfo lastCol = cols.getSizeInfo(repaintRegion.x + repaintRegion.width - 1);
+
+            int firstRow = rows.getPosition(repaintRegion.y);
+            SizeTree.SizeInfo lastRow = rows.getSizeInfo(repaintRegion.y + repaintRegion.height - 1);
+
+            int x = firstCol - origin.x + rowHeaderSize;
+            int y = firstRow - origin.y + columnHeaderSize;
+            int width = lastCol.getPos() + lastCol.getSize() - firstCol + 1;
+            int height = lastRow.getPos() + lastRow.getSize() - firstRow + 1;
+
+            canvas.redraw(x, y, width, height, false);
+            getDisplay().asyncExec(() -> canvas.redraw(x, 0, width, columnHeaderSize, false));
+            getDisplay().asyncExec(() -> canvas.redraw(0, y, rowHeaderSize, height, false));
+        }
     }
 
     public void copySelection() {

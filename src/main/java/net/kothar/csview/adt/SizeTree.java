@@ -51,6 +51,10 @@ public class SizeTree {
         return root.getSizeInfoAt(pos);
     }
 
+    public SizeInfo getSizeInfo(int index) {
+        return root.getSizeInfo(index);
+    }
+
     public void add() {
         root.add();
     }
@@ -260,6 +264,22 @@ public class SizeTree {
             }
         }
 
+
+        SizeInfo getSizeInfo(int index) {
+            if (index >= children) {
+                throw new ArrayIndexOutOfBoundsException(index);
+            }
+
+            if (children == 1) {
+                return new SizeInfo(0, 0, size);
+            } else if (left == null) {
+                return new SizeInfo(index, defaultSize * index, defaultSize);
+            } else if (index < left.children) {
+                return left.getSizeInfo(index);
+            } else {
+                return right.getSizeInfo(index - left.children).add(left.children, left.size);
+            }
+        }
     }
 
     public class SizeInfo {
