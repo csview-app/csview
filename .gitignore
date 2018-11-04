@@ -11,3 +11,5 @@
 /build/
 Thumbs.db
 *.jar
+package/CSView.app
+/testOutput

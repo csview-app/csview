@@ -1,34 +1,44 @@
-/* Copyright 2016 Kothar Labs
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+/*
+ * Copyright 2016 - 2018 Kothar Labs
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 package net.kothar.csview.ui;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.csv.CSVFormat;
-import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.StatusLineManager;
+import org.eclipse.jface.dialogs.ErrorDialog;
 import org.eclipse.jface.dialogs.InputDialog;
+import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.jface.window.Window;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.CTabFolder;
+import org.eclipse.swt.custom.CTabFolder2Adapter;
+import org.eclipse.swt.custom.CTabFolderEvent;
+import org.eclipse.swt.custom.CTabItem;
+import org.eclipse.swt.custom.SashForm;
+import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
-import org.eclipse.swt.layout.GridData;
-import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
@@ -39,10 +49,14 @@ import com.ibm.icu.text.CharsetDetector;
 import net.kothar.csview.DocumentActions;
 import net.kothar.csview.ProgressListener;
 import net.kothar.csview.csv.CSV;
+import net.kothar.csview.csv.ProgressManager;
 import net.kothar.csview.grid.Grid;
-
+import net.kothar.csview.ui.csv.CSVGrid;
+import net.kothar.csview.ui.search.SearchSidebar;
 
 public class CSView extends ApplicationWindow implements DocumentActions {
+
+	public static final List<CSView> instances = new ArrayList<>();
 
 	private static Image appIcon;
 
@@ -53,12 +67,22 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		return appIcon;
 	}
 
-	private CSV csv;
-	private String file;
+	private CSV		csv;
+	private String	file;
 
 	private boolean useAppIcon;
 
-	private Grid grid;
+	private Grid		grid;
+	private SashForm	sashForm;
+	private CTabFolder	sidebar;
+	private String		contents;
+
+	private StatusLineMenuContribution	rowCountStatus;
+	private StatusLineMenuContribution	colCountStatus;
+
+	private SearchSidebar search;
+
+	private CTabItem searchItem;
 
 	public static void main(String[] args) {
 		Display display = new Display();
@@ -84,28 +108,30 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 		this();
 
 		if (args.length > 0) {
-			csv = new CSV();
-
-			try {
-				loadCSV(args[0]);
-			} catch (FileNotFoundException e) {
-				loadCSVString(e.getMessage());
-			}
+			file = args[0];
 		} else {
-			loadCSVString("No Data, Please open a file");
+			contents = "No Data, Please open a file";
 		}
 	}
 
 	public CSView(File file) {
 		this();
 
-		csv = new CSV();
+		this.file = file.toString();
+	}
 
-		try {
-			loadCSV(file.toString());
-		} catch (FileNotFoundException e) {
-			loadCSVString(e.getMessage());
+	public void load() {
+		csv = new CSV();
+		if (file != null) {
+			try {
+				loadCSV(file);
+			} catch (FileNotFoundException e) {
+				loadCSVString(e.getMessage());
+			}
+		} else {
+			loadCSVString(contents);
 		}
+		instances.add(this);
 	}
 
 	public void useAppIcon() {
@@ -113,7 +139,6 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	}
 
 	private void loadCSVString(String string) {
-		csv = new CSV();
 		csv.setContents(string);
 	}
 
@@ -143,118 +168,198 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 			shell.setImage(getAppIcon());
 
 		if (file != null) {
-			shell.setText(file + " - CSView");
+			shell.setText(file);
 		} else {
 			shell.setText("CSView");
 		}
 	}
-	
+
 	@Override
 	protected Point getInitialSize() {
-		return new Point(1024,  768);
+		return new Point(1024, 768);
 	}
 
 	@Override
 	protected Control createContents(Composite parent) {
 
 		Composite composite = (Composite) super.createContents(parent);
+		composite.setLayout(new FillLayout());
 
-		GridLayout layout = new GridLayout(1, false);
-		layout.marginHeight = 0;
-		layout.marginWidth = 0;
-		composite.setLayout(layout);
+		sashForm = new SashForm(composite, SWT.HORIZONTAL);
 
-		grid = new Grid(composite, SWT.NORMAL);
-		grid.setLayoutData(new GridData(GridData.FILL_BOTH));
+		grid = new CSVGrid(sashForm, SWT.BORDER);
 		grid.setHeaderVisible(true);
 		grid.setLinesVisible(true);
 
 		grid.setContentProvider(new CSVContentProvider(csv));
-		grid.setLabelProvider(new CSVLabelProvider());
+		grid.setLabelProvider(new CSVLabelProvider(csv));
 		grid.setRowLabelProvider(new NumberFormatLabelProvider(1));
 		grid.setColumnLabelProvider(new CSVColumnHeaderProvider(csv));
 
+		sidebar = new CTabFolder(sashForm, SWT.CLOSE);
+		sidebar.setSimple(false);
+		sidebar.setUnselectedCloseVisible(true);
+		sidebar.addCTabFolder2Listener(new CTabFolder2Adapter() {
+			@Override
+			public void close(CTabFolderEvent event) {
+				if (sidebar.getItemCount() == 1) {
+					hideSidebar();
+				}
+			}
+		});
+
+		sashForm.setWeights(new int[] { 70, 30 });
+		sashForm.setMaximizedControl(grid);
+
 		return composite;
 	}
-	
+
+	@Override
+	public void toggleSearch() {
+		// TODO activate search control
+		Control maximized = sashForm.getMaximizedControl();
+		if (maximized == null) {
+			hideSidebar();
+		} else {
+			showSidebar();
+		}
+
+	}
+
+	public void showSidebar() {
+		if (search == null || search.isDisposed()) {
+			search = new SearchSidebar(sidebar, csv);
+			search.addSelectionChangedListener(this::handleSidebarSelection);
+		}
+
+		if (searchItem == null || searchItem.isDisposed()) {
+			searchItem = new CTabItem(sidebar, SWT.CLOSE, 0);
+			searchItem.setText("Search");
+			searchItem.setControl(search);
+		}
+
+		sidebar.setSelection(0);
+		sashForm.setMaximizedControl(null);
+		search.focusInput();
+	}
+
+	public void hideSidebar() {
+		sashForm.setMaximizedControl(grid);
+	}
+
+	public void handleSidebarSelection(SelectionChangedEvent e) {
+		IStructuredSelection selection = (IStructuredSelection) e.getSelection();
+		Point point = (Point) selection.getFirstElement();
+		grid.setCurrentCell(point);
+	}
+
 	@Override
 	public void create() {
+		// Load the CSV
+		load();
+
 		addStatusLine();
 		super.create();
 
-		// Load the CSV
-		hookCSVScanListener();
-		csv.scan();
+		csv.setProgressManger(new ProgressManager(getStatusLineManager(), Display.getCurrent()));
+		csv.scan(createProgressListner());
 
 		getShell().getDisplay().asyncExec(this::refreshTable);
-		getShell().addDisposeListener(csv::dispose);
+		getShell().addDisposeListener(this::dispose);
 	}
 
-	private void hookCSVScanListener() {
+	private void dispose(DisposeEvent e) {
+		csv.dispose(e);
+		instances.remove(this);
+	}
+
+	private ProgressListener createProgressListner() {
 		if (file != null) {
-			IProgressMonitor progressMonitor = getStatusLineManager().getProgressMonitor();
-			progressMonitor.beginTask("Scanning", 1000);
 
-			long fileSize = new File(file).length();
-			csv.addProgressListener(new ProgressListener() {
-
-				private long lastProgress = 0;
+			ProgressListener listener = new ProgressListener() {
 
 				@Override
 				public void completed() {
 					getShell().getDisplay().asyncExec(() -> {
-						progressMonitor.done();
 						refreshTable();
 					});
 				}
 
 				@Override
-				public void changed(long progress) {
+				public void changed() {
 					if (getShell().isDisposed())
 						return;
-					
+
 					getShell().getDisplay().asyncExec(() -> {
-						int worked = ((int) (((progress - lastProgress)*1000)/fileSize));
-						if (worked > 0) {
-							progressMonitor.worked(worked);
-							lastProgress = progress;
-						}
 						refreshTable();
 					});
 				}
 
 				@Override
 				public void columnsChanged(int columns) {
-					grid.setCols(columns);
+					getShell().getDisplay().asyncExec(() -> grid.setCols(columns));
 				}
 
-			});
+			};
+
+			return listener;
 		}
+
+		return new ProgressListener() {
+			@Override
+			public void completed() {
+				getShell().getDisplay().asyncExec(() -> {
+					refreshTable();
+				});
+			}
+
+			@Override
+			public void columnsChanged(int columns) {
+				getShell().getDisplay().asyncExec(() -> grid.setCols(columns));
+			}
+
+			@Override
+			public void changed() {
+				getShell().getDisplay().asyncExec(() -> {
+					refreshTable();
+				});
+			}
+		};
 	}
 
+	@Override
 	protected StatusLineManager createStatusLineManager() {
 		StatusLineManager statusLineManager = super.createStatusLineManager();
 
+		createLineCountStatus(statusLineManager);
+
 		createDelimiterMenu(statusLineManager);
 		createEncodingMenu(statusLineManager);
-		
-//		statusLineManager.add(new StatusLineContributionItem("quote", 10) {{
-//			setText("Escape: \"");
-//		}});
-//		statusLineManager.add(new StatusLineContributionItem("line", 10) {{
-//			setText("Line: \\n");
-//		}});
+
+		// statusLineManager.add(new StatusLineContributionItem("quote", 10) {{
+		// setText("Escape: \"");
+		// }});
+		// statusLineManager.add(new StatusLineContributionItem("line", 10) {{
+		// setText("Line: \\n");
+		// }});
 
 		statusLineManager.update(true);
 		return statusLineManager;
 	}
-	
+
+	private void createLineCountStatus(StatusLineManager statusLineManager) {
+		rowCountStatus = new StatusLineMenuContribution("lineCount", "Rows: 0");
+		statusLineManager.add(rowCountStatus);
+		colCountStatus = new StatusLineMenuContribution("lineCount", "Columns: 0");
+		statusLineManager.add(colCountStatus);
+	}
+
 	private void createEncodingMenu(StatusLineManager statusLineManager) {
-		StatusLineMenuContribution menu = 
-				new StatusLineMenuContribution("encoding", "Encoding: " + csv.getCharset() + " \u25bc");
+		StatusLineMenuContribution menu = new StatusLineMenuContribution("encoding",
+			"Encoding: " + csv.getCharset() + " \u25bc");
 		statusLineManager.add(menu);
-		
-		for (String encoding: CharsetDetector.getAllDetectableCharsets()) {
+
+		for (String encoding : CharsetDetector.getAllDetectableCharsets()) {
 			menu.getMenuManager().add(new Action(encoding) {
 				@Override
 				public void run() {
@@ -267,7 +372,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	}
 
 	private String formatDelimiter(char c) {
-		for (Delimiter d: Delimiter.values()) {
+		for (Delimiter d : Delimiter.values()) {
 			if (d.character == c)
 				return "Delimiter: " + d + " \u25bc";
 		}
@@ -275,13 +380,13 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 	}
 
 	private void createDelimiterMenu(StatusLineManager statusLineManager) {
-		
+
 		char currentDelimiter = csv.getFormat().getDelimiter();
-		StatusLineMenuContribution fieldSeparatorMenu = 
-				new StatusLineMenuContribution("separator", formatDelimiter(currentDelimiter));
+		StatusLineMenuContribution fieldSeparatorMenu = new StatusLineMenuContribution("separator",
+			formatDelimiter(currentDelimiter));
 		statusLineManager.add(fieldSeparatorMenu);
-		
-		for (Delimiter d: Delimiter.values()) {
+
+		for (Delimiter d : Delimiter.values()) {
 			fieldSeparatorMenu.getMenuManager().add(new Action(d.toString()) {
 				@Override
 				public void run() {
@@ -295,11 +400,20 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 			@Override
 			public void run() {
 				String defaultValue = "" + currentDelimiter;
-				InputDialog inputDialog = new InputDialog(getShell(), "Select input delimiter", 
-						"Please choose a delimiter character", defaultValue, null);
+				InputDialog inputDialog = new InputDialog(getShell(), "Select input delimiter",
+					"Please choose a delimiter character", defaultValue, null);
 				if (inputDialog.open() == Window.OK && !inputDialog.getValue().isEmpty()) {
+					CSVFormat newFormat = null;
 					char delimiter = inputDialog.getValue().toCharArray()[0];
-					CSVFormat newFormat = csv.getFormat().withDelimiter(delimiter);
+
+					try {
+						newFormat = csv.getFormat().withDelimiter(delimiter);
+					} catch (IllegalArgumentException e) {
+						ErrorDialog.openError(getShell(), "Input error", "Unable to set delimiter",
+							new Status(IStatus.WARNING, "CSView", e.getMessage(), e));
+						return;
+					}
+
 					fieldSeparatorMenu.setText(formatDelimiter(delimiter));
 					updateFormat(newFormat);
 				}
@@ -309,11 +423,14 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
 	public void refreshTable() {
 		grid.setRows(csv.getRowCount());
+		rowCountStatus.setText(String.format("Rows: %,d", csv.getRowCount()));
+		colCountStatus.setText(String.format("Columns: %,d", csv.getColCount()));
 	}
 
 	private void updateFormat(CSVFormat newFormat) {
 		grid.setCols(1);
 		csv.setFormat(newFormat);
+		csv.scan(createProgressListner());
 	}
 
 	@Override

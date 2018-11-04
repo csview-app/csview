@@ -51,7 +51,7 @@ package/windows/CSView-setup-icon.bmp: icon.svg
 	rm setup-icon.png
 
 jar:
-	MAVEN_OPTS="-XstartOnFirstThread" mvn package
+	mvn package
 
 app:
 	@echo $(VERSION)
@@ -82,7 +82,7 @@ appstore:
 package: package/macosx/CSView.icns jar
 	javapackager -deploy -native $(BUNDLES) \
 		-srcdir target -srcfiles $(JAR_FILE) \
-		-outdir package -outfile $(APP_NAME) \
+		-outdir package/bundles -outfile $(APP_NAME) \
 		-name $(APP_NAME) \
 		-appclass net.kothar.csview.cocoa.MacLoader \
 		-BmainJar=$(JAR_FILE) \

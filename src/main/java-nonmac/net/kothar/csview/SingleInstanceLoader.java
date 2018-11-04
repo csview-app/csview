@@ -21,16 +21,14 @@ import net.kothar.csview.ui.CSView;
 import net.kothar.csview.ui.Commands;
 import net.kothar.csview.ui.Menus;
 
-public class SingleInstanceLoader implements ApplicationActions {
+public class SingleInstanceLoader extends BaseLoader {
 
 	private static String runtimeDir = BaseDirectory.get(BaseDirectory.XDG_RUNTIME_DIR);
 	private static String portfile = runtimeDir + "/net.kothar.csview/open.port";
 
 	private int openDocuments = 0;
-	
-	private Display display;
 
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) {
 		if (tryOpen(args)) {
 			System.out.println("Opened in single process");
 			return;
@@ -39,18 +37,17 @@ public class SingleInstanceLoader implements ApplicationActions {
 		new SingleInstanceLoader().start(args);
 	}
 
-	private void start(String[] args) {
-		Thread listener = new Thread(this::listen);
-		listener.setDaemon(true);
-		listener.start();
+	@Override
+	public void start(String[] args) {
 
-		display = Display.getDefault();
+		super.start(args);
+
+        Thread listener = new Thread(this::listen);
+        listener.setDaemon(true);
+        listener.start();
+
 		if (open(args)) {
-			while (!display.isDisposed()) {
-				if (!display.readAndDispatch()) {
-					display.sleep();
-				}
-			}
+			displayLoop();
 		}
 	}
 
