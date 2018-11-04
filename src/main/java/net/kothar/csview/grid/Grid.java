@@ -82,8 +82,8 @@ public class Grid extends Composite {
     private double deviceZoom = 1.0;
     private Transform tileTransform;
 
-    private int lastPaintX = 0;
-    private int lastPaintY = 0;
+    private Point origin = new Point(0, 0);
+    private boolean scrolling = false;
 
     public Grid(Composite parent, int style) {
         super(parent, style);
@@ -126,53 +126,76 @@ public class Grid extends Composite {
 
         // Hook scrolling
         canvas.getHorizontalBar().addSelectionListener(new SelectionAdapter() {
+
             @Override
             public void widgetSelected(SelectionEvent e) {
-                int xOffset = getXOffset();
-                int shift = Math.abs(xOffset - lastPaintX);
-                System.out.println("Scroll to " + xOffset + ": shift " + shift);
 
+                if (scrolling) {
+                    // Re-queue if already scrolling
+                    getDisplay().asyncExec(() -> widgetSelected(e));
+                    return;
+                }
+
+                int newX = canvas.getHorizontalBar().getSelection() * SCROLL_FACTOR;
+                int oldX = origin.x;
+                int shift = newX - oldX;
+
+                if (shift == 0) {
+                    return;
+                }
+
+                scrolling = true;
+                origin.x = newX;
                 int rowHeader = getRowHeaderSize();
-                if (shift > canvas.getBounds().width - rowHeader) {
+                if (Math.abs(shift) > canvas.getBounds().width - rowHeader) {
                     refresh();
                 } else {
-                    if (xOffset < lastPaintX) {
+                    if (shift < 0) {
                         // Shift pixels right
-                        canvas.scroll(shift + rowHeader, 0, rowHeader, 0,
-                                canvas.getSize().x - shift - rowHeader, canvas.getSize().y, false);
-
-                        // Repaint first column
-                        int repaintWidth = shift + rowHeader * 2;
-                        canvas.redraw(0, 0, repaintWidth, canvas.getSize().y, false);
+                        canvas.scroll(-shift + rowHeader, 0, rowHeader, 0,
+                                canvas.getSize().x + shift - rowHeader, canvas.getSize().y, false);
                     } else {
                         // Shift pixels left
                         canvas.scroll(rowHeader, 0, shift + rowHeader, 0,
-                                canvas.getSize().x, canvas.getSize().y, false);
-//                        canvas.redraw(0, 0, shift + rowHeader, canvas.getSize().y, false);
+                                canvas.getSize().x - shift - rowHeader, canvas.getSize().y, false);
                     }
                 }
+
             }
         });
         canvas.getVerticalBar().addSelectionListener(new SelectionAdapter() {
-            int lastPos = 0;
-
             @Override
             public void widgetSelected(SelectionEvent e) {
-                ScrollBar bar = (ScrollBar) e.getSource();
-                int pos = bar.getSelection();
-                int shift = Math.abs(pos - lastPos) * SCROLL_FACTOR;
+                if (scrolling) {
+                    // Re-queue if already scrolling
+                    getDisplay().asyncExec(() -> widgetSelected(e));
+                    return;
+                }
 
+                int newY = canvas.getVerticalBar().getSelection() * SCROLL_FACTOR;
+                int oldY = origin.y;
+                int shift = newY - oldY;
+
+                if (shift == 0) {
+                    return;
+                }
+
+                scrolling = true;
+                origin.y = newY;
                 int colHeader = getColumnHeaderSize();
-                if (shift > canvas.getBounds().height - colHeader) {
+                if (Math.abs(shift) > canvas.getBounds().height - colHeader) {
                     refresh();
                 } else {
-                    if (pos < lastPos) {
-                        canvas.scroll(0, shift + colHeader, 0, colHeader, canvas.getSize().x, canvas.getSize().y - shift - colHeader, false);
+                    if (shift < 0) {
+                        // Shift pixels up
+                        canvas.scroll(0, -shift + colHeader, 0, colHeader,
+                                 canvas.getSize().x, canvas.getSize().y + shift - colHeader, false);
                     } else {
-                        canvas.scroll(0, colHeader, 0, shift + colHeader, canvas.getSize().x, canvas.getSize().y - shift - colHeader, false);
+                        // Shift pixels down
+                        canvas.scroll(0, colHeader, 0, shift + colHeader,
+                                canvas.getSize().x, canvas.getSize().y - shift - colHeader, false);
                     }
                 }
-                lastPos = pos;
             }
         });
 
@@ -190,8 +213,6 @@ public class Grid extends Composite {
     private void paintGrid(PaintEvent e) {
         GC gc = e.gc;
 
-        System.out.println("Paint at " + getXOffset());
-
         if (rows.getTotal() > 0 && cols.getTotal() > 0)
             paintCells(e);
         if (rows.getTotal() > 0)
@@ -207,12 +228,7 @@ public class Grid extends Composite {
         int width = bounds.width;
         gc.drawLine(0, y, width, y);
 
-        lastPaintX = getXOffset();
-        lastPaintY = getYOffset();
-
-//        gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_RED));
-//        gc.drawRectangle(gc.getClipping().x, gc.getClipping().y, gc.getClipping().width - 1, gc.getClipping().height - 1);
-//        System.out.printf("clip: %s\n", gc.getClipping());
+        scrolling = false;
     }
 
     private void paintCells(PaintEvent e) {
@@ -464,10 +480,11 @@ public class Grid extends Composite {
     }
 
     public int getYOffset() {
-        return canvas.getVerticalBar().getSelection() * SCROLL_FACTOR;
+        return origin.y;
     }
 
     public void setYOffset(int yOffset) {
+        origin.y = yOffset;
         canvas.getVerticalBar().setSelection(yOffset / SCROLL_FACTOR);
     }
 
@@ -546,11 +563,12 @@ public class Grid extends Composite {
     }
 
     public int getXOffset() {
-        return canvas.getHorizontalBar().getSelection() * SCROLL_FACTOR;
+        return origin.x;
     }
 
     public void setXOffset(int xOffset) {
         canvas.getHorizontalBar().setSelection(xOffset / SCROLL_FACTOR);
+        origin.x = xOffset;
     }
 
     public int getColAt(int x) {
