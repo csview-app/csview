@@ -8,7 +8,8 @@ import org.eclipse.swt.graphics.Point;
 
 public class ColResizeAction implements MouseAction {
 
-	private Grid grid;
+    private static final int MAX_COL_WIDTH = 4_000;
+    private Grid grid;
 	private int column;
 	
 	private int originalSize;
@@ -51,6 +52,10 @@ public class ColResizeAction implements MouseAction {
 				break;
 			y = grid.rows.getPosition(row);
 		}
+
+		if (desiredSize > MAX_COL_WIDTH) {
+		    desiredSize = MAX_COL_WIDTH;
+        }
 		
 		grid.setColumnSize(column, desiredSize);
 	}

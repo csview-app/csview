@@ -114,18 +114,10 @@ public class Grid extends Composite {
     }
 
     private void createContents(Composite parent) {
-        canvas = new Canvas(parent, SWT.H_SCROLL | SWT.V_SCROLL | SWT.NO_BACKGROUND | SWT.NO_REDRAW_RESIZE);
+        canvas = new Canvas(parent, SWT.H_SCROLL | SWT.V_SCROLL | SWT.NO_BACKGROUND | SWT.DOUBLE_BUFFERED);
 
         // Hook painting
         canvas.addPaintListener(this::paintGrid);
-
-        // Hook resize
-        canvas.addControlListener(new ControlAdapter() {
-            @Override
-            public void controlResized(ControlEvent e) {
-                updateScroll();
-            }
-        });
 
         // Hook scrolling
         SelectionAdapter onScroll = new SelectionAdapter() {
@@ -225,18 +217,37 @@ public class Grid extends Composite {
         if (cols.getTotal() > 0)
             paintColHeaders(e);
         paintCorner(e);
+        paintBackground(e);
 
         // Render border with bottom of control
+        Point size = getSize();
         gc.setForeground(theme.getOuterBorderColor());
-        Rectangle bounds = getBounds();
-        int y = bounds.height - 1;
-        int width = bounds.width;
-        gc.drawLine(0, y, width, y);
+        int y = size.y - 1;
+        gc.drawLine(0, y, size.x, y);
 
 //        gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_RED));
 //        gc.drawRectangle(gc.getClipping().x, gc.getClipping().y, gc.getClipping().width - 1, gc.getClipping().height - 1);
 
         scrolling = false;
+    }
+
+    private void paintBackground(PaintEvent e) {
+        GC gc = e.gc;
+        Point size = getSize();
+        int width = size.x;
+        int height = size.y;
+
+        // Paint background for region outside cells
+        int colsEnd = cols.getTotal() - getXOffset() + rowHeaderSize;
+        if (colsEnd < width) {
+            gc.setBackground(theme.getHeaderShadowColor());
+            gc.fillRectangle(colsEnd, 0, width - colsEnd, height);
+        }
+        int rowsEnd = rows.getTotal() - getYOffset() + columnHeaderSize;
+        if (rowsEnd < height) {
+            gc.setBackground(theme.getHeaderShadowColor());
+            gc.fillRectangle(0, rowsEnd, width, height - rowsEnd);
+        }
     }
 
     private void paintCells(PaintEvent e) {
@@ -436,7 +447,7 @@ public class Grid extends Composite {
 
             if (y > bounds.height)
                 break;
-            if (y < bounds.y)
+            if (y + height < bounds.y)
                 continue;
 
             // Shadow header if row contains current cell
@@ -517,7 +528,7 @@ public class Grid extends Composite {
 
             if (x > bounds.width)
                 break;
-            if (x < bounds.x)
+            if (x + width < bounds.x)
                 continue;
 
             // Shadow selected cell's column header
