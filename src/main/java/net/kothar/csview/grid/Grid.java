@@ -128,33 +128,19 @@ public class Grid extends Composite {
         });
 
         // Hook scrolling
-        canvas.getHorizontalBar().addSelectionListener(new SelectionAdapter() {
-
+        SelectionAdapter onScroll = new SelectionAdapter() {
             @Override
             public void widgetSelected(SelectionEvent e) {
-
                 if (scrolling) {
-                    // Re-queue if already scrolling
                     getDisplay().asyncExec(() -> widgetSelected(e));
                     return;
                 }
 
-                renderHorizontalScroll();
-
+                scrollCanvas();
             }
-        });
-        canvas.getVerticalBar().addSelectionListener(new SelectionAdapter() {
-            @Override
-            public void widgetSelected(SelectionEvent e) {
-                if (scrolling) {
-                    // Re-queue if already scrolling
-                    getDisplay().asyncExec(() -> widgetSelected(e));
-                    return;
-                }
-
-                renderVerticalScroll();
-            }
-        });
+        };
+        canvas.getHorizontalBar().addSelectionListener(onScroll);
+        canvas.getVerticalBar().addSelectionListener(onScroll);
 
         // Hook mouse handling
         mouseHandler = createMouseHandler();
@@ -163,56 +149,64 @@ public class Grid extends Composite {
         canvas.addKeyListener(keyListener);
     }
 
-    private void renderVerticalScroll() {
-        int newY = canvas.getVerticalBar().getSelection() * SCROLL_FACTOR;
-        int oldY = origin.y;
-        int shift = newY - oldY;
-
-        if (shift == 0) {
-            return;
-        }
-
-        scrolling = true;
-        origin.y = newY;
-        int colHeader = getColumnHeaderSize();
-        if (Math.abs(shift) > canvas.getBounds().height - colHeader) {
-            refresh();
-        } else {
-            if (shift < 0) {
-                // Shift pixels up
-                canvas.scroll(0, -shift + colHeader, 0, colHeader,
-                        canvas.getSize().x, canvas.getSize().y + shift - colHeader, false);
-            } else {
-                // Shift pixels down
-                canvas.scroll(0, colHeader, 0, shift + colHeader,
-                        canvas.getSize().x, canvas.getSize().y - shift - colHeader, false);
-            }
-        }
-    }
-
-    private void renderHorizontalScroll() {
+    private void scrollCanvas() {
         int newX = canvas.getHorizontalBar().getSelection() * SCROLL_FACTOR;
         int oldX = origin.x;
-        int shift = newX - oldX;
+        int shiftX = newX - oldX;
 
-        if (shift == 0) {
+        int newY = canvas.getVerticalBar().getSelection() * SCROLL_FACTOR;
+        int oldY = origin.y;
+        int shiftY = newY - oldY;
+
+        if (shiftX == 0 && shiftY == 0) {
             return;
         }
 
         scrolling = true;
         origin.x = newX;
+        origin.y = newY;
+
         int rowHeader = getRowHeaderSize();
-        if (Math.abs(shift) > canvas.getBounds().width - rowHeader) {
+        int colHeader = getColumnHeaderSize();
+        int canvasWidth = canvas.getBounds().width;
+        int canvasHeight = canvas.getBounds().height;
+
+        if (Math.abs(shiftX) > canvasWidth - rowHeader || Math.abs(shiftY) > canvasHeight - colHeader) {
             refresh();
         } else {
-            if (shift < 0) {
+            int destX = 0, destY = 0;
+            int x = 0, y = 0;
+            int width = canvasWidth;
+            int height = canvasHeight;
+
+            if (shiftX < 0) {
                 // Shift pixels right
-                canvas.scroll(-shift + rowHeader, 0, rowHeader, 0,
-                        canvas.getSize().x + shift - rowHeader, canvas.getSize().y, false);
-            } else {
+                destX = -shiftX + rowHeader;
+                x = rowHeader;
+                width = canvasWidth - shiftX - rowHeader;
+            } else if (shiftX > 0) {
                 // Shift pixels left
-                canvas.scroll(rowHeader, 0, shift + rowHeader, 0,
-                        canvas.getSize().x - shift - rowHeader, canvas.getSize().y, false);
+                destX = rowHeader;
+                x = shiftX + rowHeader;
+                width = canvasWidth - shiftX - rowHeader;
+            }
+
+            if (shiftY < 0) {
+                // Shift pixels down
+                destY = -shiftY + colHeader;
+                y = colHeader;
+                height = canvasHeight - shiftY - colHeader;
+            } else if (shiftY > 0) {
+                // Shift pixels up
+                destY = colHeader;
+                y = shiftY + colHeader;
+                height = canvasHeight - shiftY - colHeader;
+            }
+
+            canvas.scroll(destX, destY, x, y, width, height, false);
+            if (shiftX != 0 && shiftY != 0) {
+                canvas.redraw(rowHeader, 0, canvasWidth - rowHeader, colHeader, false);
+                canvas.redraw(0, colHeader,  rowHeader, canvasHeight - colHeader, false);
             }
         }
     }
@@ -494,7 +488,7 @@ public class Grid extends Composite {
 
     public void setYOffset(int yOffset) {
         canvas.getVerticalBar().setSelection(yOffset / SCROLL_FACTOR);
-        getDisplay().asyncExec(this::renderVerticalScroll);
+        getDisplay().asyncExec(this::scrollCanvas);
     }
 
     private void paintColHeaders(PaintEvent e) {
@@ -573,7 +567,7 @@ public class Grid extends Composite {
 
     public void setXOffset(int xOffset) {
         canvas.getHorizontalBar().setSelection(xOffset / SCROLL_FACTOR);
-        getDisplay().asyncExec(this::renderHorizontalScroll);
+        getDisplay().asyncExec(this::scrollCanvas);
     }
 
     public int getColAt(int x) {
