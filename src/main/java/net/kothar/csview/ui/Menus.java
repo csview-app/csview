@@ -66,11 +66,20 @@ public class Menus {
 		Menu menu = new Menu(menuBar);
 		menuItem.setMenu(menu);
 
-		MenuItem search = new MenuItem(menu, SWT.NORMAL);
-		search.setText("Show search sidebar");
-		search.setAccelerator(SWT.MOD1 + 'F');
+		MenuItem gotoRow = new MenuItem(menu, SWT.NORMAL);
+		gotoRow.setText("Go to row...");
+        gotoRow.setAccelerator(SWT.MOD1 + 'R');
+        gotoRow.addSelectionListener(select(docActions::gotoRow));
 
-		search.addSelectionListener(select(docActions::toggleSearch));
+        MenuItem gotoCol = new MenuItem(menu, SWT.NORMAL);
+        gotoCol.setText("Go to column...");
+        gotoCol.setAccelerator(SWT.MOD1 + 'G');
+        gotoCol.addSelectionListener(select(docActions::gotoCol));
+
+        MenuItem search = new MenuItem(menu, SWT.NORMAL);
+        search.setText("Show search sidebar");
+        search.setAccelerator(SWT.MOD1 + 'F');
+        search.addSelectionListener(select(docActions::toggleSearch));
 	}
 
 	private Menu createSelectionMenu(Menu menuBar) {

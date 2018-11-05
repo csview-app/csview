@@ -206,7 +206,7 @@ public class Grid extends Composite {
             canvas.scroll(destX, destY, x, y, width, height, false);
             if (shiftX != 0 && shiftY != 0) {
                 canvas.redraw(rowHeader, 0, canvasWidth - rowHeader, colHeader, false);
-                canvas.redraw(0, colHeader,  rowHeader, canvasHeight - colHeader, false);
+                canvas.redraw(0, colHeader, rowHeader, canvasHeight - colHeader, false);
             }
         }
     }
@@ -488,7 +488,7 @@ public class Grid extends Composite {
 
     public void setYOffset(int yOffset) {
         canvas.getVerticalBar().setSelection(yOffset / SCROLL_FACTOR);
-        getDisplay().asyncExec(this::scrollCanvas);
+//        getDisplay().asyncExec(this::scrollCanvas);
     }
 
     private void paintColHeaders(PaintEvent e) {
@@ -567,7 +567,7 @@ public class Grid extends Composite {
 
     public void setXOffset(int xOffset) {
         canvas.getHorizontalBar().setSelection(xOffset / SCROLL_FACTOR);
-        getDisplay().asyncExec(this::scrollCanvas);
+//        getDisplay().asyncExec(this::scrollCanvas);
     }
 
     public int getColAt(int x) {
@@ -839,29 +839,6 @@ public class Grid extends Composite {
         int width = cols.getSize(cell.x);
         int height = rows.getSize(cell.y);
 
-        // Adjust scroll position to ensure current cell is visible
-        int xOffset = getXOffset();
-        if (x + width / 2 < xOffset) {
-            setXOffset(x);
-        } else {
-            int canvasWidth = canvas.getBounds().width;
-            int rowHeaderSize = getRowHeaderSize();
-            if (x + 16 > xOffset + canvasWidth - rowHeaderSize - 16) {
-                setXOffset(x - canvasWidth + rowHeaderSize + width + 32);
-            }
-        }
-
-        int yOffset = getYOffset();
-        if (y < yOffset) {
-            setYOffset(y);
-        } else {
-            int canvasHeight = canvas.getBounds().height;
-            int columnHeaderSize = getColumnHeaderSize();
-            if (y + height > yOffset + canvasHeight - columnHeaderSize - 16) {
-                setYOffset(y - canvasHeight + columnHeaderSize + height + 32);
-            }
-        }
-
         invalidateTiles(new Rectangle(cell.x, cell.y, 1, 1));
 
         if (currentCell != null) {
@@ -870,6 +847,39 @@ public class Grid extends Composite {
         currentCell = cell;
 
         currentCellListeners.forEach(l -> l.notify(currentCell));
+
+        // Adjust scroll position to ensure current cell is visible
+        int xOffset = getXOffset();
+        boolean scroll = false;
+        if (x + width / 2 < xOffset) {
+            setXOffset(x);
+            scroll = true;
+        } else {
+            int canvasWidth = canvas.getBounds().width;
+            int rowHeaderSize = getRowHeaderSize();
+            if (x + 16 > xOffset + canvasWidth - rowHeaderSize - 16) {
+                setXOffset(x - canvasWidth + rowHeaderSize + width + 32);
+                scroll = true;
+            }
+        }
+
+        int yOffset = getYOffset();
+        if (y < yOffset) {
+            setYOffset(y);
+            scroll = true;
+        } else {
+            int canvasHeight = canvas.getBounds().height;
+            int columnHeaderSize = getColumnHeaderSize();
+            if (y + height > yOffset + canvasHeight - columnHeaderSize - 16) {
+                setYOffset(y - canvasHeight + columnHeaderSize + height + 32);
+                scroll = true;
+            }
+        }
+
+        if (scroll) {
+            scrollCanvas();
+            canvas.redraw();
+        }
     }
 
     public Rectangle getCellBounds() {
