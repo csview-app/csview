@@ -29,6 +29,7 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.graphics.Transform;
+import org.eclipse.swt.internal.win32.OS;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Composite;
@@ -42,6 +43,8 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.RemovalNotification;
 
 import net.kothar.csview.adt.SizeTree;
+import org.freedesktop.Platform;
+import org.freedesktop.platforms.Windows;
 
 public class Grid extends Composite {
 
@@ -116,7 +119,11 @@ public class Grid extends Composite {
     }
 
     private void createContents(Composite parent) {
-        canvas = new Canvas(parent, SWT.H_SCROLL | SWT.V_SCROLL | SWT.NO_BACKGROUND);
+        int style = SWT.H_SCROLL | SWT.V_SCROLL | SWT.NO_BACKGROUND;
+        if (Platform.getCurrent().getClass() == Windows.class) {
+            style |= SWT.DOUBLE_BUFFERED;
+        }
+        canvas = new Canvas(parent, style);
 
         // Hook painting
         canvas.addPaintListener(this::paintGrid);
