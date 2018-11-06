@@ -22,11 +22,8 @@ import org.apache.commons.csv.CSVFormat;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.action.Action;
-import org.eclipse.jface.action.IMenuListener;
-import org.eclipse.jface.action.IMenuManager;
 import org.eclipse.jface.action.StatusLineManager;
 import org.eclipse.jface.dialogs.ErrorDialog;
-import org.eclipse.jface.dialogs.IInputValidator;
 import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
@@ -317,7 +314,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
         super.create();
 
         csv.setProgressManger(new ProgressManager(getStatusLineManager(), Display.getCurrent()));
-        csv.scan(createProgressListner());
+        csv.scan(createProgressListener());
 
         getShell().getDisplay().asyncExec(this::refreshTable);
         getShell().addDisposeListener(this::dispose);
@@ -328,16 +325,14 @@ public class CSView extends ApplicationWindow implements DocumentActions {
         instances.remove(this);
     }
 
-    private ProgressListener createProgressListner() {
+    private ProgressListener createProgressListener() {
         if (file != null) {
 
             ProgressListener listener = new ProgressListener() {
 
                 @Override
                 public void completed() {
-                    getShell().getDisplay().asyncExec(() -> {
-                        refreshTable();
-                    });
+                    getShell().getDisplay().asyncExec(CSView.this::refreshTable);
                 }
 
                 @Override
@@ -345,9 +340,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
                     if (getShell().isDisposed())
                         return;
 
-                    getShell().getDisplay().asyncExec(() -> {
-                        refreshTable();
-                    });
+                    getShell().getDisplay().asyncExec(CSView.this::refreshTable);
                 }
 
                 @Override
@@ -363,9 +356,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
         return new ProgressListener() {
             @Override
             public void completed() {
-                getShell().getDisplay().asyncExec(() -> {
-                    refreshTable();
-                });
+                getShell().getDisplay().asyncExec(CSView.this::refreshTable);
             }
 
             @Override
@@ -375,9 +366,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
             @Override
             public void changed() {
-                getShell().getDisplay().asyncExec(() -> {
-                    refreshTable();
-                });
+                getShell().getDisplay().asyncExec(CSView.this::refreshTable);
             }
         };
     }
@@ -487,7 +476,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
     private void updateFormat(CSVFormat newFormat) {
         grid.setCols(1);
         csv.setFormat(newFormat);
-        csv.scan(createProgressListner());
+        csv.scan(createProgressListener());
     }
 
     @Override
