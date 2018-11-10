@@ -1,14 +1,11 @@
 package net.kothar.csview.grid;
 
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
-
+import com.google.common.base.Strings;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalNotification;
+import net.kothar.csview.Timer;
+import net.kothar.csview.adt.SizeTree;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.eclipse.jface.viewers.ILabelProvider;
 import org.eclipse.jface.viewers.ITableLabelProvider;
@@ -17,34 +14,23 @@ import org.eclipse.swt.dnd.Clipboard;
 import org.eclipse.swt.dnd.HTMLTransfer;
 import org.eclipse.swt.dnd.TextTransfer;
 import org.eclipse.swt.dnd.Transfer;
-import org.eclipse.swt.events.ControlAdapter;
-import org.eclipse.swt.events.ControlEvent;
 import org.eclipse.swt.events.PaintEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.graphics.Color;
-import org.eclipse.swt.graphics.Device;
-import org.eclipse.swt.graphics.GC;
-import org.eclipse.swt.graphics.Image;
-import org.eclipse.swt.graphics.Point;
-import org.eclipse.swt.graphics.Rectangle;
-import org.eclipse.swt.graphics.Transform;
-import org.eclipse.swt.internal.win32.OS;
+import org.eclipse.swt.graphics.*;
 import org.eclipse.swt.layout.FillLayout;
-import org.eclipse.swt.widgets.Canvas;
-import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Display;
-import org.eclipse.swt.widgets.Monitor;
-import org.eclipse.swt.widgets.ScrollBar;
-
-import com.google.common.base.Strings;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.RemovalNotification;
-
-import net.kothar.csview.adt.SizeTree;
+import org.eclipse.swt.widgets.*;
 import org.freedesktop.Platform;
 import org.freedesktop.platforms.Windows;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
 
 public class Grid extends Composite {
 
@@ -220,15 +206,33 @@ public class Grid extends Composite {
     }
 
     private void paintGrid(PaintEvent e) {
-        long start = System.nanoTime();
+        boolean debug = Boolean.getBoolean("csview.debug.paint");
+        Timer timer = debug ? new Timer("Paint") : null;
+
         GC gc = e.gc;
 
-        if (rows.getTotal() > 0 && cols.getTotal() > 0)
+        if (rows.getTotal() > 0 && cols.getTotal() > 0) {
+            if (timer != null) {
+                timer.subTask("Cells");
+            }
             paintCells(e);
-        if (rows.getTotal() > 0)
+        }
+        if (rows.getTotal() > 0) {
+            if (timer != null) {
+                timer.subTask("Row Headers");
+            }
             paintRowHeaders(e);
-        if (cols.getTotal() > 0)
+        }
+        if (cols.getTotal() > 0) {
+            if (timer != null) {
+                timer.subTask("Col Headers");
+            }
             paintColHeaders(e);
+        }
+
+        if (timer != null) {
+            timer.subTask("Chrome");
+        }
         paintCorner(e);
         paintBackground(e);
 
@@ -240,17 +244,19 @@ public class Grid extends Composite {
 
         scrolling.set(false);
 
-        if (Boolean.getBoolean("csview.debug.paint")) {
+        if (debug) {
 
             gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_RED));
             gc.drawRectangle(gc.getClipping().x, gc.getClipping().y, gc.getClipping().width - 1, gc.getClipping().height - 1);
 
-            long elapsed = System.nanoTime() - start;
-            long fps = Duration.ofSeconds(1).toNanos() / elapsed;
+            long fps = Duration.ofSeconds(1).toNanos() / timer.total().toNanos();
             if (fps < 30) {
                 System.out.println("Paint at  " + origin);
                 System.err.println("Repaint " + e.gc.getClipping().width * e.gc.getClipping().height +
-                        " pixels in " + Duration.ofNanos(elapsed).toMillis() + "ms (" + fps + " fps)");
+                        " pixels in " + timer.total().toMillis() + "ms (" + fps + " fps)");
+                timer.tasks.forEach((task, duration) -> {
+                    System.err.printf("%s: %dms\n", task, Duration.ofNanos(duration).toMillis());
+                });
             }
         }
     }
