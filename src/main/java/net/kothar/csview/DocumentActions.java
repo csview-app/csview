@@ -8,7 +8,5 @@ public interface DocumentActions {
 	
 	void toggleSearch();
 
-	void gotoRow();
-
-	void gotoCol();
+	void gotoCell();
 }

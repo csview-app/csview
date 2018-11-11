@@ -254,55 +254,57 @@ public class CSView extends ApplicationWindow implements DocumentActions {
     }
 
     @Override
-    public void gotoRow() {
+    public void gotoCell() {
         int rowCount = grid.getRowCount();
-        InputDialog input = new InputDialog(getShell(), "Go to row", "Select a row number (1 to " + rowCount + ")",
-                Integer.toString(grid.getCurrentCell().y + 1), v -> {
+        int colCount = grid.getColCount();
+        InputDialog input = new InputDialog(getShell(), "Go to row and column",
+                String.format("Select a row (1 to %d) and column (1 to %d)\nFormat: row, row:column or :column", rowCount, colCount),
+                String.format("%d:%d", grid.getCurrentCell().y + 1, grid.getCurrentCell().x + 1), v -> {
             try {
-                int row = Integer.parseInt(v);
-                if (row > 0 && row <= rowCount)
-                    return null;
+                parseCell(v);
             } catch (Exception e) {
+                return e.getMessage();
             }
-            return "Not a valid row number";
+            return null;
         });
         input.setBlockOnOpen(true);
         if (input.open() == SWT.NORMAL) {
-            int row = Integer.parseInt(input.getValue()) - 1;
-            if (row < 0) {
-                row = 0;
-            } else if (row >= rowCount) {
-                row = rowCount - 1;
-            }
-            Point currentCell = grid.getCurrentCell();
-            grid.setCurrentCell(new Point(currentCell.x, row));
+            Point newCell = parseCell(input.getValue());
+            grid.setCurrentCell(newCell);
         }
     }
 
-    @Override
-    public void gotoCol() {
-        int colCount = grid.getColCount();
-        InputDialog input = new InputDialog(getShell(), "Go to column", "Select a column number (1 - " + colCount + ")",
-                Integer.toString(grid.getCurrentCell().x + 1), v -> {
+    private Point parseCell(String value) {
+        String[] parts = value.split(":");
+
+        String rowString = parts[0].trim();
+        int row = grid.getCurrentCell().y;
+        if (!rowString.isEmpty()) {
             try {
-                int col = Integer.parseInt(v);
-                if (col > 0 && col <= colCount)
-                    return null;
-            } catch (Exception e) {
+                row = Integer.parseInt(rowString) - 1;
+                if (row < 0 || row >= grid.getRowCount())
+                    throw new IllegalArgumentException("Invalid row: " + (row + 1));
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Row number not recognised: " + rowString);
             }
-            return "Not a valid column number";
-        });
-        input.setBlockOnOpen(true);
-        if (input.open() == SWT.NORMAL) {
-            int col = Integer.parseInt(input.getValue()) - 1;
-            if (col < 0) {
-                col = 0;
-            } else if (col >= colCount) {
-                col = colCount - 1;
-            }
-            Point currentCell = grid.getCurrentCell();
-            grid.setCurrentCell(new Point(col, currentCell.y));
         }
+
+        int col = grid.getCurrentCell().x;
+        if (parts.length > 1) {
+            String colString = parts[1].trim();
+            if (!colString.isEmpty()) {
+                try {
+                    col = Integer.parseInt(colString) - 1;
+                    if (col < 0 || col >= grid.getColCount()) {
+                        throw new IllegalArgumentException("Invalid column: " + (col + 1));
+                    }
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Column number not recognised: " + colString);
+                }
+            }
+        }
+
+        return new Point(col, row);
     }
 
     @Override
@@ -393,10 +395,10 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
     private void createLineCountStatus(StatusLineManager statusLineManager) {
         rowCountStatus = new StatusLineMenuContribution("lineCount", "Rows: 0");
-        rowCountStatus.getMenuManager().addMenuListener(m -> gotoRow());
+        rowCountStatus.getMenuManager().addMenuListener(m -> gotoCell());
         statusLineManager.add(rowCountStatus);
         colCountStatus = new StatusLineMenuContribution("lineCount", "Columns: 0");
-        colCountStatus.getMenuManager().addMenuListener(m -> gotoCol());
+        colCountStatus.getMenuManager().addMenuListener(m -> gotoCell());
         statusLineManager.add(colCountStatus);
     }
 
