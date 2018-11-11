@@ -1,12 +1,11 @@
 package net.kothar.csview.grid;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Stream;
-
+import com.google.common.base.Strings;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalNotification;
+import net.kothar.csview.Timer;
+import net.kothar.csview.adt.SizeTree;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.eclipse.jface.viewers.ILabelProvider;
 import org.eclipse.jface.viewers.ITableLabelProvider;
@@ -15,31 +14,23 @@ import org.eclipse.swt.dnd.Clipboard;
 import org.eclipse.swt.dnd.HTMLTransfer;
 import org.eclipse.swt.dnd.TextTransfer;
 import org.eclipse.swt.dnd.Transfer;
-import org.eclipse.swt.events.ControlAdapter;
-import org.eclipse.swt.events.ControlEvent;
 import org.eclipse.swt.events.PaintEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.graphics.Color;
-import org.eclipse.swt.graphics.Device;
-import org.eclipse.swt.graphics.GC;
-import org.eclipse.swt.graphics.Image;
-import org.eclipse.swt.graphics.Point;
-import org.eclipse.swt.graphics.Rectangle;
-import org.eclipse.swt.graphics.Transform;
+import org.eclipse.swt.graphics.*;
 import org.eclipse.swt.layout.FillLayout;
-import org.eclipse.swt.widgets.Canvas;
-import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Display;
-import org.eclipse.swt.widgets.Monitor;
-import org.eclipse.swt.widgets.ScrollBar;
+import org.eclipse.swt.widgets.*;
+import org.freedesktop.Platform;
+import org.freedesktop.platforms.Windows;
 
-import com.google.common.base.Strings;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.RemovalNotification;
-
-import net.kothar.csview.adt.SizeTree;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
 
 public class Grid extends Composite {
 
@@ -84,7 +75,7 @@ public class Grid extends Composite {
     private Transform tileTransform;
 
     private Point origin = new Point(0, 0);
-    private boolean scrolling = false;
+    private AtomicBoolean scrolling = new AtomicBoolean(false);
 
     public Grid(Composite parent, int style) {
         super(parent, style);
@@ -114,47 +105,24 @@ public class Grid extends Composite {
     }
 
     private void createContents(Composite parent) {
-        canvas = new Canvas(parent, SWT.H_SCROLL | SWT.V_SCROLL | SWT.NO_BACKGROUND | SWT.NO_REDRAW_RESIZE);
+        int style = SWT.H_SCROLL | SWT.V_SCROLL | SWT.NO_BACKGROUND;
+        if (Platform.getCurrent().getClass() == Windows.class) {
+            style |= SWT.DOUBLE_BUFFERED;
+        }
+        canvas = new Canvas(parent, style);
 
         // Hook painting
         canvas.addPaintListener(this::paintGrid);
 
-        // Hook resize
-        canvas.addControlListener(new ControlAdapter() {
-            @Override
-            public void controlResized(ControlEvent e) {
-                updateScroll();
-            }
-        });
-
         // Hook scrolling
-        canvas.getHorizontalBar().addSelectionListener(new SelectionAdapter() {
-
+        SelectionAdapter onScroll = new SelectionAdapter() {
             @Override
             public void widgetSelected(SelectionEvent e) {
-
-                if (scrolling) {
-                    // Re-queue if already scrolling
-                    getDisplay().asyncExec(() -> widgetSelected(e));
-                    return;
-                }
-
-                renderHorizontalScroll();
-
+                scrollCanvas();
             }
-        });
-        canvas.getVerticalBar().addSelectionListener(new SelectionAdapter() {
-            @Override
-            public void widgetSelected(SelectionEvent e) {
-                if (scrolling) {
-                    // Re-queue if already scrolling
-                    getDisplay().asyncExec(() -> widgetSelected(e));
-                    return;
-                }
-
-                renderVerticalScroll();
-            }
-        });
+        };
+        canvas.getHorizontalBar().addSelectionListener(onScroll);
+        canvas.getVerticalBar().addSelectionListener(onScroll);
 
         // Hook mouse handling
         mouseHandler = createMouseHandler();
@@ -163,57 +131,73 @@ public class Grid extends Composite {
         canvas.addKeyListener(keyListener);
     }
 
-    private void renderVerticalScroll() {
-        int newY = canvas.getVerticalBar().getSelection() * SCROLL_FACTOR;
-        int oldY = origin.y;
-        int shift = newY - oldY;
+    private void scrollCanvas() {
 
-        if (shift == 0) {
+        if (scrolling.getAndSet(true)) {
+//            System.out.println("Delay scrolling");
+            getDisplay().asyncExec(this::scrollCanvas);
             return;
         }
 
-        scrolling = true;
-        origin.y = newY;
-        int colHeader = getColumnHeaderSize();
-        if (Math.abs(shift) > canvas.getBounds().height - colHeader) {
-            refresh();
-        } else {
-            if (shift < 0) {
-                // Shift pixels up
-                canvas.scroll(0, -shift + colHeader, 0, colHeader,
-                        canvas.getSize().x, canvas.getSize().y + shift - colHeader, false);
-            } else {
-                // Shift pixels down
-                canvas.scroll(0, colHeader, 0, shift + colHeader,
-                        canvas.getSize().x, canvas.getSize().y - shift - colHeader, false);
-            }
-        }
-    }
-
-    private void renderHorizontalScroll() {
         int newX = canvas.getHorizontalBar().getSelection() * SCROLL_FACTOR;
         int oldX = origin.x;
-        int shift = newX - oldX;
+        int shiftX = newX - oldX;
 
-        if (shift == 0) {
+        int newY = canvas.getVerticalBar().getSelection() * SCROLL_FACTOR;
+        int oldY = origin.y;
+        int shiftY = newY - oldY;
+
+        if (shiftX == 0 && shiftY == 0) {
+//            System.out.println("No scroll");
+            scrolling.set(false);
             return;
         }
 
-        scrolling = true;
-        origin.x = newX;
         int rowHeader = getRowHeaderSize();
-        if (Math.abs(shift) > canvas.getBounds().width - rowHeader) {
-            refresh();
+        int colHeader = getColumnHeaderSize();
+        int canvasWidth = canvas.getBounds().width;
+        int canvasHeight = canvas.getBounds().height;
+
+        origin.x = newX;
+        origin.y = newY;
+
+        if (Math.abs(shiftX) > canvasWidth - rowHeader
+                || Math.abs(shiftY) > canvasHeight - colHeader
+                || (shiftX != 0 && shiftY != 0)) {
+            canvas.redraw();
+            return;
         } else {
-            if (shift < 0) {
+            int destX = 0;
+            int x = 0;
+            int width = canvasWidth;
+            if (shiftX < 0) {
                 // Shift pixels right
-                canvas.scroll(-shift + rowHeader, 0, rowHeader, 0,
-                        canvas.getSize().x + shift - rowHeader, canvas.getSize().y, false);
-            } else {
+                destX = -shiftX + rowHeader;
+                x = rowHeader;
+                width = canvasWidth - shiftX - rowHeader;
+            } else if (shiftX > 0) {
                 // Shift pixels left
-                canvas.scroll(rowHeader, 0, shift + rowHeader, 0,
-                        canvas.getSize().x - shift - rowHeader, canvas.getSize().y, false);
+                destX = rowHeader;
+                x = shiftX + rowHeader;
+                width = canvasWidth - shiftX - rowHeader;
             }
+
+            int height = canvasHeight;
+            int y = 0;
+            int destY = 0;
+            if (shiftY < 0) {
+                // Shift pixels down
+                destY = -shiftY + colHeader;
+                y = colHeader;
+                height = canvasHeight - shiftY - colHeader;
+            } else if (shiftY > 0) {
+                // Shift pixels up
+                destY = colHeader;
+                y = shiftY + colHeader;
+                height = canvasHeight - shiftY - colHeader;
+            }
+
+            canvas.scroll(destX, destY, x, y, width, height, false);
         }
     }
 
@@ -222,27 +206,78 @@ public class Grid extends Composite {
     }
 
     private void paintGrid(PaintEvent e) {
+        boolean debug = Boolean.getBoolean("csview.debug.paint");
+        Timer timer = debug ? new Timer("Paint") : null;
+
         GC gc = e.gc;
 
-        if (rows.getTotal() > 0 && cols.getTotal() > 0)
+        if (rows.getTotal() > 0 && cols.getTotal() > 0) {
+            if (timer != null) {
+                timer.subTask("Cells");
+            }
             paintCells(e);
-        if (rows.getTotal() > 0)
+        }
+        if (rows.getTotal() > 0) {
+            if (timer != null) {
+                timer.subTask("Row Headers");
+            }
             paintRowHeaders(e);
-        if (cols.getTotal() > 0)
+        }
+        if (cols.getTotal() > 0) {
+            if (timer != null) {
+                timer.subTask("Col Headers");
+            }
             paintColHeaders(e);
+        }
+
+        if (timer != null) {
+            timer.subTask("Chrome");
+        }
         paintCorner(e);
+        paintBackground(e);
 
         // Render border with bottom of control
+        Point size = getSize();
         gc.setForeground(theme.getOuterBorderColor());
-        Rectangle bounds = getBounds();
-        int y = bounds.height - 1;
-        int width = bounds.width;
-        gc.drawLine(0, y, width, y);
+        int y = size.y - 1;
+        gc.drawLine(0, y, size.x, y);
 
-//        gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_RED));
-//        gc.drawRectangle(gc.getClipping().x, gc.getClipping().y, gc.getClipping().width - 1, gc.getClipping().height - 1);
+        scrolling.set(false);
 
-        scrolling = false;
+        if (debug) {
+
+            gc.setForeground(gc.getDevice().getSystemColor(SWT.COLOR_RED));
+            gc.drawRectangle(gc.getClipping().x, gc.getClipping().y, gc.getClipping().width - 1, gc.getClipping().height - 1);
+
+            long fps = Duration.ofSeconds(1).toNanos() / timer.total().toNanos();
+            if (fps < 30) {
+                System.out.println("Paint at  " + origin);
+                System.err.println("Repaint " + e.gc.getClipping().width * e.gc.getClipping().height +
+                        " pixels in " + timer.total().toMillis() + "ms (" + fps + " fps)");
+                timer.tasks.forEach((task, duration) -> {
+                    System.err.printf("%s: %dms\n", task, Duration.ofNanos(duration).toMillis());
+                });
+            }
+        }
+    }
+
+    private void paintBackground(PaintEvent e) {
+        GC gc = e.gc;
+        Point size = getSize();
+        int width = size.x;
+        int height = size.y;
+
+        // Paint background for region outside cells
+        int colsEnd = cols.getTotal() - getXOffset() + rowHeaderSize;
+        if (colsEnd < width) {
+            gc.setBackground(theme.getHeaderShadowColor());
+            gc.fillRectangle(colsEnd, 0, width - colsEnd, height);
+        }
+        int rowsEnd = rows.getTotal() - getYOffset() + columnHeaderSize;
+        if (rowsEnd < height) {
+            gc.setBackground(theme.getHeaderShadowColor());
+            gc.fillRectangle(0, rowsEnd, width, height - rowsEnd);
+        }
     }
 
     private void paintCells(PaintEvent e) {
@@ -442,7 +477,7 @@ public class Grid extends Composite {
 
             if (y > bounds.height)
                 break;
-            if (y < bounds.y)
+            if (y + height < bounds.y)
                 continue;
 
             // Shadow header if row contains current cell
@@ -494,7 +529,7 @@ public class Grid extends Composite {
 
     public void setYOffset(int yOffset) {
         canvas.getVerticalBar().setSelection(yOffset / SCROLL_FACTOR);
-        getDisplay().asyncExec(this::renderVerticalScroll);
+        getDisplay().asyncExec(this::scrollCanvas);
     }
 
     private void paintColHeaders(PaintEvent e) {
@@ -523,7 +558,7 @@ public class Grid extends Composite {
 
             if (x > bounds.width)
                 break;
-            if (x < bounds.x)
+            if (x + width < bounds.x)
                 continue;
 
             // Shadow selected cell's column header
@@ -573,7 +608,7 @@ public class Grid extends Composite {
 
     public void setXOffset(int xOffset) {
         canvas.getHorizontalBar().setSelection(xOffset / SCROLL_FACTOR);
-        getDisplay().asyncExec(this::renderHorizontalScroll);
+        getDisplay().asyncExec(this::scrollCanvas);
     }
 
     public int getColAt(int x) {
@@ -840,42 +875,56 @@ public class Grid extends Composite {
             return;
         }
 
-        int x = cols.getPosition(cell.x);
-        int y = rows.getPosition(cell.y);
-        int width = cols.getSize(cell.x);
-        int height = rows.getSize(cell.y);
+        SizeTree.SizeInfo newCol = cols.getSizeInfo(cell.x);
+        SizeTree.SizeInfo newRow = rows.getSizeInfo(cell.y);
+        int x = newCol.getPos();
+        int y = newRow.getPos();
+        int width = newCol.getSize();
+        int height = newRow.getSize();
+
+        int columnHeaderSize = getColumnHeaderSize();
+        int rowHeaderSize = getRowHeaderSize();
+
+        int xOffset = getXOffset();
+        int yOffset = getYOffset();
+
+        invalidateTiles(new Rectangle(cell.x, cell.y, 1, 1));
+        if (currentCell != null) {
+            invalidateTiles(new Rectangle(currentCell.x, currentCell.y, 1, 1));
+            if (cell.x != currentCell.x) {
+                SizeTree.SizeInfo oldCol = cols.getSizeInfo(currentCell.x);
+                canvas.redraw(oldCol.getPos() - xOffset + rowHeaderSize, 0, oldCol.getSize(), columnHeaderSize, false);
+                canvas.redraw(x - xOffset + rowHeaderSize, 0, width, columnHeaderSize, false);
+            }
+            if (cell.y != currentCell.y) {
+                SizeTree.SizeInfo oldRow = rows.getSizeInfo(currentCell.y);
+                canvas.redraw(0, oldRow.getPos() - yOffset + columnHeaderSize, rowHeaderSize, oldRow.getSize(), false);
+                canvas.redraw(0, y - yOffset + columnHeaderSize, rowHeaderSize, height, false);
+            }
+        }
+        currentCell = cell;
+
+        currentCellListeners.forEach(l -> l.notify(currentCell));
 
         // Adjust scroll position to ensure current cell is visible
-        int xOffset = getXOffset();
         if (x + width / 2 < xOffset) {
             setXOffset(x);
         } else {
             int canvasWidth = canvas.getBounds().width;
-            int rowHeaderSize = getRowHeaderSize();
             if (x + 16 > xOffset + canvasWidth - rowHeaderSize - 16) {
                 setXOffset(x - canvasWidth + rowHeaderSize + width + 32);
             }
         }
 
-        int yOffset = getYOffset();
         if (y < yOffset) {
             setYOffset(y);
         } else {
             int canvasHeight = canvas.getBounds().height;
-            int columnHeaderSize = getColumnHeaderSize();
             if (y + height > yOffset + canvasHeight - columnHeaderSize - 16) {
                 setYOffset(y - canvasHeight + columnHeaderSize + height + 32);
             }
         }
 
-        invalidateTiles(new Rectangle(cell.x, cell.y, 1, 1));
-
-        if (currentCell != null) {
-            invalidateTiles(new Rectangle(currentCell.x, currentCell.y, 1, 1));
-        }
-        currentCell = cell;
-
-        currentCellListeners.forEach(l -> l.notify(currentCell));
     }
 
     public Rectangle getCellBounds() {
@@ -911,14 +960,12 @@ public class Grid extends Composite {
             int firstRow = rows.getPosition(repaintRegion.y);
             SizeTree.SizeInfo lastRow = rows.getSizeInfo(repaintRegion.y + repaintRegion.height - 1);
 
-            int x = firstCol - origin.x + rowHeaderSize;
-            int y = firstRow - origin.y + columnHeaderSize;
-            int width = lastCol.getPos() + lastCol.getSize() - firstCol + 1;
-            int height = lastRow.getPos() + lastRow.getSize() - firstRow + 1;
+            int x = firstCol - origin.x + rowHeaderSize - 1;
+            int y = firstRow - origin.y + columnHeaderSize - 1;
+            int width = lastCol.getPos() + lastCol.getSize() - firstCol + 2;
+            int height = lastRow.getPos() + lastRow.getSize() - firstRow + 2;
 
             canvas.redraw(x, y, width, height, false);
-            getDisplay().asyncExec(() -> canvas.redraw(x, 0, width, columnHeaderSize, false));
-            getDisplay().asyncExec(() -> canvas.redraw(0, y, rowHeaderSize, height, false));
         }
     }
 

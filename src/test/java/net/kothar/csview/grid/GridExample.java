@@ -4,6 +4,8 @@ import org.eclipse.jface.viewers.ILabelProviderListener;
 import org.eclipse.jface.viewers.ITableLabelProvider;
 import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.ShellAdapter;
+import org.eclipse.swt.events.ShellEvent;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.FillLayout;
@@ -24,7 +26,12 @@ public class GridExample extends ApplicationWindow {
 		
 		Shell shell = grid.getShell();
 		Display display = shell.getDisplay();
-		shell.addDisposeListener(e -> display.dispose());
+		shell.addShellListener(new ShellAdapter() {
+			@Override
+			public void shellClosed(ShellEvent e) {
+				display.dispose();
+			}
+		});
 		
 		while (!display.isDisposed()) {
 			if (!display.readAndDispatch()) {

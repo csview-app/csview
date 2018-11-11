@@ -7,4 +7,6 @@ public interface DocumentActions {
 	boolean copySelection();
 	
 	void toggleSearch();
+
+	void gotoCell();
 }
