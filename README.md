@@ -4,7 +4,7 @@ Compatible with Windows, MacOS and Linux.
 
 Packaged builds are available from https://kothar.net/csview
 
-![Screenshot](https://kothar.net/images/csview1.2)
+![Screenshot](screenshots/MacOS%20Mojave_1440.jpg)
 
 Icon by [Honza Dousek](http://jandousek.cz)
 ([See also](https://www.iconfinder.com/iconsets/lexter-flat-colorfull-file-formats))
