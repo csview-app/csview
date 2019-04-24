@@ -66,6 +66,7 @@ DEPLOY_ARGUMENTS
       <key>CFBundleTypeExtensions</key>
       <array>
         <string>csv</string>
+        <string>tsv</string>
       </array>
       <key>CFBundleTypeIconFile</key>
       <string>DEPLOY_ICON_FILE</string>

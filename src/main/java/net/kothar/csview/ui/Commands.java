@@ -37,7 +37,7 @@ public class Commands {
 
 		try {
 			FileDialog dialog = new FileDialog(shell);
-			dialog.setFilterExtensions(new String[] {"*.csv"});
+			dialog.setFilterExtensions(new String[] {"*.csv;*.tsv", "*.*"});
 			dialog.setText("Select CSV file to open");
 
 			String filename = dialog.open();

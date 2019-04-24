@@ -73,6 +73,9 @@ verify: $(APP_BUNDLE)
 resign: $(APP_BUNDLE)
 	codesign --verbose --force --verify --deep --sign "$(DEVELOPER_KEY)" $(APP_BUNDLE)
 
+pkg:
+	BUNDLES=pkg make package
+
 dmg:
 	BUNDLES=dmg make package
 
@@ -82,7 +85,7 @@ appstore:
 package: package/macosx/CSView.icns jar
 	javapackager -deploy -native $(BUNDLES) \
 		-srcdir target -srcfiles $(JAR_FILE) \
-		-outdir package/bundles -outfile $(APP_NAME) \
+		-outdir package -outfile $(APP_NAME) \
 		-name $(APP_NAME) \
 		-appclass net.kothar.csview.cocoa.MacLoader \
 		-BmainJar=$(JAR_FILE) \
@@ -91,6 +94,6 @@ package: package/macosx/CSView.icns jar
 		-Bmac.CFBundleIdentifier=net.kothar.csview \
 		-BjvmOptions=-XstartOnFirstThread \
 		-Bmac.signing-key-developer-id-app="$(DEVELOPER_KEY)" \
-		-Bmac.signing-key-developer-id-installer="$(INSTALLER_KEY)" 
+		-Bmac.signing-key-developer-id-installer="$(INSTALLER_KEY)" -v
 
 .PHONY: package icons appstore dmg resign verify sandbox app jar
