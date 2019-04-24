@@ -600,6 +600,8 @@ public class CSV {
                 }
             }
         } catch (Throwable e) {
+            blockCells.clear();
+            blockCells.addAll(Arrays.asList(block.split("[" + getFormat().getRecordSeparator() + "]")));
             while (blockCells.size() < CELL_INDEX_DISTANCE) {
                 blockCells.add("<ERROR>");
             }

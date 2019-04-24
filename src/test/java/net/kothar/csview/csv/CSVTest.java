@@ -84,6 +84,19 @@ public class CSVTest {
     }
 
     @Test
+    public void ignores_commas_with_tab_delimiter() throws InterruptedException, ExecutionException, TimeoutException {
+        CSV csv = new CSV();
+        csv.setContents(COMMAS);
+        csv.setFormat(CSVFormat.DEFAULT.withDelimiter('\t'));
+
+        csv.scan(scanHandler);
+
+        future.get(10, TimeUnit.SECONDS);
+        assertEquals("Rows", 2, rows);
+        assertEquals("Cells", 2, cells);
+    }
+
+    @Test
     public void parses_empty_first_col_with_tab_delimiter() throws InterruptedException, ExecutionException, TimeoutException {
         CSV csv = new CSV();
         csv.setContents(TABS_FIRST_EMPTY);

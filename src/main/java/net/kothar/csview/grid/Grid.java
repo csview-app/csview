@@ -891,12 +891,12 @@ public class Grid extends Composite {
         invalidateTiles(new Rectangle(cell.x, cell.y, 1, 1));
         if (currentCell != null) {
             invalidateTiles(new Rectangle(currentCell.x, currentCell.y, 1, 1));
-            if (cell.x != currentCell.x) {
+            if (cell.x != currentCell.x && currentCell.x < cols.getCount()) {
                 SizeTree.SizeInfo oldCol = cols.getSizeInfo(currentCell.x);
                 canvas.redraw(oldCol.getPos() - xOffset + rowHeaderSize, 0, oldCol.getSize(), columnHeaderSize, false);
                 canvas.redraw(x - xOffset + rowHeaderSize, 0, width, columnHeaderSize, false);
             }
-            if (cell.y != currentCell.y) {
+            if (cell.y != currentCell.y && currentCell.y < rows.getCount()) {
                 SizeTree.SizeInfo oldRow = rows.getSizeInfo(currentCell.y);
                 canvas.redraw(0, oldRow.getPos() - yOffset + columnHeaderSize, rowHeaderSize, oldRow.getSize(), false);
                 canvas.redraw(0, y - yOffset + columnHeaderSize, rowHeaderSize, height, false);
@@ -952,6 +952,10 @@ public class Grid extends Composite {
             } else {
                 repaintRegion = repaintRegion.union(region);
             }
+        }
+        if (repaintRegion != null) {
+            // If the size of the cell grid has changed due to changing the delimiter, the repaint region will need adjusting
+            repaintRegion = repaintRegion.intersection(new Rectangle(0, 0, cols.getCount(), rows.getCount()));
         }
         if (repaintRegion != null && repaintRegion.width > 0 && repaintRegion.height > 0) {
             int firstCol = cols.getPosition(repaintRegion.x);

@@ -96,4 +96,4 @@ package: package/macosx/CSView.icns jar
 		-Bmac.signing-key-developer-id-app="$(DEVELOPER_KEY)" \
 		-Bmac.signing-key-developer-id-installer="$(INSTALLER_KEY)" -v
 
-.PHONY: package icons appstore dmg resign verify sandbox app jar
+.PHONY: package icons appstore dmg pkg resign verify sandbox app jar
