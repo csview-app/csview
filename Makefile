@@ -92,8 +92,15 @@ package: package/macosx/CSView.icns jar
 		-BappVersion=$(VERSION) \
 		-Bmac.category=public.app-category.productivity \
 		-Bmac.CFBundleIdentifier=net.kothar.csview \
+		-Bmac.bundle-id-signing-prefix=net.kothar.csview \
 		-BjvmOptions=-XstartOnFirstThread \
 		-Bmac.signing-key-developer-id-app="$(DEVELOPER_KEY)" \
 		-Bmac.signing-key-developer-id-installer="$(INSTALLER_KEY)" -v
 
-.PHONY: package icons appstore dmg pkg resign verify sandbox app jar
+clean:
+	# sqlite3 "~/Library/Application Support/com.apple.TCC/Tcc.db" 'delete from access where client like "%CSView%"'
+	mvn clean
+	rm -f *.log
+	rm -f package/csview-*.jar
+
+.PHONY: package icons appstore dmg pkg resign verify sandbox app jar clean
