@@ -73,6 +73,9 @@ verify: $(APP_BUNDLE)
 resign: $(APP_BUNDLE)
 	codesign --verbose --force --verify --deep --sign "$(DEVELOPER_KEY)" $(APP_BUNDLE)
 
+pkg:
+	BUNDLES=pkg make package
+
 dmg:
 	BUNDLES=dmg make package
 
@@ -82,15 +85,22 @@ appstore:
 package: package/macosx/CSView.icns jar
 	javapackager -deploy -native $(BUNDLES) \
 		-srcdir target -srcfiles $(JAR_FILE) \
-		-outdir package/bundles -outfile $(APP_NAME) \
+		-outdir package -outfile $(APP_NAME) \
 		-name $(APP_NAME) \
 		-appclass net.kothar.csview.cocoa.MacLoader \
 		-BmainJar=$(JAR_FILE) \
 		-BappVersion=$(VERSION) \
 		-Bmac.category=public.app-category.productivity \
 		-Bmac.CFBundleIdentifier=net.kothar.csview \
+		-Bmac.bundle-id-signing-prefix=net.kothar.csview \
 		-BjvmOptions=-XstartOnFirstThread \
 		-Bmac.signing-key-developer-id-app="$(DEVELOPER_KEY)" \
-		-Bmac.signing-key-developer-id-installer="$(INSTALLER_KEY)" 
+		-Bmac.signing-key-developer-id-installer="$(INSTALLER_KEY)" -v
 
-.PHONY: package icons appstore dmg resign verify sandbox app jar
+clean:
+	# sqlite3 "~/Library/Application Support/com.apple.TCC/Tcc.db" 'delete from access where client like "%CSView%"'
+	mvn clean
+	rm -f *.log
+	rm -f package/csview-*.jar
+
+.PHONY: package icons appstore dmg pkg resign verify sandbox app jar clean

@@ -24,9 +24,7 @@ import org.freedesktop.Platform;
 import org.freedesktop.platforms.Windows;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -76,6 +74,8 @@ public class Grid extends Composite {
 
     private Point origin = new Point(0, 0);
     private AtomicBoolean scrolling = new AtomicBoolean(false);
+    private java.util.Timer timer = new java.util.Timer(true);
+    private TimerTask repaintTask;
 
     public Grid(Composite parent, int style) {
         super(parent, style);
@@ -132,9 +132,7 @@ public class Grid extends Composite {
     }
 
     private void scrollCanvas() {
-
         if (scrolling.getAndSet(true)) {
-//            System.out.println("Delay scrolling");
             getDisplay().asyncExec(this::scrollCanvas);
             return;
         }
@@ -148,7 +146,6 @@ public class Grid extends Composite {
         int shiftY = newY - oldY;
 
         if (shiftX == 0 && shiftY == 0) {
-//            System.out.println("No scroll");
             scrolling.set(false);
             return;
         }
@@ -165,7 +162,6 @@ public class Grid extends Composite {
                 || Math.abs(shiftY) > canvasHeight - colHeader
                 || (shiftX != 0 && shiftY != 0)) {
             canvas.redraw();
-            return;
         } else {
             int destX = 0;
             int x = 0;
@@ -198,7 +194,22 @@ public class Grid extends Composite {
             }
 
             canvas.scroll(destX, destY, x, y, width, height, false);
+
+            repaintAfterDelay();
         }
+    }
+
+    private void repaintAfterDelay() {
+        if (repaintTask != null) {
+            repaintTask.cancel();
+        }
+        repaintTask = new TimerTask() {
+            @Override
+            public void run() {
+                getDisplay().asyncExec(Grid.this::refresh);
+            }
+        };
+        timer.schedule(repaintTask, 200);
     }
 
     protected MouseHandler createMouseHandler() {
@@ -630,7 +641,6 @@ public class Grid extends Composite {
     }
 
     private void renderGridlines(GC gc, int y, Rectangle viewport) {
-
         gc.setForeground(theme.getCellBorderColor());
         gc.setLineDash(new int[]{2, 2});
 
@@ -874,6 +884,7 @@ public class Grid extends Composite {
         if (!getCellBounds().contains(cell)) {
             return;
         }
+        repaintAfterDelay();
 
         SizeTree.SizeInfo newCol = cols.getSizeInfo(cell.x);
         SizeTree.SizeInfo newRow = rows.getSizeInfo(cell.y);
@@ -891,12 +902,12 @@ public class Grid extends Composite {
         invalidateTiles(new Rectangle(cell.x, cell.y, 1, 1));
         if (currentCell != null) {
             invalidateTiles(new Rectangle(currentCell.x, currentCell.y, 1, 1));
-            if (cell.x != currentCell.x) {
+            if (cell.x != currentCell.x && currentCell.x < cols.getCount()) {
                 SizeTree.SizeInfo oldCol = cols.getSizeInfo(currentCell.x);
                 canvas.redraw(oldCol.getPos() - xOffset + rowHeaderSize, 0, oldCol.getSize(), columnHeaderSize, false);
                 canvas.redraw(x - xOffset + rowHeaderSize, 0, width, columnHeaderSize, false);
             }
-            if (cell.y != currentCell.y) {
+            if (cell.y != currentCell.y && currentCell.y < rows.getCount()) {
                 SizeTree.SizeInfo oldRow = rows.getSizeInfo(currentCell.y);
                 canvas.redraw(0, oldRow.getPos() - yOffset + columnHeaderSize, rowHeaderSize, oldRow.getSize(), false);
                 canvas.redraw(0, y - yOffset + columnHeaderSize, rowHeaderSize, height, false);
@@ -924,7 +935,6 @@ public class Grid extends Composite {
                 setYOffset(y - canvasHeight + columnHeaderSize + height + 32);
             }
         }
-
     }
 
     public Rectangle getCellBounds() {
@@ -952,6 +962,10 @@ public class Grid extends Composite {
             } else {
                 repaintRegion = repaintRegion.union(region);
             }
+        }
+        if (repaintRegion != null) {
+            // If the size of the cell grid has changed due to changing the delimiter, the repaint region will need adjusting
+            repaintRegion = repaintRegion.intersection(new Rectangle(0, 0, cols.getCount(), rows.getCount()));
         }
         if (repaintRegion != null && repaintRegion.width > 0 && repaintRegion.height > 0) {
             int firstCol = cols.getPosition(repaintRegion.x);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 - 2018 Kothar Labs
+ * Copyright 2016 - 2019 Kothar Labs
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -477,6 +477,8 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
     private void updateFormat(CSVFormat newFormat) {
         grid.setCols(1);
+        grid.setXOffset(0);
+        grid.refresh();
         csv.setFormat(newFormat);
         csv.scan(createProgressListener());
     }
