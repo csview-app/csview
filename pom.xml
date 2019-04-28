@@ -35,7 +35,16 @@
 			</exclusions>
 		</dependency>
 
-		<!-- https://mvnrepository.com/artifact/org.eclipse.platform/org.eclipse.swt -->
+		<dependency>
+			<groupId>net.kothar</groupId>
+			<artifactId>compactlist</artifactId>
+			<version>0.4.0</version>
+		</dependency>
+		<dependency>
+			<groupId>net.kothar</groupId>
+			<artifactId>xdg-java</artifactId>
+			<version>0.1.1</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.commons</groupId>
@@ -54,12 +63,6 @@
 			<artifactId>commons-logging</artifactId>
 			<version>1.2</version>
 		</dependency>
-
-		<dependency>
-			<groupId>org.freedesktop</groupId>
-			<artifactId>xdg-java</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
-		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
@@ -77,14 +80,17 @@
 			<version>4.12</version>
 			<scope>test</scope>
 		</dependency>
-		<dependency>
-			<groupId>net.kothar</groupId>
-			<artifactId>compactlist</artifactId>
-			<version>0.3.2-SNAPSHOT</version>
-		</dependency>
 	</dependencies>
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>com.amashchenko.maven.plugin</groupId>
+				<artifactId>gitflow-maven-plugin</artifactId>
+				<version>1.12.0</version>
+				<configuration>
+					<!-- optional configuration -->
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>
