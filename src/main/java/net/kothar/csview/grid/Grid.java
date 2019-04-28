@@ -18,6 +18,7 @@ import org.eclipse.swt.events.PaintEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.graphics.*;
+import org.eclipse.swt.internal.DPIUtil;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.*;
 import org.freedesktop.Platform;
@@ -85,9 +86,7 @@ public class Grid extends Composite {
         currentCell = new Point(0, 0);
 
         tileTransform = new Transform(parent.getDisplay());
-        int maxZoom = Stream.of(Display.getCurrent().getMonitors())
-                .mapToInt(Monitor::getZoom)
-                .max().orElse(100);
+        int maxZoom = DPIUtil.autoScaleUp(100);
         if (maxZoom > 100) {
             deviceZoom = maxZoom / 100.0;
             tileTransform.scale((float) deviceZoom, (float) deviceZoom);

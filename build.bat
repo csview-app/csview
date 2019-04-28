@@ -1,13 +1,13 @@
 @echo off
 
 echo Building
-mvn clean package
+REM mvn clean package
 
 echo Packaging
 
 set APP_NAME=CSView
-set APP_VERSION=1.3.0
-set JAR_VERSION=1.3.0
+set APP_VERSION=1.3.1
+set JAR_VERSION=1.3.1
 set JAR_FILE=csview-%JAR_VERSION%-jar-with-dependencies.jar
 
 "%JAVA_HOME%\bin\javapackager.exe" -deploy -native exe ^
