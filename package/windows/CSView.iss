@@ -3,8 +3,8 @@
 [Setup]
 AppId={{net.kothar.csview}}
 AppName=CSView
-AppVersion=1.3.0
-AppVerName=CSView 1.3.0
+AppVersion=1.3.1
+AppVerName=CSView 1.3.1
 AppPublisher=Kothar Labs
 AppComments=CSView
 AppCopyright=Copyright (C) 2019 Michael Houston
@@ -23,7 +23,7 @@ DefaultGroupName=CSView
 LicenseFile=
 ;WinXP or above
 MinVersion=0,5.1 
-OutputBaseFilename=CSView-1.3.0
+OutputBaseFilename=CSView-1.3.1-Windows-x64-Installer
 Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=admin
