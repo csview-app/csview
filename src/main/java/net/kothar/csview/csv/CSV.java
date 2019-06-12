@@ -74,6 +74,8 @@ public class CSV {
     private Cache<Long, List<String>> cellCache;
 
     private ProgressManager progressManager;
+    private long fileLastModified;
+    private long fileLastLength;
 
     public CSV() {
         cellCache = CacheBuilder.newBuilder()
@@ -231,6 +233,9 @@ public class CSV {
         try (FileInputStream input = new FileInputStream(file)) {
 
             long startTime = System.currentTimeMillis();
+            File fileInfo = new File(this.file);
+            fileLastModified = fileInfo.lastModified();
+            fileLastLength = fileInfo.length();
 
             scan(input, handler);
 
@@ -242,6 +247,18 @@ public class CSV {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public boolean isModified() {
+        if (file == null) {
+            return false;
+        }
+
+        File fileInfo = new File(this.file);
+        long fileModified = fileInfo.lastModified();
+        long fileLength = fileInfo.length();
+
+        return fileModified != fileLastModified || fileLength != fileLastLength;
     }
 
     private void scan(InputStream input, ScanHandler handler) {

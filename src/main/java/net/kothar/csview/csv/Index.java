@@ -37,7 +37,7 @@ public class Index implements Iterable<Long> {
 			if (line < 0) {
 				positions.add(-line - 1, position);
 			} else {
-				throw new IllegalArgumentException("Duplicate position added");
+				throw new IllegalArgumentException("Duplicate position added: already has line at position " + position);
 			}
 		}
 

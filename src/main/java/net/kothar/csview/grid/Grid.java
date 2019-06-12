@@ -24,6 +24,7 @@ import org.eclipse.swt.widgets.*;
 import org.freedesktop.Platform;
 import org.freedesktop.platforms.Windows;
 
+import javax.annotation.Nonnull;
 import java.time.Duration;
 import java.util.*;
 import java.util.List;
@@ -375,6 +376,7 @@ public class Grid extends Composite {
         }
     }
 
+    @Nonnull
     private Image renderTile(Device device, Point position) {
         try {
             int width = cols.getSize(position.x);
@@ -414,7 +416,7 @@ public class Grid extends Composite {
             return tile;
         } catch (Exception e) {
             e.printStackTrace();
-            return null;
+            return nullTile;
         }
     }
 
