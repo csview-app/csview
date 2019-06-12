@@ -10,7 +10,7 @@ public interface DocumentActions {
 
 	void gotoCell();
 
-	void refresh();
+	void reload();
 
 	// Debug actions
     void dumpIndexes();
