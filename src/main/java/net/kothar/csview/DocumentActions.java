@@ -10,6 +10,8 @@ public interface DocumentActions {
 
 	void gotoCell();
 
+	void refresh();
+
 	// Debug actions
     void dumpIndexes();
 }

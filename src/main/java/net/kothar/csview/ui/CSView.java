@@ -332,13 +332,19 @@ public class CSView extends ApplicationWindow implements DocumentActions {
             public void shellActivated(ShellEvent e) {
                 // TODO listen for inotify events
                 // TODO rescan in background and swap new index in-place
-                if (csv.isModified()) {
-                    csv.scan(getScanProgress());
-                    grid.refresh();
-                    refreshTable();
+                if (System.getProperties().containsKey("net.kothar.csview.debug") && csv.isModified()) {
+                    refresh();
                 }
             }
         });
+    }
+
+    @Override
+    public void refresh() {
+        csv.setFile(file);
+        csv.scan(getScanProgress());
+        grid.refresh();
+        refreshTable();
     }
 
     private void dispose(DisposeEvent e) {

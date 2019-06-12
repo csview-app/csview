@@ -95,6 +95,12 @@ public class Menus {
 
     private void addDocumentFileActions(Menu fileMenu) {
 
+        MenuItem refresh = new MenuItem(fileMenu, SWT.NORMAL);
+        refresh.setText("Refresh");
+        refresh.setAccelerator(SWT.MOD1 + 'R');
+
+        refresh.addSelectionListener(select(docActions::refresh));
+
         MenuItem close = new MenuItem(fileMenu, SWT.NORMAL);
         close.setText("Close file");
         close.setAccelerator(SWT.MOD1 + 'W');

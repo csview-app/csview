@@ -102,6 +102,13 @@ public class CSV {
      */
     public synchronized void dispose(DisposeEvent e) {
         disposed = true;
+        if (randomAccessFile != null) {
+            try {
+                randomAccessFile.close();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
     }
 
     /**
@@ -122,9 +129,12 @@ public class CSV {
         this.contents = contents;
     }
 
-    public void setFile(String file) {
+    public synchronized void setFile(String file) {
         this.file = file;
         try {
+            if (this.randomAccessFile != null) {
+                this.randomAccessFile.close();
+            }
             this.randomAccessFile = new RandomAccessFile(file, "r");
 
             // Detect charset
