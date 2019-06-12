@@ -113,7 +113,7 @@ public class SearchSidebar extends Composite implements ISelectionProvider {
         debounce.schedule(displayTask(getDisplay(), this::updateSearch), 500);
     }
 
-    private void updateSearch() {
+    public void updateSearch() {
         grid.setRows(0);
         grid.setXOffset(0);
         grid.setYOffset(0);

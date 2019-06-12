@@ -325,7 +325,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
         csv.setProgressManger(new ProgressManager(getStatusLineManager(), Display.getCurrent()));
         csv.scan(getScanProgress(true));
 
-        getShell().getDisplay().asyncExec(this::refreshTable);
+        getShell().getDisplay().asyncExec(this::refreshTableSize);
         getShell().addDisposeListener(this::dispose);
         getShell().addShellListener(new ShellAdapter() {
             @Override
@@ -359,10 +359,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
                 @Override
                 public void completed() {
-                    getShell().getDisplay().asyncExec(() -> {
-                        refreshTable();
-                        grid.refresh();
-                    });
+                    getShell().getDisplay().asyncExec(CSView.this::refreshAll);
                     synchronized (CSView.this) {
                         isScanning = false;
                         CSView.this.notifyAll();
@@ -375,7 +372,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
                         if (getShell().isDisposed())
                             return;
 
-                        getShell().getDisplay().asyncExec(CSView.this::refreshTable);
+                        getShell().getDisplay().asyncExec(CSView.this::refreshTableSize);
                     }
                 }
 
@@ -390,10 +387,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
         return new ProgressListener() {
             @Override
             public void completed() {
-                getShell().getDisplay().asyncExec(() -> {
-                    refreshTable();
-                    grid.refresh();
-                });
+                getShell().getDisplay().asyncExec(CSView.this::refreshAll);
                 synchronized (CSView.this) {
                     isScanning = false;
                     CSView.this.notifyAll();
@@ -408,10 +402,20 @@ public class CSView extends ApplicationWindow implements DocumentActions {
             @Override
             public void changed() {
                 if (incrementalRefresh) {
-                    getShell().getDisplay().asyncExec(CSView.this::refreshTable);
+                    getShell().getDisplay().asyncExec(CSView.this::refreshTableSize);
                 }
             }
         };
+    }
+
+    private void refreshAll() {
+        refreshTableSize();
+        grid.refresh();
+        grid.checkMaxScroll();
+
+        if (search != null && !search.isDisposed()) {
+            search.updateSearch();
+        }
     }
 
     @Override
@@ -520,7 +524,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
         grid.refresh();
     }
 
-    public void refreshTable() {
+    public void refreshTableSize() {
         grid.setRows(csv.getRowCount());
         rowCountStatus.setText(String.format("Rows: %,d", csv.getRowCount()));
         colCountStatus.setText(String.format("Columns: %,d", csv.getColCount()));
