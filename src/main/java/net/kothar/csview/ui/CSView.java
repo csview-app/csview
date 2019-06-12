@@ -275,6 +275,12 @@ public class CSView extends ApplicationWindow implements DocumentActions {
         }
     }
 
+    @Override
+    public void dumpIndexes() {
+        System.out.println("Rows: \n" + csv.getRows());
+        System.out.println("Cells: \n" + csv.getCells());
+    }
+
     private Point parseCell(String value) {
         String[] parts = value.split(":");
 
@@ -328,6 +334,8 @@ public class CSView extends ApplicationWindow implements DocumentActions {
                 // TODO rescan in background and swap new index in-place
                 if (csv.isModified()) {
                     csv.scan(getScanProgress());
+                    grid.refresh();
+                    refreshTable();
                 }
             }
         });

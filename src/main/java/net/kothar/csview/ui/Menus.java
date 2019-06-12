@@ -170,5 +170,14 @@ public class Menus {
         exception.addSelectionListener(select(() -> {
             throw new RuntimeException("Test exception", new IllegalArgumentException("Internal exception"));
         }));
+
+        // Dump CSV indexes
+        if (docActions != null) {
+            MenuItem dumpIndexes = new MenuItem(debugMenu, SWT.NORMAL);
+            dumpIndexes.setText("Dump Indexes");
+            dumpIndexes.setAccelerator(SWT.MOD1 + 'D');
+
+            dumpIndexes.addSelectionListener(select(docActions::dumpIndexes));
+        }
     }
 }

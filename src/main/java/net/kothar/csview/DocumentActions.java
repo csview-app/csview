@@ -9,4 +9,7 @@ public interface DocumentActions {
 	void toggleSearch();
 
 	void gotoCell();
+
+	// Debug actions
+    void dumpIndexes();
 }
