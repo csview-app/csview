@@ -667,6 +667,13 @@ public class Grid extends Composite {
         canvas.redraw();
     }
 
+    public void checkMaxScroll() {
+        int maxOffset = getTotalHeight();
+        if (getYOffset() > maxOffset) {
+            setYOffset(maxOffset);
+        }
+    }
+
     private void updateVerticalScroll() {
         if (isDisposed()) {
             return;
@@ -826,7 +833,7 @@ public class Grid extends Composite {
         }
         updateVerticalScroll();
 
-        canvas.redraw();
+        refresh();
     }
 
     public void setHeaderVisible(boolean headerVisible) {

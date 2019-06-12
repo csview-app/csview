@@ -187,7 +187,8 @@ public class CocoaUIEnhancer extends CocoaUtil {
 	}
 
 	private String getProductName() {
-		return MacLoader.APP_NAME;
+		ResourceBundle resourceBundle = ResourceBundle.getBundle(RESOURCE_BUNDLE);
+		return resourceBundle.getString("CSView.appName");
 	}
 
 	private long registerName(String name) throws IllegalArgumentException, SecurityException,
@@ -382,8 +383,11 @@ public class CocoaUIEnhancer extends CocoaUtil {
 	}
 
 	private static void showAbout() {
-		MessageDialog.openInformation(null, "About " + MacLoader.APP_NAME,
-			MacLoader.APP_NAME + " v" + MacLoader.VERSION + "\n© Kothar Labs 2016 - 2019\n\n"
+		ResourceBundle resourceBundle = ResourceBundle.getBundle(RESOURCE_BUNDLE);
+		String appName = resourceBundle.getString("CSView.appName");
+		String version = resourceBundle.getString("CSView.version");
+		MessageDialog.openInformation(null, "About " + appName,
+			appName + " v" + version + "\n© Kothar Labs 2016 - 2019\n\n"
 				+ "https://www.kothar.net/csview\n\n"
 				+ "Souce code available under the Apache License Version 2.0\n"
 				+ "Parts under the Eclipse Public License v1.0\n"
