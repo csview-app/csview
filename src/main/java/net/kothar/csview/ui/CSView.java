@@ -35,7 +35,7 @@ import org.eclipse.swt.custom.CTabFolder2Adapter;
 import org.eclipse.swt.custom.CTabFolderEvent;
 import org.eclipse.swt.custom.CTabItem;
 import org.eclipse.swt.custom.SashForm;
-import org.eclipse.swt.events.DisposeEvent;
+import org.eclipse.swt.events.*;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.FillLayout;
@@ -69,6 +69,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
     private CSV csv;
     private String file;
+    private boolean isScanning;
 
     private boolean useAppIcon;
 
@@ -274,6 +275,12 @@ public class CSView extends ApplicationWindow implements DocumentActions {
         }
     }
 
+    @Override
+    public void dumpIndexes() {
+        System.out.println("Rows: \n" + csv.getRows());
+        System.out.println("Cells: \n" + csv.getCells());
+    }
+
     private Point parseCell(String value) {
         String[] parts = value.split(":");
 
@@ -316,10 +323,28 @@ public class CSView extends ApplicationWindow implements DocumentActions {
         super.create();
 
         csv.setProgressManger(new ProgressManager(getStatusLineManager(), Display.getCurrent()));
-        csv.scan(createProgressListener());
+        csv.scan(getScanProgress());
 
         getShell().getDisplay().asyncExec(this::refreshTable);
         getShell().addDisposeListener(this::dispose);
+        getShell().addShellListener(new ShellAdapter() {
+            @Override
+            public void shellActivated(ShellEvent e) {
+                // TODO listen for inotify events
+                // TODO rescan in background and swap new index in-place
+                if (System.getProperties().containsKey("net.kothar.csview.debug") && csv.isModified()) {
+                    refresh();
+                }
+            }
+        });
+    }
+
+    @Override
+    public void refresh() {
+        csv.setFile(file);
+        csv.scan(getScanProgress());
+        grid.refresh();
+        refreshTable();
     }
 
     private void dispose(DisposeEvent e) {
@@ -327,14 +352,26 @@ public class CSView extends ApplicationWindow implements DocumentActions {
         instances.remove(this);
     }
 
-    private ProgressListener createProgressListener() {
+    private synchronized ProgressListener getScanProgress() {
+        while (isScanning) {
+            try {
+                wait();
+            } catch (InterruptedException e) {
+            }
+        }
+
+        isScanning = true;
         if (file != null) {
 
-            ProgressListener listener = new ProgressListener() {
+            return new ProgressListener() {
 
                 @Override
                 public void completed() {
                     getShell().getDisplay().asyncExec(CSView.this::refreshTable);
+                    synchronized (CSView.this) {
+                        isScanning = false;
+                        CSView.this.notifyAll();
+                    }
                 }
 
                 @Override
@@ -351,14 +388,16 @@ public class CSView extends ApplicationWindow implements DocumentActions {
                 }
 
             };
-
-            return listener;
         }
 
         return new ProgressListener() {
             @Override
             public void completed() {
                 getShell().getDisplay().asyncExec(CSView.this::refreshTable);
+                synchronized (CSView.this) {
+                    isScanning = false;
+                    CSView.this.notifyAll();
+                }
             }
 
             @Override
@@ -480,7 +519,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
         grid.setXOffset(0);
         grid.refresh();
         csv.setFormat(newFormat);
-        csv.scan(createProgressListener());
+        csv.scan(getScanProgress());
     }
 
     @Override
@@ -488,5 +527,6 @@ public class CSView extends ApplicationWindow implements DocumentActions {
         grid.copySelection();
         return true;
     }
+
 
 }

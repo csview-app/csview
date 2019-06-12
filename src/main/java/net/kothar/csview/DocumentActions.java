@@ -9,4 +9,9 @@ public interface DocumentActions {
 	void toggleSearch();
 
 	void gotoCell();
+
+	void refresh();
+
+	// Debug actions
+    void dumpIndexes();
 }

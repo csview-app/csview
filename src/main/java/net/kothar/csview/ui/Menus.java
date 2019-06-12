@@ -95,6 +95,12 @@ public class Menus {
 
     private void addDocumentFileActions(Menu fileMenu) {
 
+        MenuItem refresh = new MenuItem(fileMenu, SWT.NORMAL);
+        refresh.setText("Refresh");
+        refresh.setAccelerator(SWT.MOD1 + 'R');
+
+        refresh.addSelectionListener(select(docActions::refresh));
+
         MenuItem close = new MenuItem(fileMenu, SWT.NORMAL);
         close.setText("Close file");
         close.setAccelerator(SWT.MOD1 + 'W');
@@ -170,5 +176,14 @@ public class Menus {
         exception.addSelectionListener(select(() -> {
             throw new RuntimeException("Test exception", new IllegalArgumentException("Internal exception"));
         }));
+
+        // Dump CSV indexes
+        if (docActions != null) {
+            MenuItem dumpIndexes = new MenuItem(debugMenu, SWT.NORMAL);
+            dumpIndexes.setText("Dump Indexes");
+            dumpIndexes.setAccelerator(SWT.MOD1 + 'D');
+
+            dumpIndexes.addSelectionListener(select(docActions::dumpIndexes));
+        }
     }
 }

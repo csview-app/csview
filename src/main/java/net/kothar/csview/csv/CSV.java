@@ -17,10 +17,7 @@ import java.io.*;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel.MapMode;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -65,7 +62,7 @@ public class CSV {
     private RandomAccessFile randomAccessFile;
     private String file;
 
-    private CSVFormat format = CSVFormat.DEFAULT;
+    private CSVFormat format = CSVFormat.DEFAULT.withIgnoreEmptyLines(false);
     private int maxColumns = -1;
 
     private boolean disposed = false;
@@ -74,12 +71,22 @@ public class CSV {
     private Cache<Long, List<String>> cellCache;
 
     private ProgressManager progressManager;
+    private long fileLastModified;
+    private long fileLastLength;
 
     public CSV() {
         cellCache = CacheBuilder.newBuilder()
                 .maximumSize(1000)
                 .build();
 
+    }
+
+    public Index getRows() {
+        return rows;
+    }
+
+    public Index getCells() {
+        return cells;
     }
 
     public void setProgressManger(ProgressManager progressManager) {
@@ -95,6 +102,13 @@ public class CSV {
      */
     public synchronized void dispose(DisposeEvent e) {
         disposed = true;
+        if (randomAccessFile != null) {
+            try {
+                randomAccessFile.close();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
     }
 
     /**
@@ -115,9 +129,12 @@ public class CSV {
         this.contents = contents;
     }
 
-    public void setFile(String file) {
+    public synchronized void setFile(String file) {
         this.file = file;
         try {
+            if (this.randomAccessFile != null) {
+                this.randomAccessFile.close();
+            }
             this.randomAccessFile = new RandomAccessFile(file, "r");
 
             // Detect charset
@@ -167,6 +184,7 @@ public class CSV {
         // Clear previous index
         rows.clear();
         cells.clear();
+        cellCache.invalidateAll();
 
         // Perform scan
         IProgressMonitor progressMonitor = progressManager.getProgressMonitor();
@@ -231,6 +249,9 @@ public class CSV {
         try (FileInputStream input = new FileInputStream(file)) {
 
             long startTime = System.currentTimeMillis();
+            File fileInfo = new File(this.file);
+            fileLastModified = fileInfo.lastModified();
+            fileLastLength = fileInfo.length();
 
             scan(input, handler);
 
@@ -242,6 +263,18 @@ public class CSV {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public boolean isModified() {
+        if (file == null) {
+            return false;
+        }
+
+        File fileInfo = new File(this.file);
+        long fileModified = fileInfo.lastModified();
+        long fileLength = fileInfo.length();
+
+        return fileModified != fileLastModified || fileLength != fileLastLength;
     }
 
     private void scan(InputStream input, ScanHandler handler) {
@@ -372,12 +405,6 @@ public class CSV {
             }
             handler.notifyCompleted();
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -400,7 +427,7 @@ public class CSV {
         Long from = cells.getPosition((int) (fromCell / CELL_INDEX_DISTANCE));
         Long to = cells.getPosition((int) (toCell / CELL_INDEX_DISTANCE + (toCell % CELL_INDEX_DISTANCE == 0 ? 1 : 2)));
 
-        String rowContent = getContent(from, to).trim();
+        String rowContent = getContent(from, to);
         if (rowContent.isEmpty()) {
             return new String[0];
         }
@@ -417,20 +444,18 @@ public class CSV {
 
         Long nextRow = rows.getPosition(row + 1);
         Long colCell = rowStart + col;
-        if (nextRow != null && colCell > nextRow) {
+        if (nextRow != null && colCell >= nextRow) {
             return null;
         }
 
-        String value = getBlockCell(colCell);
-        return value;
+        return getBlockCell(colCell);
     }
 
     private String getCellBlock(int cellBlockIndex) {
         Long from = cells.getPosition(cellBlockIndex);
         Long to = cells.getPosition(cellBlockIndex + 1);
 
-        String block = getContent(from, to).trim();
-        return block;
+        return getContent(from, to);
     }
 
     public String getCellContentsAt(Long position) {
@@ -454,37 +479,42 @@ public class CSV {
             List<String> blockCells = parseBlock(blockIndex);
 
             // Work out which cell we actually asked for
-            Holder<Integer> cellHolder = new Holder<>();
-            long offset = position - cells.getPosition(blockIndex);
-            assert offset > 0;
-            scan(new ByteArrayInputStream(blockBytes), new ScanHandler() {
-                private long lastValue;
-
-                @Override
-                public void notifyCompleted() {
-                    if (cellHolder.value == null) {
-                        cellHolder.value = (int) lastValue;
-                    }
-                }
-
-                @Override
-                public void newRow(long cell, long row, int previousCols, long pos) {
-                }
-
-                @Override
-                public void newCell(long cell, long row, int col, long pos) {
-                    if (cellHolder.value == null && pos > offset) {
-                        cellHolder.value = (int) (cell - 1);
-                    } else {
-                        lastValue = cell;
-                    }
-                }
-            });
-            return blockCells.get(cellHolder.value);
+            int cell = getCellAtPosition(position, blockIndex, blockBytes);
+            return blockCells.get(cell);
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
             return null;
         }
+    }
+
+    private int getCellAtPosition(Long position, int blockIndex, byte[] blockBytes) {
+        Holder<Integer> cellHolder = new Holder<>();
+        long offset = position - cells.getPosition(blockIndex);
+        assert offset > 0;
+        scan(new ByteArrayInputStream(blockBytes), new ScanHandler() {
+            private long lastValue;
+
+            @Override
+            public void notifyCompleted() {
+                if (cellHolder.value == null) {
+                    cellHolder.value = (int) lastValue;
+                }
+            }
+
+            @Override
+            public void newRow(long cell, long row, int previousCols, long pos) {
+            }
+
+            @Override
+            public void newCell(long cell, long row, int col, long pos) {
+                if (cellHolder.value == null && pos > offset) {
+                    cellHolder.value = (int) (cell - 1);
+                } else {
+                    lastValue = cell;
+                }
+            }
+        });
+        return cellHolder.value;
     }
 
     public Long getCellAt(Long position) {
@@ -509,32 +539,8 @@ public class CSV {
             byte[] blockBytes = block.getBytes(charset);
 
             // Work out which cell we actually asked for
-            Holder<Integer> cellHolder = new Holder<>();
-            long offset = position - cells.getPosition(blockIndex);
-            scan(new ByteArrayInputStream(blockBytes), new ScanHandler() {
-                private long lastValue;
-
-                @Override
-                public void notifyCompleted() {
-                    if (cellHolder.value == null) {
-                        cellHolder.value = (int) lastValue;
-                    }
-                }
-
-                @Override
-                public void newRow(long cell, long row, int previousCols, long pos) {
-                }
-
-                @Override
-                public void newCell(long cell, long row, int col, long pos) {
-                    if (cellHolder.value == null && pos > offset) {
-                        cellHolder.value = (int) (cell - 1);
-                    } else {
-                        lastValue = cell;
-                    }
-                }
-            });
-            return (long) (blockIndex * CELL_INDEX_DISTANCE + cellHolder.value);
+            int cell = getCellAtPosition(position, blockIndex, blockBytes);
+            return (long) (blockIndex * CELL_INDEX_DISTANCE + cell);
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
             return null;
@@ -562,7 +568,7 @@ public class CSV {
 
             String block = getCellBlock((int) blockIndex);
             if (block.isEmpty()) {
-                return null;
+                return Collections.emptyList();
             }
 
             try {
@@ -590,8 +596,7 @@ public class CSV {
     private List<String> parseCells(String block) throws IOException {
         List<String> blockCells = new ArrayList<>();
 
-        try {
-            CSVParser parser = CSVParser.parse(block, getFormat());
+        try (CSVParser parser = CSVParser.parse(block, getFormat())) {
             for (CSVRecord record : parser) {
                 record.forEach(blockCells::add);
                 if (blockCells.size() > CELL_INDEX_DISTANCE + 1) {
@@ -659,7 +664,7 @@ public class CSV {
                 byte[] bs = new byte[(int) (to - from)];
                 randomAccessFile.seek(from);
                 int read = randomAccessFile.read(bs);
-                return new String(bs, 0, read, charset).trim();
+                return new String(bs, 0, read, charset);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -681,7 +686,7 @@ public class CSV {
     }
 
     public void setFormat(CSVFormat format) {
-        this.format = format;
+        this.format = format.withIgnoreEmptyLines(false);
         maxColumns = -1;
         cellCache.invalidateAll();
     }
