@@ -71,7 +71,7 @@ verify: $(APP_BUNDLE)
 	spctl --assess -v --type execute $(APP_BUNDLE)
 
 resign: $(APP_BUNDLE)
-	codesign --verbose --force --verify --deep --sign "$(DEVELOPER_KEY)" $(APP_BUNDLE)
+	codesign --verbose --force --verify --deep --sign "$(DEVELOPER_KEY)" --timestamp $(APP_BUNDLE)
 
 pkg:
 	BUNDLES=pkg make package
@@ -96,6 +96,18 @@ package: package/macosx/CSView.icns jar
 		-BjvmOptions=-XstartOnFirstThread \
 		-Bmac.signing-key-developer-id-app="$(DEVELOPER_KEY)" \
 		-Bmac.signing-key-developer-id-installer="$(INSTALLER_KEY)" -v
+
+notarize:
+	 xcrun altool --notarize-app --primary-bundle-id net.kothar.csview \
+	 --file package/bundles/CSView-$(VERSION)-MacAppStore.pkg \
+	 --username "@keychain:ac_notarize" --password "@keychain:ac_notarize"
+
+staple:
+	xcrun stapler staple package/bundles/CSView-$(VERSION)-MacAppStore.pkg
+
+validate-app:
+	xcrun altool --validate-app --file package/bundles/CSView-$(VERSION)-MacAppStore.pkg \
+	 --username "@keychain:ac_notarize" --password "@keychain:ac_notarize"
 
 clean:
 	# sqlite3 "~/Library/Application Support/com.apple.TCC/Tcc.db" 'delete from access where client like "%CSView%"'
