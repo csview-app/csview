@@ -1,12 +1,13 @@
 APP_NAME = CSView
 VERSION = $(shell mvn -q -Dexec.executable="echo" -Dexec.args='$${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
-DEVELOPER_KEY = Developer ID Application: Michael Houston (D5HSL8R3CY)
-INSTALLER_KEY = Developer ID Installer: Michael Houston (D5HSL8R3CY)
+USER_NAME = Michael Houston (D5HSL8R3CY)
+DEVELOPER_KEY = Developer ID Application: $(USER_NAME)
+INSTALLER_KEY = Developer ID Installer: $(USER_NAME)
 APP_BUNDLE = package/bundles/$(APP_NAME).app
 JAR_FILE = csview-$(VERSION)-jar-with-dependencies.jar
 
 JAVA_HOME=$(shell /usr/libexec/java_home -v 11)
-JAVAPACKAGER=$(HOME)/Downloads/jdk.packager-osx/jpackager
+JPACKAGER=$(HOME)/Downloads/jdk.packager-osx/jpackager
 
 
 all: app
@@ -54,6 +55,9 @@ package/windows/CSView-setup-icon.bmp: icon.svg
 	convert setup-icon.png $@
 	rm setup-icon.png
 
+target/$(JAR_FILE):
+	mvn package
+
 jar:
 	mvn package
 
@@ -86,8 +90,36 @@ dmg:
 appstore:
 	BUNDLES=mac.appStore make package
 
-package: package/macosx/CSView.icns jar
-	$(JAVAPACKAGER) -deploy -native $(BUNDLES) \
+package: package/macosx/CSView.icns target/$(JAR_FILE)
+	cp target/$(JAR_FILE) package
+	$(JPACKAGER) create-image \
+		--input package \
+		--output package/bundles \
+		--name CSView \
+		--class net.kothar.csview.cocoa.MacLoader \
+		--main-jar $(JAR_FILE) \
+		--files $(JAR_FILE) \
+		--version $(VERSION) \
+		--jvm-args -XstartOnFirstThread \
+		--icon macosx/CSView.icns \
+		--singleton \
+		--identifier net/kothar/csview \
+		--description "Fast viewer for CSV files" \
+		--vendor "Kothar Labs" \
+		--file-associations package/macosx/CSView.file-associations.properties \
+		--mac-sign \
+		--mac-bundle-name CSView \
+		--mac-bundle-identifier net.kothar.csview \
+		--mac-app-store-category public.app-category.productivity \
+		--mac-app-store-entitlements macosx/CSView.entitlements \
+		--mac-bundle-signing-prefix net.kothar.csview \
+		--mac-signing-key-user-name "$(USER_NAME)" \
+		--add-modules java.base,java.datatransfer,java.desktop,java.scripting,java.xml,jdk.jsobject,jdk.unsupported,jdk.unsupported.desktop,jdk.xml.dom,java.naming,java.sql,jdk.charsets \
+		-v
+
+
+package-java8: package/macosx/CSView.icns jar
+	javapackager -deploy -native $(BUNDLES) \
 		-srcdir target -srcfiles $(JAR_FILE) \
 		-outdir package -outfile $(APP_NAME) \
 		-name $(APP_NAME) \
