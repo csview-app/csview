@@ -5,6 +5,10 @@ INSTALLER_KEY = Developer ID Installer: Michael Houston (D5HSL8R3CY)
 APP_BUNDLE = package/bundles/$(APP_NAME).app
 JAR_FILE = csview-$(VERSION)-jar-with-dependencies.jar
 
+JAVA_HOME=$(shell /usr/libexec/java_home -v 11)
+JAVAPACKAGER=$(HOME)/Downloads/jdk.packager-osx/jpackager
+
+
 all: app
 
 icons: package/macosx/CSView.icns package/windows/CSView.ico package/windows/CSView-setup-icon.bmp
@@ -83,7 +87,7 @@ appstore:
 	BUNDLES=mac.appStore make package
 
 package: package/macosx/CSView.icns jar
-	javapackager -deploy -native $(BUNDLES) \
+	$(JAVAPACKAGER) -deploy -native $(BUNDLES) \
 		-srcdir target -srcfiles $(JAR_FILE) \
 		-outdir package -outfile $(APP_NAME) \
 		-name $(APP_NAME) \
