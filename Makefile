@@ -3,12 +3,13 @@ VERSION = $(shell mvn -q -Dexec.executable="echo" -Dexec.args='$${project.versio
 USER_NAME = Michael Houston (D5HSL8R3CY)
 DEVELOPER_KEY = Developer ID Application: $(USER_NAME)
 INSTALLER_KEY = Developer ID Installer: $(USER_NAME)
+NOTARIZATION_CREDS = --username "michael@overuse.org" --password "@keychain:ac_notarize"
 APP_BUNDLE = package/bundles/$(APP_NAME).app
 JAR_FILE = csview-$(VERSION)-jar-with-dependencies.jar
 
 JAVA_HOME=$(shell /usr/libexec/java_home -v 11)
 JPACKAGER=$(HOME)/Downloads/jdk.packager-osx/jpackager
-
+SOURCES=$(shell find src)
 
 all: app
 
@@ -55,19 +56,10 @@ package/windows/CSView-setup-icon.bmp: icon.svg
 	convert setup-icon.png $@
 	rm setup-icon.png
 
-target/$(JAR_FILE):
+jar: target/$(JAR_FILE)
+
+target/$(JAR_FILE): $(SOURCES)
 	mvn package
-
-jar:
-	mvn package
-
-app:
-	@echo $(VERSION)
-	rm -rf target
-	BUNDLES=image make package
-
-$(APP_BUNDLE):
-	make app
 
 sandbox: $(APP_BUNDLE)
 	codesign --entitlements package/macosx/CSView.entitlements  -f -s "$(DEVELOPER_KEY)" $(APP_BUNDLE)
@@ -78,19 +70,18 @@ verify: $(APP_BUNDLE)
 	codesign -dvv $(APP_BUNDLE)
 	spctl --assess -v --type execute $(APP_BUNDLE)
 
-resign: $(APP_BUNDLE)
-	codesign --verbose --force --verify --deep --sign "$(DEVELOPER_KEY)" --timestamp $(APP_BUNDLE)
+sign: $(APP_BUNDLE)
+	for item in `find "$<" -depth -type d -name "*.framework" -or -name "*.dylib" -or -name "*.bundle" -or -name CSView -or -name jspawnhelper | sed -e "s/\(.*framework\)/\1\/Versions\/A\//"`;\
+	 	do codesign -vvvv --force --deep --options runtime --entitlements package/macosx/CSView.entitlements \
+			--sign "$(DEVELOPER_KEY)" --timestamp "$$item" --prefix net.kothar.csview. ;\
+		done
 
-pkg:
-	BUNDLES=pkg make package
+deps: target/$(JAR_FILE)
+	jdeps --list-deps target/$(JAR_FILE)
 
-dmg:
-	BUNDLES=dmg make package
+app: $(APP_BUNDLE)
 
-appstore:
-	BUNDLES=mac.appStore make package
-
-package: package/macosx/CSView.icns target/$(JAR_FILE)
+$(APP_BUNDLE): package/macosx/CSView.icns target/$(JAR_FILE)
 	cp target/$(JAR_FILE) package
 	$(JPACKAGER) create-image \
 		--input package \
@@ -107,48 +98,63 @@ package: package/macosx/CSView.icns target/$(JAR_FILE)
 		--description "Fast viewer for CSV files" \
 		--vendor "Kothar Labs" \
 		--file-associations package/macosx/CSView.file-associations.properties \
-		--mac-sign \
+		--mac-bundle-name CSView \
+		--mac-bundle-identifier net.kothar.csview \
+		--add-modules java.base,java.compiler,java.desktop,java.logging,java.sql,java.xml,jdk.unsupported \
+		--strip-native-commands \
+		--verbose \
+		--echo-mode
+
+appstore: $(APP_BUNDLE)
+	cp target/$(JAR_FILE) package
+	$(JPACKAGER) create-installer \
+		--input package \
+		--output package/bundles \
+		--name CSView \
+		--app-image $(APP_BUNDLE) \
+		--version $(VERSION) \
+		--singleton \
+		--icon macosx/CSView.icns \
+		--identifier net/kothar/csview \
+		--description "Fast viewer for CSV files" \
+		--vendor "Kothar Labs" \
+		--file-associations package/macosx/CSView.file-associations.properties \
 		--mac-bundle-name CSView \
 		--mac-bundle-identifier net.kothar.csview \
 		--mac-app-store-category public.app-category.productivity \
 		--mac-app-store-entitlements macosx/CSView.entitlements \
-		--mac-bundle-signing-prefix net.kothar.csview \
-		--mac-signing-key-user-name "$(USER_NAME)" \
-		--add-modules java.base,java.datatransfer,java.desktop,java.scripting,java.xml,jdk.jsobject,jdk.unsupported,jdk.unsupported.desktop,jdk.xml.dom,java.naming,java.sql,jdk.charsets \
-		-v
+		--add-modules java.base,java.compiler,java.desktop,java.logging,java.sql,java.xml,jdk.unsupported \
+		--verbose \
+		--echo-mode
 
+zip: $(APP_BUNDLE).zip
 
-package-java8: package/macosx/CSView.icns jar
-	javapackager -deploy -native $(BUNDLES) \
-		-srcdir target -srcfiles $(JAR_FILE) \
-		-outdir package -outfile $(APP_NAME) \
-		-name $(APP_NAME) \
-		-appclass net.kothar.csview.cocoa.MacLoader \
-		-BmainJar=$(JAR_FILE) \
-		-BappVersion=$(VERSION) \
-		-Bmac.category=public.app-category.productivity \
-		-Bmac.CFBundleIdentifier=net.kothar.csview \
-		-Bmac.bundle-id-signing-prefix=net.kothar.csview \
-		-BjvmOptions=-XstartOnFirstThread \
-		-Bmac.signing-key-developer-id-app="$(DEVELOPER_KEY)" \
-		-Bmac.signing-key-developer-id-installer="$(INSTALLER_KEY)" -v
+$(APP_BUNDLE).zip: $(APP_BUNDLE)
+	rm -f $@
+	cd `dirname $<` && zip -r -D `basename $@` `basename $<`
 
-notarize:
+notarize: $(APP_BUNDLE).zip
 	 xcrun altool --notarize-app --primary-bundle-id net.kothar.csview \
-	 --file package/bundles/CSView-$(VERSION)-MacAppStore.pkg \
-	 --username "@keychain:ac_notarize" --password "@keychain:ac_notarize"
+	 --file $< $(NOTARIZATION_CREDS) | grep RequestUUID | sed -e "s/.*= //" > notarization.id
 
 staple:
 	xcrun stapler staple package/bundles/CSView-$(VERSION)-MacAppStore.pkg
 
 validate-app:
 	xcrun altool --validate-app --file package/bundles/CSView-$(VERSION)-MacAppStore.pkg \
-	 --username "@keychain:ac_notarize" --password "@keychain:ac_notarize"
+	$(NOTARIZATION_CREDS)
+
+notarization-status:
+	xcrun altool --notarization-history 0 $(NOTARIZATION_CREDS)
+
+ni:
+	xcrun altool --notarization-info bab827a0-37e0-4228-8c09-6805cf92aa10 $(NOTARIZATION_CREDS)
 
 clean:
 	# sqlite3 "~/Library/Application Support/com.apple.TCC/Tcc.db" 'delete from access where client like "%CSView%"'
 	mvn clean
 	rm -f *.log
 	rm -f package/csview-*.jar
+	rm -rf $(APP_BUNDLE) $(APP_BUNDLE).zip
 
-.PHONY: package icons appstore dmg pkg resign verify sandbox app jar clean
+.PHONY: package icons appstore dmg pkg zip resign verify sandbox app jar clean

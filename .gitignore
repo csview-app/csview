@@ -1,6 +1,3 @@
-.classpath
-.project
-.settings
 .idea
 /bin/
 /target/
@@ -14,3 +11,4 @@ Thumbs.db
 *.jar
 package/CSView.app
 /testOutput
+notarization.id
