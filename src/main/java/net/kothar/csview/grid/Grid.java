@@ -788,7 +788,9 @@ public class Grid extends Composite {
 
     void redrawTiles() {
         tileCache.invalidateAll();
-        canvas.redraw();
+        if (!canvas.isDisposed()) {
+            canvas.redraw();
+        }
     }
 
     private int getTotalWidth() {
