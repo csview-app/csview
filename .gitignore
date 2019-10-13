@@ -1,11 +1,8 @@
-.classpath
-.project
-.settings
 .idea
 /bin/
 /target/
 /build-mac-jar.xml
-/package/bundles
+/bundles
 /package/CSView.html
 /package/CSView.jnlp
 /package/csview_lib
