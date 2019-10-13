@@ -2,7 +2,7 @@
 /bin/
 /target/
 /build-mac-jar.xml
-/package/bundles
+/bundles
 /package/CSView.html
 /package/CSView.jnlp
 /package/csview_lib
@@ -11,4 +11,3 @@ Thumbs.db
 *.jar
 package/CSView.app
 /testOutput
-notarization.id

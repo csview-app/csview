@@ -27,7 +27,7 @@
   <!-- See http://developer.apple.com/library/mac/#releasenotes/General/SubmittingToMacAppStore/_index.html
        for list of AppStore categories -->
   <key>LSApplicationCategoryType</key>
-  <string>DEPLOY_BUNDLE_CATEGORY</string>
+  <string>public.app-category.productivity</string>
   <key>CFBundleVersion</key>
   <string>DEPLOY_BUNDLE_CFBUNDLE_VERSION</string>
   <key>NSHumanReadableCopyright</key>
@@ -56,21 +56,5 @@ DEPLOY_ARGUMENTS
   </array>DEPLOY_FILE_ASSOCIATIONS
   <key>NSHighResolutionCapable</key>
   <string>true</string>
-  <key>CFBundleDocumentTypes</key>
-  <array>
-    <dict>
-      <key>CFBundleTypeRole</key>
-      <string>Editor</string>
-      <key>CFBundleTypeName</key>
-      <string>CSV Files</string>
-      <key>CFBundleTypeExtensions</key>
-      <array>
-        <string>csv</string>
-        <string>tsv</string>
-      </array>
-      <key>CFBundleTypeIconFile</key>
-      <string>DEPLOY_ICON_FILE</string>
-    </dict>
-  </array>
  </dict>
 </plist>
