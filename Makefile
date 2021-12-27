@@ -13,7 +13,7 @@ APPSTORE_PKG = bundles/CSView-$(VERSION)-MacAppStore.pkg
 APP_PKG = bundles/CSView-$(VERSION).pkg
 APP_DMG = bundles/CSView-$(VERSION).dmg
 
-JAVA_HOME := $(shell /usr/libexec/java_home -v 11)
+# JAVA_HOME := $(shell /usr/libexec/java_home -v 11)
 JPACKAGER = $(HOME)/Downloads/jdk.packager-osx/jpackager
 SOURCES := $(shell find src)
 PKG_SOURCES := $(shell find package)

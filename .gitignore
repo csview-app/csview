@@ -1,13 +1,11 @@
 .idea
-/bin/
 /target/
 /build-mac-jar.xml
 /bundles
 /package/CSView.html
 /package/CSView.jnlp
 /package/csview_lib
+/package/CSView.app
 /build/
 Thumbs.db
-*.jar
-package/CSView.app
 /testOutput
