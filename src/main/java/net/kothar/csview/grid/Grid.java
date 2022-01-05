@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
@@ -57,6 +56,8 @@ public class Grid extends Composite {
   SizeTree rows = new SizeTree(getColumnHeaderSize());
   SizeTree cols = new SizeTree(getRowHeaderSize());
 
+  private Rectangle cleanRegion = null;
+
   private IGridContentProvider contentProvider;
   private ITableLabelProvider labelProvider;
   ILabelProvider rowLabelProvider;
@@ -90,8 +91,6 @@ public class Grid extends Composite {
 
   private Point origin = new Point(0, 0);
   private AtomicBoolean scrolling = new AtomicBoolean(false);
-  private java.util.Timer timer = new java.util.Timer(true);
-  private TimerTask repaintTask;
 
   public Grid(Composite parent, int style) {
     super(parent, style);
@@ -175,6 +174,7 @@ public class Grid extends Composite {
     if (Math.abs(shiftX) > canvasWidth - rowHeader
         || Math.abs(shiftY) > canvasHeight - colHeader
         || (shiftX != 0 && shiftY != 0)) {
+      cleanRegion = null;
       canvas.redraw();
     } else {
       int destX = 0;
@@ -207,23 +207,15 @@ public class Grid extends Composite {
         height = canvasHeight - shiftY - colHeader;
       }
 
-      canvas.scroll(destX, destY, x, y, width, height, false);
-
-      repaintAfterDelay();
-    }
-  }
-
-  private void repaintAfterDelay() {
-    if (repaintTask != null) {
-      repaintTask.cancel();
-    }
-    repaintTask = new TimerTask() {
-      @Override
-      public void run() {
-        getDisplay().asyncExec(Grid.this::redraw);
+      cleanRegion = new Rectangle(destX, destY, width, height);
+      if (shiftY < 0) {
+        cleanRegion.height += canvasHeight;
+      } else if (shiftY > 0) {
+        cleanRegion.y -= canvasHeight;
+        cleanRegion.height += canvasHeight;
       }
-    };
-    timer.schedule(repaintTask, 200);
+      canvas.scroll(destX, destY, x, y, width, height, false);
+    }
   }
 
   protected MouseHandler createMouseHandler() {
@@ -237,9 +229,6 @@ public class Grid extends Composite {
     GC gc = e.gc;
 
     if (rows.getTotal() > 0 && cols.getTotal() > 0) {
-//      if (timer != null) {
-//        timer.subTask("Cells");
-//      }
       paintCells(e, timer);
     }
     if (rows.getTotal() > 0) {
@@ -337,6 +326,10 @@ public class Grid extends Composite {
     getNullTile(device);
 
     int row = firstRow;
+    if (cleanRegion != null && debug != null) {
+      System.out.printf("Clean region {%d, %d} - {%d, %d}\n", cleanRegion.x, cleanRegion.y,
+          cleanRegion.x + cleanRegion.width, cleanRegion.y + cleanRegion.height);
+    }
     for (int y = 0; row < rowCount && y + columnHeaderSize - yAdjust < height; ) {
 
       int col = firstCol;
@@ -362,11 +355,21 @@ public class Grid extends Composite {
               debug.subTask("Paint tiles");
             }
             int tileWidth = (int) (tile.getBounds().width / deviceZoom);
-            gc.drawImage(tile,
-                0, 0,
-                tile.getBounds().width, tile.getBounds().height,
-                x + rowHeaderSize - xAdjust, y + columnHeaderSize - yAdjust,
-                tileWidth, tileHeight);
+            int destX = x + rowHeaderSize - xAdjust;
+            int destY = y + columnHeaderSize - yAdjust;
+//            if (cleanRegion != null &&
+//                cleanRegion.contains(destX, destY) &&
+//                cleanRegion.contains(destX + tileWidth, destY + tileHeight)) {
+////              System.out.printf("Skip tile {%d, %d}\n", x, y);
+//            } else {
+//              System.out.printf("Paint tile {%d, %d} at {%d, %d} - {%d, %d}\n", x, y,
+//                  destX, destY, destX + tileWidth, destY + tileHeight);
+              gc.drawImage(tile,
+                  0, 0,
+                  tile.getBounds().width, tile.getBounds().height,
+                  destX, destY,
+                  tileWidth, tileHeight);
+//            }
             x += tileWidth;
           }
           col++;
@@ -378,6 +381,7 @@ public class Grid extends Composite {
       y += tileHeight;
       row += TILE_ROWS;
     }
+    cleanRegion = null;
   }
 
   private void renderCells(GC gc, int y, Rectangle viewport) {
@@ -938,7 +942,6 @@ public class Grid extends Composite {
     if (!getCellBounds().contains(cell)) {
       return;
     }
-    repaintAfterDelay();
 
     SizeTree.SizeInfo newCol = cols.getSizeInfo(cell.x);
     SizeTree.SizeInfo newRow = rows.getSizeInfo(cell.y);
