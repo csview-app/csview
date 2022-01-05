@@ -214,7 +214,8 @@ public class Grid extends Composite {
         cleanRegion.y -= canvasHeight;
         cleanRegion.height += canvasHeight;
       }
-      canvas.scroll(destX, destY, x, y, width, height, false);
+//      canvas.scroll(destX, destY, x, y, width, height, false);
+      canvas.redraw();
     }
   }
 
