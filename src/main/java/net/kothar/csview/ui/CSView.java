@@ -416,6 +416,8 @@ public class CSView extends ApplicationWindow implements DocumentActions {
         if (search != null && !search.isDisposed()) {
             search.updateSearch();
         }
+
+        grid.requestLayout();
     }
 
     @Override
