@@ -1,6 +1,5 @@
 package net.kothar.csview.ui;
 
-import com.google.common.base.Strings;
 import net.kothar.csview.csv.CSV;
 
 public class CSVColumnHeaderProvider extends NumberFormatLabelProvider {

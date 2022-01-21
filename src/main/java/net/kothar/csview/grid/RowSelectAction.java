@@ -30,8 +30,8 @@ public class RowSelectAction implements MouseAction {
 	}
 
 	private void selectRow(int row) {
-		int from = row >= startRow ? startRow : row;
-		int to = row >= startRow ? row : startRow;
+		int from = Math.min(row, startRow);
+		int to = Math.max(row, startRow);
 
 		if (selection != null) {
 			grid.getSelection().removeRegion(selection);

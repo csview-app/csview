@@ -7,8 +7,8 @@
     <name>CSView</name>
 
     <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
 
         <!-- https://mvnrepository.com/artifact/org.eclipse.platform/org.eclipse.jface -->
         <jface.version>3.24.0</jface.version>

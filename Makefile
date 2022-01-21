@@ -143,6 +143,7 @@ $(APPSTORE_PKG): $(APP_BUNDLE)
 		--icon package/macosx/CSView.icns \
 		--mac-app-store \
 		--mac-sign \
+		--mac-signing-key-user-name "$(USER_NAME)" \
 		--mac-package-name CSView \
 		--mac-package-identifier net.kothar.csview \
 		--mac-app-category productivity \
@@ -162,26 +163,51 @@ $(APPSTORE_PKG): $(APP_BUNDLE)
 dmg: $(APP_DMG)
 
 $(APP_DMG): $(APP_BUNDLE)
-	for item in `find "$<" -depth -type d -name "*.framework" -or -name "*.dylib" -or -name "*.bundle" -or -name CSView -or -name jspawnhelper | sed -e "s/\(.*framework\)/\1\/Versions\/A\//"`;\
-		do codesign -vvvv --force --deep --options runtime --entitlements package/macosx/CSView.entitlements \
-			--sign "$(APP_KEY)" --timestamp "$$item" --prefix net.kothar.csview. ;\
-		done
-	$(JPACKAGER) create-installer dmg \
-		--input package \
-		--output bundles \
-		--name CSView \
-		--app-image $(APP_BUNDLE) \
-		--version $(VERSION) \
-		--singleton \
-		--icon macosx/CSView.icns \
-		--identifier net/kothar/csview \
-		--file-associations package/macosx/CSView.file-associations.properties \
-		--mac-bundle-name CSView \
-		--mac-bundle-identifier net.kothar.csview \
-		--mac-app-store-entitlements macosx/CSView.entitlements \
+	rm -rf package/app
+	mkdir -p package/app
+	cp target/$(JAR_FILE) package/app
+	$(JPACKAGER) -n CSView \
+		--verbose \
+		--type dmg \
+		--input package/app \
+		--main-class net.kothar.csview.cocoa.MacLoader \
+		--main-jar $(JAR_FILE) \
+		--java-options "-XstartOnFirstThread" \
+		--app-version $(VERSION) \
+		--description "Fast viewer for CSV files" \
+		--vendor "Kothar Labs" \
+		--dest bundles \
+		--icon package/macosx/CSView.icns \
+		--mac-sign \
+		--mac-signing-key-user-name "$(USER_NAME)" \
+		--mac-package-name CSView \
+		--mac-package-identifier net.kothar.csview \
+		--mac-app-category productivity \
+		--mac-entitlements package/macosx/CSView.entitlements \
+		--file-associations package/macosx/csv-files.properties \
+		--file-associations package/macosx/tsv-files.properties \
 		--add-modules java.base,java.compiler,java.desktop,java.logging,java.sql,java.xml,jdk.unsupported
-	codesign -vvvv --force --deep --options runtime --entitlements package/macosx/CSView.entitlements \
-    			--sign "$(INSTALLER_KEY)" --timestamp $@ --prefix net.kothar.csview.
+
+#	for item in `find "$<" -depth -type d -name "*.framework" -or -name "*.dylib" -or -name "*.bundle" -or -name CSView -or -name jspawnhelper | sed -e "s/\(.*framework\)/\1\/Versions\/A\//"`;\
+#		do codesign -vvvv --force --deep --options runtime --entitlements package/macosx/CSView.entitlements \
+#			--sign "$(APP_KEY)" --timestamp "$$item" --prefix net.kothar.csview. ;\
+#		done
+#	$(JPACKAGER) create-installer dmg \
+#		--input package \
+#		--output bundles \
+#		--name CSView \
+#		--app-image $(APP_BUNDLE) \
+#		--version $(VERSION) \
+#		--singleton \
+#		--icon macosx/CSView.icns \
+#		--identifier net/kothar/csview \
+#		--file-associations package/macosx/CSView.file-associations.properties \
+#		--mac-bundle-name CSView \
+#		--mac-bundle-identifier net.kothar.csview \
+#		--mac-app-store-entitlements macosx/CSView.entitlements \
+#		--add-modules java.base,java.compiler,java.desktop,java.logging,java.sql,java.xml,jdk.unsupported
+#	codesign -vvvv --force --deep --options runtime --entitlements package/macosx/CSView.entitlements \
+#    			--sign "$(INSTALLER_KEY)" --timestamp $@ --prefix net.kothar.csview.
 
 zip: $(APP_BUNDLE).zip
 
@@ -214,7 +240,6 @@ clean:
 	# sqlite3 "~/Library/Application Support/com.apple.TCC/Tcc.db" 'delete from access where client like "%CSView%"'
 	mvn clean
 	rm -f *.log
-	rm -f package/csview-*.jar
-	rm -rf $(APP_BUNDLE) $(APP_BUNDLE).zip
+	rm -rf $(APP_BUNDLE) $(APP_BUNDLE).zip package/app
 
 .PHONY: package icons appstore dmg pkg zip resign verify sandbox app jar clean

@@ -35,8 +35,7 @@ public class CocoaUtil {
 			return i.longValue();
 		}
 		if (object instanceof Long) {
-			Long l = (Long) object;
-			return l.longValue();
+			return (Long) object;
 		}
 		return 0;
 	}
@@ -98,9 +97,9 @@ public class CocoaUtil {
 
 	public static Object wrapPointer(long value) {
 		if (PTR_CLASS == long.class)
-			return new Long(value);
+			return value;
 		else
-			return new Integer((int) value);
+			return (int) value;
 	}
 
 	// The following methods reflectively call corresponding methods in the OS
@@ -111,8 +110,8 @@ public class CocoaUtil {
 			InvocationTargetException {
 		Class<NSControl> clazz = NSControl.class;
 		Class<?> PTR_CLASS = C.PTR_SIZEOF == 8 ? long.class : int.class;
-		Constructor<NSControl> constructor = clazz.getConstructor(new Class[] { PTR_CLASS });
-		return constructor.newInstance(new Object[] { wrapPointer(arg0) });
+		Constructor<NSControl> constructor = clazz.getConstructor(PTR_CLASS);
+		return constructor.newInstance(wrapPointer(arg0));
 	}
 
 	/**
@@ -126,16 +125,16 @@ public class CocoaUtil {
 		Method method = null;
 		Class<?> PTR_CLASS = C.PTR_SIZEOF == 8 ? long.class : int.class;
 		if (PTR_CLASS == long.class) {
-			method = clazz.getMethod("object_getInstanceVariable", new Class[] { long.class,
-					byte[].class, long[].class });
+			method = clazz.getMethod("object_getInstanceVariable", long.class,
+					byte[].class, long[].class);
 			long[] resultPtr = new long[1];
-			method.invoke(null, new Object[] { new Long(delegateId), name, resultPtr });
+			method.invoke(null, delegateId, name, resultPtr);
 			return resultPtr;
 		} else {
-			method = clazz.getMethod("object_getInstanceVariable", new Class[] { int.class,
-					byte[].class, int[].class });
+			method = clazz.getMethod("object_getInstanceVariable", int.class,
+					byte[].class, int[].class);
 			int[] resultPtr = new int[1];
-			method.invoke(null, new Object[] { new Integer((int) delegateId), name, resultPtr });
+			method.invoke(null, (int) delegateId, name, resultPtr);
 			return new long[] { resultPtr[0] };
 		}
 	}

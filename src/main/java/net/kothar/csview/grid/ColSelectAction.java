@@ -30,8 +30,8 @@ public class ColSelectAction implements MouseAction {
 	}
 
 	private void selectColumn(int column) {
-		int from = column >= startColumn ? startColumn : column;
-		int to = column >= startColumn ? column : startColumn;
+		int from = Math.min(column, startColumn);
+		int to = Math.max(column, startColumn);
 
 		if (selection != null) {
 			grid.getSelection().removeRegion(selection);
