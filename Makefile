@@ -151,14 +151,6 @@ $(APPSTORE_PKG): $(APP_BUNDLE)
 		--file-associations package/macosx/csv-files.properties \
 		--file-associations package/macosx/tsv-files.properties \
 		--add-modules java.base,java.compiler,java.desktop,java.logging,java.sql,java.xml,jdk.unsupported
-#	for item in `find "$<" -depth -type d -name "*.framework" -or -name "*.dylib" -or -name "*.bundle" -or -name CSView -or -name jspawnhelper | sed -e "s/\(.*framework\)/\1\/Versions\/A\//"`;\
-#		do codesign -vvvv --force --deep --options runtime --entitlements package/macosx/CSView.entitlements \
-#			--sign "$(APPSTORE_APP_KEY)" --timestamp "$$item" --prefix net.kothar.csview. ;\
-#		done
-#	productbuild --component $(APP_BUNDLE) /Applications \
-#		--sign "$(APPSTORE_INSTALLER_KEY)" \
-#		--product $(APP_BUNDLE)/Contents/Info.plist \
-#		$(APPSTORE_PKG)
 
 dmg: $(APP_DMG)
 
@@ -187,27 +179,6 @@ $(APP_DMG): $(APP_BUNDLE)
 		--file-associations package/macosx/csv-files.properties \
 		--file-associations package/macosx/tsv-files.properties \
 		--add-modules java.base,java.compiler,java.desktop,java.logging,java.sql,java.xml,jdk.unsupported
-
-#	for item in `find "$<" -depth -type d -name "*.framework" -or -name "*.dylib" -or -name "*.bundle" -or -name CSView -or -name jspawnhelper | sed -e "s/\(.*framework\)/\1\/Versions\/A\//"`;\
-#		do codesign -vvvv --force --deep --options runtime --entitlements package/macosx/CSView.entitlements \
-#			--sign "$(APP_KEY)" --timestamp "$$item" --prefix net.kothar.csview. ;\
-#		done
-#	$(JPACKAGER) create-installer dmg \
-#		--input package \
-#		--output bundles \
-#		--name CSView \
-#		--app-image $(APP_BUNDLE) \
-#		--version $(VERSION) \
-#		--singleton \
-#		--icon macosx/CSView.icns \
-#		--identifier net/kothar/csview \
-#		--file-associations package/macosx/CSView.file-associations.properties \
-#		--mac-bundle-name CSView \
-#		--mac-bundle-identifier net.kothar.csview \
-#		--mac-app-store-entitlements macosx/CSView.entitlements \
-#		--add-modules java.base,java.compiler,java.desktop,java.logging,java.sql,java.xml,jdk.unsupported
-#	codesign -vvvv --force --deep --options runtime --entitlements package/macosx/CSView.entitlements \
-#    			--sign "$(INSTALLER_KEY)" --timestamp $@ --prefix net.kothar.csview.
 
 zip: $(APP_BUNDLE).zip
 
