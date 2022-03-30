@@ -17,18 +17,10 @@ public class KeyboardHandler implements KeyListener {
 	@Override
 	public void keyPressed(KeyEvent e) {
 		switch (e.keyCode) {
-		case SWT.ARROW_UP:
-			moveCursor(e, 0, -1);
-			break;
-		case SWT.ARROW_DOWN:
-			moveCursor(e, 0, 1);
-			break;
-		case SWT.ARROW_LEFT:
-			moveCursor(e, -1, 0);
-			break;
-		case SWT.ARROW_RIGHT:
-			moveCursor(e, 1, 0);
-			break;
+			case SWT.ARROW_UP -> moveCursor(e, 0, -1);
+			case SWT.ARROW_DOWN -> moveCursor(e, 0, 1);
+			case SWT.ARROW_LEFT -> moveCursor(e, -1, 0);
+			case SWT.ARROW_RIGHT -> moveCursor(e, 1, 0);
 		}
 	}
 

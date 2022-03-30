@@ -13,16 +13,13 @@
  */
 package net.kothar.csview.cocoa;
 
-import java.io.File;
-
-import org.eclipse.jface.dialogs.MessageDialog;
-import org.eclipse.swt.SWT;
-import org.eclipse.swt.widgets.Event;
-import org.eclipse.swt.widgets.Listener;
-
 import net.kothar.csview.BaseLoader;
 import net.kothar.csview.ui.CSView;
 import net.kothar.csview.ui.Menus;
+import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.swt.SWT;
+
+import java.io.File;
 
 public class MacLoader extends BaseLoader {
 
@@ -35,13 +32,10 @@ public class MacLoader extends BaseLoader {
 		new CocoaUIEnhancer().earlyStartup();
 
 		super.start(args);
-		display.addListener(SWT.OpenDocument, new Listener() {
-			@Override
-			public void handleEvent(Event event) {
-				String filename = event.text;
-				File file = new File(filename);
-				openFile(filename, file);
-			}
+		display.addListener(SWT.OpenDocument, event -> {
+			String filename = event.text;
+			File file = new File(filename);
+			openFile(filename, file);
 		});
 
 		new Menus(this, display.getMenuBar());

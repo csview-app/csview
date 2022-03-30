@@ -50,7 +50,7 @@ public class ProgressManager {
 			
 			@Override
 			public void done() {
-				display.asyncExec(() -> monitor.done());
+				display.asyncExec(monitor::done);
 			}
 			
 			@Override

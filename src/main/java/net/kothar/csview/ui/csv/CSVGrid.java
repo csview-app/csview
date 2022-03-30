@@ -1,10 +1,8 @@
 package net.kothar.csview.ui.csv;
 
-import org.eclipse.swt.SWT;
-import org.eclipse.swt.widgets.Composite;
-
 import net.kothar.csview.grid.Grid;
 import net.kothar.csview.grid.MouseHandler;
+import org.eclipse.swt.widgets.Composite;
 
 public class CSVGrid extends Grid {
 

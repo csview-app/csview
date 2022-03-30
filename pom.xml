@@ -3,50 +3,37 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>net.kothar</groupId>
     <artifactId>csview</artifactId>
-    <version>1.3.5</version>
+    <version>1.3.6</version>
     <name>CSView</name>
 
     <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
 
         <!-- https://mvnrepository.com/artifact/org.eclipse.platform/org.eclipse.jface -->
-        <jface.version>3.17.0</jface.version>
+        <jface.version>3.24.0</jface.version>
         <!-- https://mvnrepository.com/artifact/org.eclipse.platform/org.eclipse.swt.cocoa.macosx.x86_64 -->
-        <swt.version>3.112.0</swt.version>
+        <swt.version>4.22</swt.version>
     </properties>
+
+    <repositories>
+        <repository>
+            <id>local-maven-repo</id>
+            <url>file:///${project.basedir}/local-maven-repo</url>
+        </repository>
+    </repositories>
 
     <dependencies>
         <dependency>
             <groupId>org.eclipse.platform</groupId>
-            <artifactId>org.eclipse.swt</artifactId>
-            <version>${swt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.platform</groupId>
             <artifactId>org.eclipse.jface</artifactId>
             <version>${jface.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.eclipse.platform</groupId>
-                    <artifactId>org.eclipse.swt.gtk.linux.aarch64</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.eclipse.platform</groupId>
-                    <artifactId>org.eclipse.swt.gtk.linux.arm</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.eclipse.platform</groupId>
-                    <artifactId>org.eclipse.swt</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
-
 
         <dependency>
             <groupId>net.kothar</groupId>
             <artifactId>compactlist</artifactId>
-            <version>0.4.0</version>
+            <version>0.4.3</version>
         </dependency>
         <dependency>
             <groupId>net.kothar</groupId>
@@ -57,13 +44,18 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
-            <version>1.4</version>
+            <version>1.8</version>
+        </dependency>
+        <dependency>
+            <groupId>io.reactivex.rxjava3</groupId>
+            <artifactId>rxjava</artifactId>
+            <version>3.1.4</version>
         </dependency>
 
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>24.0-jre</version>
+            <version>31.0.1-jre</version>
         </dependency>
 
         <dependency>
@@ -74,18 +66,18 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.4</version>
+            <version>3.12.0</version>
         </dependency>
         <dependency>
             <groupId>com.ibm.icu</groupId>
             <artifactId>icu4j</artifactId>
-            <version>58.2</version>
+            <version>70.1</version>
         </dependency>
 
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.12</version>
+            <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -141,31 +133,12 @@
             <activation>
                 <os>
                     <family>mac</family>
-                    <arch>x86_64</arch>
                 </os>
             </activation>
 
             <properties>
                 <csview.mainClass>net.kothar.csview.cocoa.MacLoader</csview.mainClass>
             </properties>
-
-            <dependencies>
-                <dependency>
-                    <groupId>org.eclipse.platform</groupId>
-                    <artifactId>org.eclipse.swt.cocoa.macosx.x86_64</artifactId>
-                    <version>${swt.version}</version>
-                    <exclusions>
-                        <exclusion>
-                            <groupId>org.eclipse.platform</groupId>
-                            <artifactId>org.eclipse.swt.gtk.linux.aarch64</artifactId>
-                        </exclusion>
-                        <exclusion>
-                            <groupId>org.eclipse.platform</groupId>
-                            <artifactId>org.eclipse.swt.gtk.linux.arm</artifactId>
-                        </exclusion>
-                    </exclusions>
-                </dependency>
-            </dependencies>
 
             <build>
                 <plugins>
@@ -197,6 +170,40 @@
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+        <profile>
+            <id>mac-x86_64</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                    <arch>x86_64</arch>
+                </os>
+            </activation>
+
+            <dependencies>
+                <dependency>
+                    <groupId>org.eclipse.platform</groupId>
+                    <artifactId>org.eclipse.swt.cocoa.macosx.x86_64</artifactId>
+                    <version>${swt.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>mac-aarch64</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+
+            <dependencies>
+                <dependency>
+                    <groupId>org.eclipse.platform</groupId>
+                    <artifactId>org.eclipse.swt.cocoa.macosx.aarch64</artifactId>
+                    <version>${swt.version}</version>
+                </dependency>
+            </dependencies>
         </profile>
         <profile>
             <id>nonmac</id>
@@ -255,16 +262,6 @@
                     <groupId>org.eclipse.platform</groupId>
                     <artifactId>org.eclipse.swt.win32.win32.x86_64</artifactId>
                     <version>${swt.version}</version>
-                    <exclusions>
-                        <exclusion>
-                            <groupId>org.eclipse.platform</groupId>
-                            <artifactId>org.eclipse.swt.gtk.linux.aarch64</artifactId>
-                        </exclusion>
-                        <exclusion>
-                            <groupId>org.eclipse.platform</groupId>
-                            <artifactId>org.eclipse.swt.gtk.linux.arm</artifactId>
-                        </exclusion>
-                    </exclusions>
                 </dependency>
             </dependencies>
         </profile>
@@ -281,16 +278,6 @@
                     <groupId>org.eclipse.platform</groupId>
                     <artifactId>org.eclipse.swt.gtk.linux.x86_64</artifactId>
                     <version>${swt.version}</version>
-                    <exclusions>
-                        <exclusion>
-                            <groupId>org.eclipse.platform</groupId>
-                            <artifactId>org.eclipse.swt.gtk.linux.aarch64</artifactId>
-                        </exclusion>
-                        <exclusion>
-                            <groupId>org.eclipse.platform</groupId>
-                            <artifactId>org.eclipse.swt.gtk.linux.arm</artifactId>
-                        </exclusion>
-                    </exclusions>
                 </dependency>
             </dependencies>
         </profile>

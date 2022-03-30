@@ -209,13 +209,13 @@ public class CSV {
 
                 addRow(cell);
 
-                if (row % 5000 == 0) {
+                if (row % 10_000 == 0) {
                     int worked = ((int) (((pos - lastProgress) * 1000) / totalProgress));
-                    if (worked > 0) {
+                    if (worked > 10) {
                         progressMonitor.worked(worked);
                         lastProgress = pos;
+                        listener.changed();
                     }
-                    listener.changed();
                 }
             }
 

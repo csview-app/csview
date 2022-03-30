@@ -1,6 +1,5 @@
 package net.kothar.csview.grid;
 
-import org.eclipse.jface.resource.DeviceResourceManager;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.resource.LocalResourceManager;
 import org.eclipse.jface.resource.ResourceManager;
@@ -12,12 +11,10 @@ import org.eclipse.swt.widgets.Display;
 
 public class DefaultTheme implements Theme {
 
-    private ResourceManager resourceManager;
+    private final ResourceManager resourceManager;
 
     private Color outerBorderColor;
-    private Color headerBackgroundColor;
     private Color cellBorderColor;
-    private Color headerShadowColor;
 
     public DefaultTheme(Control owner) {
         resourceManager = new LocalResourceManager(JFaceResources.getResources(), owner);
@@ -57,18 +54,12 @@ public class DefaultTheme implements Theme {
 
     @Override
     public Color getHeaderBackgroundColor() {
-        if (headerBackgroundColor == null) {
-            headerBackgroundColor = resourceManager.createColor(new RGB(240, 240, 240));
-        }
-        return headerBackgroundColor;
+        return Display.getDefault().getSystemColor(SWT.COLOR_WIDGET_BACKGROUND);
     }
 
     @Override
     public Color getHeaderShadowColor() {
-        if (headerShadowColor == null) {
-            headerShadowColor = resourceManager.createColor(new RGB(125, 125, 125));
-        }
-        return headerShadowColor;
+        return Display.getDefault().getSystemColor(SWT.COLOR_WIDGET_NORMAL_SHADOW);
     }
 
     @Override
@@ -78,7 +69,7 @@ public class DefaultTheme implements Theme {
 
     @Override
     public Color getHeaderHighlightColor() {
-        return Display.getDefault().getSystemColor(SWT.COLOR_WIDGET_HIGHLIGHT_SHADOW);
+        return Display.getDefault().getSystemColor(SWT.COLOR_WIDGET_LIGHT_SHADOW);
     }
 
     @Override
