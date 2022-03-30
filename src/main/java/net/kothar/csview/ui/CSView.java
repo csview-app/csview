@@ -17,7 +17,14 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
+import io.reactivex.rxjava3.core.Flowable;
+import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.core.ObservableSource;
+import io.reactivex.rxjava3.disposables.Disposable;
+import io.reactivex.rxjava3.internal.operators.observable.ObservableThrottleLatest;
+import io.reactivex.rxjava3.subjects.PublishSubject;
 import org.apache.commons.csv.CSVFormat;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -357,6 +364,17 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
             return new ProgressListener() {
 
+                private final PublishSubject<Boolean> update = PublishSubject.create();
+                private final Disposable updateSub;
+                {
+                    updateSub = update.throttleLast(500, TimeUnit.MILLISECONDS).subscribe(
+                            (x) -> {
+                                if (getShell().isDisposed())
+                                    return;
+                                getShell().getDisplay().asyncExec(CSView.this::refreshTableSize);
+                            });
+                }
+
                 @Override
                 public void completed() {
                     getShell().getDisplay().asyncExec(CSView.this::refreshAll);
@@ -369,10 +387,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
                 @Override
                 public void changed() {
                     if (incrementalRefresh) {
-                        if (getShell().isDisposed())
-                            return;
-
-                        getShell().getDisplay().asyncExec(CSView.this::refreshTableSize);
+                        update.onNext(true);
                     }
                 }
 
