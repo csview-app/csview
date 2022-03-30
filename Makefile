@@ -5,13 +5,14 @@ APP_KEY = Developer ID Application: $(USER_NAME)
 INSTALLER_KEY = Developer ID Installer: $(USER_NAME)
 APPSTORE_INSTALLER_KEY = 3rd Party Mac Developer Installer: $(USER_NAME)
 APPSTORE_APP_KEY = Apple Distribution: $(USER_NAME)
-APPSTORE_CREDS = --username "michael@overuse.org" --password "@keychain:ac_notarize"
+APPSTORE_CREDS = --username "michael@overuse.org" --password "@keychain:ac_notarize_pw"
 
 APP_BUNDLE = bundles/$(APP_NAME).app
 JAR_FILE = csview-$(VERSION)-jar-with-dependencies.jar
 APPSTORE_PKG = bundles/CSView-$(VERSION)-MacAppStore.pkg
+ARCH = $(shell source `jenv javahome`/release && echo $$OS_ARCH)
 APP_PKG = bundles/CSView-$(VERSION).pkg
-APP_DMG = bundles/CSView-$(VERSION).dmg
+APP_DMG = bundles/CSView-$(VERSION)-$(ARCH).dmg
 
 # JAVA_HOME := $(shell /usr/libexec/java_home -v 11)
 #JPACKAGER = $(HOME)/Downloads/jdk.packager-osx/jpackager
@@ -179,6 +180,7 @@ $(APP_DMG): $(APP_BUNDLE)
 		--file-associations package/macosx/csv-files.properties \
 		--file-associations package/macosx/tsv-files.properties \
 		--add-modules java.base,java.compiler,java.desktop,java.logging,java.sql,java.xml,jdk.unsupported
+	cp bundles/CSView-$(VERSION).dmg $@
 
 zip: $(APP_BUNDLE).zip
 
