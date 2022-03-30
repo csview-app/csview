@@ -9,7 +9,7 @@ APPSTORE_CREDS = --username "michael@overuse.org" --password "@keychain:ac_notar
 
 APP_BUNDLE = bundles/$(APP_NAME).app
 JAR_FILE = csview-$(VERSION)-jar-with-dependencies.jar
-APPSTORE_PKG = bundles/CSView-$(VERSION)-MacAppStore.pkg
+APPSTORE_PKG = bundles/CSView-$(VERSION).pkg
 ARCH = $(shell source `jenv javahome`/release && echo $$OS_ARCH)
 APP_PKG = bundles/CSView-$(VERSION).pkg
 APP_DMG = bundles/CSView-$(VERSION)-$(ARCH).dmg
@@ -197,7 +197,7 @@ staple-dmg $(APP_DMG).stapled: $(APP_DMG).notarized
 	touch $(APP_DMG).stapled
 
 validate-appstore: $(APPSTORE_PKG)
-	xcrun altool --validate-app --file $(APPSTORE_PKG) \
+	xcrun altool --validate-app --file $(APPSTORE_PKG) -t osx \
 	$(APPSTORE_CREDS)
 
 notarization-status:
@@ -207,7 +207,7 @@ status-dmg:
 	xcrun altool --notarization-info `cat $(APP_DMG).notarized` $(APPSTORE_CREDS)
 
 upload-appstore: $(APPSTORE_PKG)
-	xcrun altool --upload-app -f $(APPSTORE_PKG) $(APPSTORE_CREDS)
+	xcrun altool --upload-app -f $(APPSTORE_PKG) -t osx $(APPSTORE_CREDS)
 
 clean:
 	# sqlite3 "~/Library/Application Support/com.apple.TCC/Tcc.db" 'delete from access where client like "%CSView%"'
