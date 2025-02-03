@@ -13,18 +13,16 @@
  */
 package net.kothar.csview.ui;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import io.reactivex.rxjava3.core.Flowable;
-import io.reactivex.rxjava3.core.Observable;
-import io.reactivex.rxjava3.core.ObservableSource;
+import com.ibm.icu.text.CharsetDetector;
 import io.reactivex.rxjava3.disposables.Disposable;
-import io.reactivex.rxjava3.internal.operators.observable.ObservableThrottleLatest;
 import io.reactivex.rxjava3.subjects.PublishSubject;
+import net.kothar.csview.DocumentActions;
+import net.kothar.csview.ProgressListener;
+import net.kothar.csview.csv.CSV;
+import net.kothar.csview.csv.ProgressManager;
+import net.kothar.csview.grid.Grid;
+import net.kothar.csview.ui.csv.CSVGrid;
+import net.kothar.csview.ui.search.SearchSidebar;
 import org.apache.commons.csv.CSVFormat;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -37,12 +35,10 @@ import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.jface.window.Window;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.custom.CTabFolder;
-import org.eclipse.swt.custom.CTabFolder2Adapter;
-import org.eclipse.swt.custom.CTabFolderEvent;
-import org.eclipse.swt.custom.CTabItem;
-import org.eclipse.swt.custom.SashForm;
-import org.eclipse.swt.events.*;
+import org.eclipse.swt.custom.*;
+import org.eclipse.swt.events.DisposeEvent;
+import org.eclipse.swt.events.ShellAdapter;
+import org.eclipse.swt.events.ShellEvent;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.FillLayout;
@@ -51,15 +47,11 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 
-import com.ibm.icu.text.CharsetDetector;
-
-import net.kothar.csview.DocumentActions;
-import net.kothar.csview.ProgressListener;
-import net.kothar.csview.csv.CSV;
-import net.kothar.csview.csv.ProgressManager;
-import net.kothar.csview.grid.Grid;
-import net.kothar.csview.ui.csv.CSVGrid;
-import net.kothar.csview.ui.search.SearchSidebar;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class CSView extends ApplicationWindow implements DocumentActions {
 
@@ -543,6 +535,8 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
     public void refreshTableSize() {
         grid.setRows(csv.getRowCount());
+        grid.setCols(csv.getColCount());
+        grid.refresh();
         rowCountStatus.setText(String.format("Rows: %,d", csv.getRowCount()));
         colCountStatus.setText(String.format("Columns: %,d", csv.getColCount()));
     }

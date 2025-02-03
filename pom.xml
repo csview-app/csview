@@ -3,25 +3,18 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>net.kothar</groupId>
     <artifactId>csview</artifactId>
-    <version>1.3.7</version>
+    <version>1.3.8</version>
     <name>CSView</name>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.source>23</maven.compiler.source>
+        <maven.compiler.target>23</maven.compiler.target>
 
         <!-- https://mvnrepository.com/artifact/org.eclipse.platform/org.eclipse.jface -->
-        <jface.version>3.24.0</jface.version>
+        <jface.version>3.35.100</jface.version>
         <!-- https://mvnrepository.com/artifact/org.eclipse.platform/org.eclipse.swt.cocoa.macosx.x86_64 -->
-        <swt.version>4.22</swt.version>
+        <swt.version>3.128.0</swt.version>
     </properties>
-
-    <repositories>
-        <repository>
-            <id>local-maven-repo</id>
-            <url>file:///${project.basedir}/local-maven-repo</url>
-        </repository>
-    </repositories>
 
     <dependencies>
         <dependency>
@@ -55,7 +48,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>31.0.1-jre</version>
+            <version>32.0.1-jre</version>
         </dependency>
 
         <dependency>
@@ -264,6 +257,31 @@
                     <version>${swt.version}</version>
                 </dependency>
             </dependencies>
+
+            <build>
+            <plugins>
+            <plugin>
+                <groupId>io.github.fvarrui</groupId>
+                <artifactId>javapackager</artifactId>
+                <version>1.7.6</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>package</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>net.kothar.csview.SingleInstanceLoader</mainClass>
+                            <bundleJre>true</bundleJre>
+                            <customizedJre>false</customizedJre>
+                            <createZipball>true</createZipball>
+                            <winConfig>
+                            <icoFile>package/windows/CSView.ico</icoFile>
+                            </winConfig>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin></plugins></build>
         </profile>
         <profile>
             <id>linux</id>

@@ -22,9 +22,7 @@ import org.eclipse.swt.dnd.Clipboard;
 import org.eclipse.swt.dnd.HTMLTransfer;
 import org.eclipse.swt.dnd.TextTransfer;
 import org.eclipse.swt.dnd.Transfer;
-import org.eclipse.swt.events.PaintEvent;
-import org.eclipse.swt.events.SelectionAdapter;
-import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.*;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Device;
 import org.eclipse.swt.graphics.GC;
@@ -136,6 +134,12 @@ public class Grid extends Composite {
     };
     canvas.getHorizontalBar().addSelectionListener(onScroll);
     canvas.getVerticalBar().addSelectionListener(onScroll);
+    canvas.addControlListener(new ControlAdapter() {
+      @Override
+      public void controlResized(ControlEvent e) {
+        updateScroll();
+      }
+    });
 
     // Hook mouse handling
     mouseHandler = createMouseHandler();
@@ -788,12 +792,12 @@ public class Grid extends Composite {
       return;
     }
 
-    int max = getTotalWidth() - canvas.getBounds().width;
+    int max = getTotalWidth() + getRowHeaderSize() - canvas.getBounds().width ;
     ScrollBar bar = canvas.getHorizontalBar();
     if (max > 0 || bar.getSelection() > 0) {
       bar.setVisible(true);
       int total =
-          (max + canvas.getVerticalBar().getSize().x + getRowHeaderSize()) / SCROLL_FACTOR + 11;
+          (max + canvas.getVerticalBar().getSize().x ) / SCROLL_FACTOR + 11;
       bar.setMaximum(total);
       bar.setEnabled(true);
     } else {
@@ -869,7 +873,7 @@ public class Grid extends Composite {
 
   public void setCols(int count) {
     cols.setCount(count);
-    refresh();
+//    refresh();
   }
 
   public void setRows(int count) {
@@ -882,9 +886,9 @@ public class Grid extends Composite {
       tileCache.asMap().keySet().removeIf(p -> p.y >= invalidateAfter);
       labelCache.asMap().keySet().removeIf(p -> p.y >= invalidateAfter);
     }
-    updateVerticalScroll();
-
-    refresh();
+//    updateVerticalScroll();
+//
+//    refresh();
   }
 
   public void setHeaderVisible(boolean headerVisible) {
