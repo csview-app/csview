@@ -7,6 +7,11 @@ APPSTORE_INSTALLER_KEY = 3rd Party Mac Developer Installer: $(USER_NAME)
 APPSTORE_APP_KEY = Apple Distribution: $(USER_NAME)
 APPSTORE_CREDS = --username "michael@overuse.org" --password "@keychain:ac_notarize_pw"
 
+# jpackage picks the app icon, entitlements and Info.plist out of this directory. The Info.plist
+# there declares LSMinimumSystemVersion 13.0, which is what lets a single-architecture build be
+# accepted by the App Store.
+MAC_RESOURCES = package/macosx
+
 APP_BUNDLE = bundles/$(APP_NAME).app
 JAR_FILE = csview-$(VERSION)-jar-with-dependencies.jar
 APPSTORE_PKG = bundles/CSView-$(VERSION).pkg
@@ -106,6 +111,7 @@ $(APP_BUNDLE): package/macosx/CSView.icns target/$(JAR_FILE)
 		--vendor "Kothar Labs" \
 		--dest bundles \
 		--icon package/macosx/CSView.icns \
+		--resource-dir $(MAC_RESOURCES) \
 		--mac-package-name CSView \
 		--mac-package-identifier net.kothar.csview \
 		--mac-app-category productivity \
@@ -142,6 +148,7 @@ $(APPSTORE_PKG): $(APP_BUNDLE)
 		--vendor "Kothar Labs" \
 		--dest bundles \
 		--icon package/macosx/CSView.icns \
+		--resource-dir $(MAC_RESOURCES) \
 		--mac-app-store \
 		--mac-sign \
 		--mac-signing-key-user-name "$(USER_NAME)" \
@@ -171,6 +178,7 @@ $(APP_DMG): $(APP_BUNDLE)
 		--vendor "Kothar Labs" \
 		--dest bundles \
 		--icon package/macosx/CSView.icns \
+		--resource-dir $(MAC_RESOURCES) \
 		--mac-sign \
 		--mac-signing-key-user-name "$(USER_NAME)" \
 		--mac-package-name CSView \

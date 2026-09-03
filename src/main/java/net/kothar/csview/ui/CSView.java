@@ -23,6 +23,8 @@ import net.kothar.csview.csv.ProgressManager;
 import net.kothar.csview.grid.Grid;
 import net.kothar.csview.ui.csv.CSVGrid;
 import net.kothar.csview.ui.search.SearchSidebar;
+import net.kothar.csview.ui.update.UpdateNotice;
+import net.kothar.csview.ui.update.UpdateNoticeContribution;
 import org.apache.commons.csv.CSVFormat;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -435,6 +437,10 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
         createDelimiterMenu(statusLineManager);
         createEncodingMenu(statusLineManager);
+
+        if (UpdateNotice.isSupportedPlatform()) {
+            statusLineManager.add(new UpdateNoticeContribution());
+        }
 
         // statusLineManager.add(new StatusLineContributionItem("quote", 10) {{
         // setText("Escape: \"");
