@@ -15,8 +15,15 @@ package net.kothar.csview.ui.update;
 
 import org.eclipse.swt.SWT;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.lang.ProcessBuilder.Redirect;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.prefs.Preferences;
 
 /**
@@ -24,7 +31,10 @@ import java.util.prefs.Preferences;
  * advertising it.
  * <p>
  * The notice is only offered where CSView 2 is a sensible thing to point at: an Apple Silicon Mac
- * running macOS 13 or later, which is what the App Store build of CSView 1.x targets. Once the user
+ * running macOS 13 or later, which is what the App Store build of CSView 1.x targets. That includes
+ * the Intel build of CSView running under Rosetta, which is exactly the user who stands to gain
+ * most from a native app, so an Intel architecture is checked against Rosetta before giving up.
+ * Once the user
  * has opened the notice it is not shown again; the flag is stored in the user preferences so it
  * survives a restart, but a failure to read or write those preferences only costs us the memory of
  * having shown it, so it is never allowed to reach the UI as an error.
@@ -47,6 +57,10 @@ public class UpdateNotice {
     /** Matches LSMinimumSystemVersion in the packaged Info.plist. */
     private static final int MIN_MACOS_VERSION = 13;
 
+    /** Apple's flag for a process running under Rosetta translation. Absent on an Intel Mac. */
+    private static final String TRANSLATED_FLAG = "sysctl.proc_translated";
+    private static final long TRANSLATED_TIMEOUT_SECONDS = 5;
+
     private static final String PREFERENCE_NODE = "net/kothar/csview";
     private static final String SEEN_KEY = "update.notice.csview2.seen";
 
@@ -54,6 +68,9 @@ public class UpdateNotice {
 
     /** Fallback for when the preference store is unavailable, e.g. a locked-down sandbox. */
     private static boolean seenThisSession;
+
+    /** Cached answer from sysctl, so the notice never costs more than one process. */
+    private static Boolean translated;
 
     private UpdateNotice() {
     }
@@ -63,23 +80,82 @@ public class UpdateNotice {
      */
     public static boolean isSupportedPlatform() {
         return isSupportedPlatform(SWT.getPlatform(), System.getProperty("os.arch"),
-                System.getProperty("os.version"));
+                System.getProperty("os.version"), UpdateNotice::isTranslated);
     }
 
     /**
-     * Split out from the system properties so that it can be tested off a Mac.
+     * Split out from the system properties so that it can be tested off a Mac. Whether we are being
+     * translated is supplied lazily, because answering it costs a process.
      */
-    static boolean isSupportedPlatform(String swtPlatform, String architecture, String osVersion) {
+    static boolean isSupportedPlatform(String swtPlatform, String architecture, String osVersion,
+            BooleanSupplier translationCheck) {
         if (!"cocoa".equals(swtPlatform)) {
             return false;
         }
 
-        // A JDK running under Rosetta reports an Intel architecture, and gets no notice
-        if (!"aarch64".equals(architecture) && !"arm64".equals(architecture)) {
+        if (majorVersion(osVersion) < MIN_MACOS_VERSION) {
             return false;
         }
 
-        return majorVersion(osVersion) >= MIN_MACOS_VERSION;
+        // A JDK running under Rosetta reports an Intel architecture, but is on an Apple Silicon Mac
+        return isArm(architecture) || translationCheck.getAsBoolean();
+    }
+
+    private static boolean isArm(String architecture) {
+        return "aarch64".equals(architecture) || "arm64".equals(architecture);
+    }
+
+    /**
+     * @return true if this process is an Intel binary being translated by Rosetta
+     */
+    private static synchronized boolean isTranslated() {
+        if (translated == null) {
+            translated = readTranslatedFlag();
+        }
+        return translated;
+    }
+
+    private static boolean readTranslatedFlag() {
+        return readFlag("/usr/sbin/sysctl", "-n", TRANSLATED_FLAG);
+    }
+
+    /**
+     * Run a command that prints a single sysctl value, and report whether it printed 1. The command
+     * is a parameter so that the reading can be tested off a Mac.
+     *
+     * @return false for any command that cannot be run, times out, or prints anything else
+     */
+    static boolean readFlag(String... command) {
+        Process process = null;
+        try {
+            process = new ProcessBuilder(command)
+                    .redirectError(Redirect.DISCARD)
+                    .start();
+
+            String output;
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream(), StandardCharsets.US_ASCII))) {
+                output = reader.readLine();
+            }
+
+            if (!process.waitFor(TRANSLATED_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                return false;
+            }
+
+            // An Intel Mac has no such flag, and reports an error rather than a value
+            return output != null && "1".equals(output.trim());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (IOException | RuntimeException e) {
+            // Reading the flag is a nicety; the sandbox may well refuse us the process
+            System.out.println("Unable to run " + command[0] + ": " + e);
+            return false;
+        } finally {
+            if (process != null) {
+                process.destroyForcibly();
+            }
+        }
     }
 
     /**
