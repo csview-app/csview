@@ -97,7 +97,9 @@ public class SizeTree {
             if (count == 0) {
                 left = null;
                 right = null;
+                children = 0;
                 size = 0;
+                return;
             }
 
             if (children == 0) {
@@ -107,14 +109,15 @@ public class SizeTree {
                 assert size == children * defaultSize;
                 children = count;
                 size = children * defaultSize;
+            } else if (count <= left.children) {
+                // Nothing in the right subtree survives. Compare against the number of items on
+                // the left, not their total size: they are only interchangeable when every item
+                // happens to be one pixel tall.
+                right.setChildren(0);
+                left.setChildren(count);
             } else {
-                // Remove from children
-                if (left.size > count) {
-                    right.setChildren(0);
-                    left.setChildren(count);
-                } else {
-                    right.setChildren(count - left.size);
-                }
+                // Keep the whole left subtree, and its sizes, and trim the right
+                right.setChildren(count - left.children);
             }
         }
 
