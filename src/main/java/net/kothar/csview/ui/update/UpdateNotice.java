@@ -31,7 +31,7 @@ import java.util.prefs.Preferences;
  * advertising it.
  * <p>
  * The notice is only offered where CSView 2 is a sensible thing to point at: an Apple Silicon Mac
- * running macOS 13 or later, which is what the App Store build of CSView 1.x targets. That includes
+ * running macOS 12 or later, which is what CSView 2 itself requires. That includes
  * the Intel build of CSView running under Rosetta, which is exactly the user who stands to gain
  * most from a native app, so an Intel architecture is checked against Rosetta before giving up.
  * Once the user
@@ -54,8 +54,13 @@ public class UpdateNotice {
             "No subscription, no cloud, no telemetry",
     };
 
-    /** Matches LSMinimumSystemVersion in the packaged Info.plist. */
-    private static final int MIN_MACOS_VERSION = 13;
+    /**
+     * The macOS version CSView 2 requires, as advertised in {@link #REQUIREMENTS}. This is what
+     * decides whether the notice is worth showing, so it tracks CSView 2 rather than the floor
+     * either CSView 1 build declares: the App Store build cannot run below macOS 13 anyway, and
+     * the DMG build reaches back to macOS 11, where the notice is correctly suppressed.
+     */
+    private static final int MIN_MACOS_VERSION = 12;
 
     /** Apple's flag for a process running under Rosetta translation. Absent on an Intel Mac. */
     private static final String TRANSLATED_FLAG = "sysctl.proc_translated";

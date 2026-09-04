@@ -23,7 +23,9 @@ public class UpdateNoticeTest {
     };
 
     @Test
-    public void appleSiliconOnMacOs13OrLaterIsSupported() {
+    public void appleSiliconOnMacOs12OrLaterIsSupported() {
+        assertTrue(UpdateNotice.isSupportedPlatform("cocoa", "aarch64", "12.0", NATIVE));
+        assertTrue(UpdateNotice.isSupportedPlatform("cocoa", "aarch64", "12.7.4", NATIVE));
         assertTrue(UpdateNotice.isSupportedPlatform("cocoa", "aarch64", "13.0", NATIVE));
         assertTrue(UpdateNotice.isSupportedPlatform("cocoa", "aarch64", "13.5.2", NATIVE));
         assertTrue(UpdateNotice.isSupportedPlatform("cocoa", "aarch64", "26.1", NATIVE));
@@ -42,7 +44,8 @@ public class UpdateNoticeTest {
 
     @Test
     public void olderMacOsIsNotSupported() {
-        assertFalse(UpdateNotice.isSupportedPlatform("cocoa", "aarch64", "12.7.4", ROSETTA));
+        assertFalse(UpdateNotice.isSupportedPlatform("cocoa", "aarch64", "11.7.10", ROSETTA));
+        // The floor the DMG build declares, so the oldest macOS CSView 1.x actually runs on
         assertFalse(UpdateNotice.isSupportedPlatform("cocoa", "aarch64", "11.0", ROSETTA));
         // Big Sur reported through the compatibility version, and every earlier release
         assertFalse(UpdateNotice.isSupportedPlatform("cocoa", "aarch64", "10.16", ROSETTA));
@@ -84,7 +87,7 @@ public class UpdateNoticeTest {
     public void rosettaIsOnlyCheckedWhenItCanChangeTheAnswer() {
         UpdateNotice.isSupportedPlatform("gtk", "x86_64", "6.18.44", counted);
         UpdateNotice.isSupportedPlatform("cocoa", "aarch64", "14.2", counted);
-        UpdateNotice.isSupportedPlatform("cocoa", "x86_64", "12.7.4", counted);
+        UpdateNotice.isSupportedPlatform("cocoa", "x86_64", "11.7.10", counted);
         assertEquals(0, translationChecks.get());
 
         UpdateNotice.isSupportedPlatform("cocoa", "x86_64", "14.2", counted);
