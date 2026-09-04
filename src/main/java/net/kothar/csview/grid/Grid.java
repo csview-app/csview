@@ -11,7 +11,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nonnull;
 import net.kothar.csview.Timer;
 import net.kothar.csview.adt.SizeTree;
 import org.apache.commons.lang3.StringEscapeUtils;
@@ -38,6 +37,7 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.ScrollBar;
 import org.freedesktop.Platform;
 import org.freedesktop.platforms.Windows;
+import org.jspecify.annotations.NonNull;
 
 public class Grid extends Composite {
 
@@ -98,7 +98,7 @@ public class Grid extends Composite {
     currentCell = new Point(0, 0);
 
     tileTransform = new Transform(parent.getDisplay());
-    int maxZoom = DPIUtil.autoScaleUp(100);
+    int maxZoom = DPIUtil.getDeviceZoom();
     if (maxZoom > 100) {
       deviceZoom = maxZoom / 100.0;
       tileTransform.scale((float) deviceZoom, (float) deviceZoom);
@@ -417,8 +417,7 @@ public class Grid extends Composite {
     }
   }
 
-  @Nonnull
-  private Image renderTile(Device device, Point position) {
+  private @NonNull Image renderTile(Device device, Point position) {
     try {
       int width = cols.getSize(position.x);
 
