@@ -30,7 +30,7 @@ import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.graphics.Transform;
 import org.eclipse.swt.internal.DPIUtil;
-import org.eclipse.swt.layout.FillLayout;
+import org.eclipse.swt.widgets.Layout;
 import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
@@ -105,7 +105,7 @@ public class Grid extends Composite {
     }
     System.out.println("Render zoom factor: " + deviceZoom);
 
-    setLayout(new FillLayout());
+    setLayout(new CanvasLayout());
     createContents(this);
   }
 
@@ -113,6 +113,34 @@ public class Grid extends Composite {
   public void dispose() {
     super.dispose();
     tileTransform.dispose();
+  }
+
+  /**
+   * Sizes the canvas to fill the grid.
+   * <p>
+   * Deliberately not a {@code FillLayout}: that anchors the child at the client area's origin, and
+   * while a large file is being scanned the window is laid out from inside a cascade that can
+   * report a grid client area starting a few pixels above (0,0) on macOS. The canvas was then
+   * placed that far too high, taking the column header up behind the title bar, and because the
+   * grid is only laid out again when the scan ends and the progress bar disappears, it stayed
+   * there for the whole scan. A composite's client area always starts at the origin, so use only
+   * its size.
+   */
+  private class CanvasLayout extends Layout {
+
+    @Override
+    protected Point computeSize(Composite composite, int wHint, int hHint, boolean flushCache) {
+      return new Point(wHint == SWT.DEFAULT ? 64 : wHint, hHint == SWT.DEFAULT ? 64 : hHint);
+    }
+
+    @Override
+    protected void layout(Composite composite, boolean flushCache) {
+      if (canvas == null || canvas.isDisposed()) {
+        return;
+      }
+      Rectangle area = composite.getClientArea();
+      canvas.setBounds(0, 0, area.width, area.height);
+    }
   }
 
   private void createContents(Composite parent) {
