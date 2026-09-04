@@ -42,7 +42,7 @@ public class UpdateNoticeContribution extends ControlContribution {
 
     private static final String ID = "updateNotice";
 
-    private static final int MIN_ICON_SIZE = 13;
+    private static final int MIN_ICON_SIZE = 14;
 
     /** macOS system blue */
     private static final int[] INFO_COLOUR = {0, 122, 255};
@@ -84,7 +84,9 @@ public class UpdateNoticeContribution extends ControlContribution {
         int textHeight = gc.getFontMetrics().getHeight();
         gc.dispose();
 
-        int iconSize = Math.max(MIN_ICON_SIZE, textHeight - 2);
+        // Kept even: the glyph inside the disc is centred by halving the difference between
+        // the two, and an odd difference would leave it half a pixel off centre
+        int iconSize = Math.max(MIN_ICON_SIZE, (textHeight - 2) & ~1);
         int markerSize = markerSize(iconSize);
 
         Canvas icon = new Canvas(parent, SWT.NONE);
@@ -124,8 +126,9 @@ public class UpdateNoticeContribution extends ControlContribution {
     }
 
     /**
-     * Draw a circled 'i', with an unread marker overlapping its top right corner. The glyph is drawn
-     * rather than rendered as text so that it stays centred in the circle at any status line size.
+     * Draw a circled 'i', with an unread marker overlapping its top right corner. The glyph is
+     * drawn rather than rendered as text so that it stays centred in the disc at any status line
+     * size.
      */
     private static void paint(PaintEvent e, int iconSize, Color infoColour, Color markerColour) {
         Control icon = (Control) e.widget;
@@ -140,13 +143,27 @@ public class UpdateNoticeContribution extends ControlContribution {
         gc.setBackground(infoColour);
         gc.fillOval(left, top, iconSize, iconSize);
 
-        int stroke = Math.max(2, Math.round(iconSize * 0.16f));
+        // A dot over a stem, both the width of the stroke. The diameter and the stroke are both
+        // even and the glyph's height is made even too, so every half here divides exactly and the
+        // glyph lands on the disc's centre rather than half a pixel off it.
+        int stroke = strokeWidth(iconSize);
+        int gap = Math.max(1, Math.round(iconSize * 0.07f));
+        int stemHeight = Math.max(stroke, Math.round(iconSize * 0.34f));
+        if (((iconSize - (stroke + gap + stemHeight)) & 1) != 0) {
+            stemHeight++;
+        }
+
         int glyphLeft = left + (iconSize - stroke) / 2;
-        int stemTop = top + Math.round(iconSize * 0.44f);
-        int stemBottom = top + iconSize - Math.round(iconSize * 0.22f);
+        int glyphTop = top + (iconSize - (stroke + gap + stemHeight)) / 2;
+
+        // Square, and deliberately not antialiased: at status line sizes the dot is only a couple
+        // of pixels across, and smoothing washes it out until the stem outweighs it and the whole
+        // glyph reads as sitting low in the disc.
+        gc.setAntialias(SWT.OFF);
         gc.setBackground(e.display.getSystemColor(SWT.COLOR_WHITE));
-        gc.fillOval(glyphLeft, top + Math.round(iconSize * 0.2f), stroke, stroke);
-        gc.fillRoundRectangle(glyphLeft, stemTop, stroke, stemBottom - stemTop, stroke, stroke);
+        gc.fillRectangle(glyphLeft, glyphTop, stroke, stroke);
+        gc.fillRectangle(glyphLeft, glyphTop + stroke + gap, stroke, stemHeight);
+        gc.setAntialias(SWT.ON);
 
         if (!UpdateNotice.hasBeenSeen()) {
             int markerLeft = left + iconSize - markerSize / 2;
@@ -158,6 +175,13 @@ public class UpdateNoticeContribution extends ControlContribution {
             gc.setBackground(markerColour);
             gc.fillOval(markerLeft, markerTop, markerSize, markerSize);
         }
+    }
+
+    /**
+     * @return the width of the 'i', always even so that it centres exactly on an even diameter
+     */
+    private static int strokeWidth(int iconSize) {
+        return Math.max(2, Math.round(iconSize * 0.14f / 2) * 2);
     }
 
     private void showNotice(Shell shell) {

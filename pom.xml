@@ -7,8 +7,8 @@
     <name>CSView</name>
 
     <properties>
-        <maven.compiler.source>23</maven.compiler.source>
-        <maven.compiler.target>23</maven.compiler.target>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
 
         <build-helper.version>3.6.1</build-helper.version>
 
