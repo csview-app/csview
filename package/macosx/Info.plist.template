@@ -1,12 +1,21 @@
 <?xml version="1.0" ?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  jpackage application Info.plist, picked up from this directory via the jpackage resource dir.
+  jpackage application Info.plist, staged into a per-build resource dir by the Makefile and picked
+  up from there via the jpackage resource dir.
 
   This is the stock jdk.jpackage Info-lite.plist.template (identical in JDK 23 through 25) with a
-  single edit: LSMinimumSystemVersion is raised to 13.0. The App Store only accepts a
-  single-architecture macOS build when it is declared for macOS 13 or later, and CSView 1.x is
-  built one architecture at a time.
+  single edit: the added LSMinimumSystemVersion key. Its value is not fixed here, because the two
+  distribution channels want different floors:
+
+    - App Store builds declare macOS 13. The App Store only accepts a single-architecture macOS
+      build when it is declared for macOS 13 or later, and CSView 1.x is built one architecture at
+      a time.
+    - DMG and Developer ID builds declare the lowest macOS the binaries can actually run on, so
+      the direct download reaches as far back as possible.
+
+  The Makefile substitutes @MIN_SYSTEM_VERSION@ per target; see APPSTORE_MIN_OS and DIRECT_MIN_OS
+  there for the current values and the reasoning behind the floor.
 
   Keep this in step with the template shipped by whichever JDK builds the app:
   src/jdk.jpackage/macosx/classes/jdk/jpackage/internal/resources/Info-lite.plist.template
@@ -16,7 +25,7 @@
 <plist version="1.0">
  <dict>
   <key>LSMinimumSystemVersion</key>
-  <string>13.0</string>
+  <string>@MIN_SYSTEM_VERSION@</string>
   <key>CFBundleDevelopmentRegion</key>
   <string>English</string>
   <key>CFBundleAllowMixedLocalizations</key>
