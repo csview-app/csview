@@ -543,11 +543,15 @@ public class CSView extends ApplicationWindow implements DocumentActions {
         grid.setRows(csv.getRowCount());
         grid.setCols(csv.getColCount());
         grid.refresh();
+        grid.autoSizeColumns();
         rowCountStatus.setText(String.format("Rows: %,d", csv.getRowCount()));
         colCountStatus.setText(String.format("Columns: %,d", csv.getColCount()));
     }
 
     private void updateFormat(CSVFormat newFormat) {
+        // The columns are about to mean something else, so the widths measured for the old ones
+        // are worthless - including any the reader set by hand.
+        grid.resetColumnSizes();
         grid.setCols(1);
         grid.setXOffset(0);
         grid.refresh();
