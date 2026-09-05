@@ -20,9 +20,7 @@ import java.text.MessageFormat;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
-import org.eclipse.jface.dialogs.MessageDialog;
-import org.eclipse.jface.preference.PreferenceDialog;
-import org.eclipse.jface.preference.PreferenceManager;
+import net.kothar.csview.ui.AboutDialog;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.internal.C;
 import org.eclipse.swt.internal.Callback;
@@ -38,12 +36,12 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Widget;
 
 /**
- * The CocoaUIEnhancer provides the standard "About" and "Preference" menu items
- * and links them to the corresponding workbench commands. This must be done in
- * a MacOS X fragment because SWT doesn't provide an abstraction for the (MacOS
- * X only) application menu and we have to use MacOS specific natives. The
- * fragment is for the org.eclipse.ui plug-in because we need access to the
- * Workbench "About" and "Preference" actions.
+ * The CocoaUIEnhancer names the items of the application menu after the product
+ * and points its "About" item at CSView's own about dialog. It also takes the
+ * "Preferences" item out of use, there being no preferences to show. This must
+ * be done in a MacOS X fragment because SWT doesn't provide an abstraction for
+ * the (MacOS X only) application menu and we have to use MacOS specific
+ * natives.
  *
  * @noreference this class is not intended to be referenced by any client.
  * @since 1.0
@@ -56,7 +54,6 @@ public class CocoaUIEnhancer extends CocoaUtil {
     private static final int kQuitMenuItem = 10;
 
     static long sel_toolbarButtonClicked_;
-    static long sel_preferencesMenuItemSelected_;
     static long sel_aboutMenuItemSelected_;
 
     /* This callback is not freed */
@@ -98,11 +95,6 @@ public class CocoaUIEnhancer extends CocoaUtil {
                 wrapPointer(proc3), "@:@");
         invokeMethod(OS.class, "class_addMethod", args); //$NON-NLS-1$
 
-        args = makeArgs(wrapPointer(cls), wrapPointer(sel_preferencesMenuItemSelected_),
-                wrapPointer(proc3), "@:@");
-
-        invokeMethod(OS.class, "class_addMethod", args); //$NON-NLS-1$
-
         args = makeArgs(wrapPointer(cls), wrapPointer(sel_aboutMenuItemSelected_),
                 wrapPointer(proc3), "@:@");
 
@@ -121,8 +113,7 @@ public class CocoaUIEnhancer extends CocoaUtil {
      * @since 3.1
      */
 
-    private static final String RESOURCE_BUNDLE = CocoaUIEnhancer.class.getPackage().getName()
-            + ".Messages"; //$NON-NLS-1$
+    private static final String RESOURCE_BUNDLE = "net.kothar.csview.Messages"; //$NON-NLS-1$
 
     private String fAboutActionName;
     private String fQuitActionName;
@@ -173,7 +164,6 @@ public class CocoaUIEnhancer extends CocoaUtil {
         try {
             if (sel_toolbarButtonClicked_ == 0) {
                 sel_toolbarButtonClicked_ = registerName("toolbarButtonClicked:"); //$NON-NLS-1$
-                sel_preferencesMenuItemSelected_ = registerName("preferencesMenuItemSelected:"); //$NON-NLS-1$
                 sel_aboutMenuItemSelected_ = registerName("aboutMenuItemSelected:"); //$NON-NLS-1$
                 init();
             }
@@ -238,15 +228,18 @@ public class CocoaUIEnhancer extends CocoaUtil {
                 quitMenuItem.setTitle(NSString.stringWith(fQuitActionName));
             }
 
-            // enable pref menu
+            // There are no preferences to show, so take the item out of use entirely: an item
+            // with no action is disabled by AppKit's own menu validation whatever we ask for, and
+            // dropping the key equivalent stops Cmd-, being swallowed by a dead menu item.
             NSMenuItem prefMenuItem = (NSMenuItem) invokeMethod(NSMenu.class, appMenu,
                     "itemAtIndex", new Object[]{wrapPointer(kPreferencesMenuItem)});
+            prefMenuItem.setTarget(null);
+            invokeMethod(NSMenuItem.class, prefMenuItem, "setAction",
+                    new Object[]{wrapPointer(0)});
+            prefMenuItem.setKeyEquivalent(NSString.stringWith(""));
             prefMenuItem.setEnabled(false);
 
-            // Register as a target on the prefs and quit items.
-            prefMenuItem.setTarget(delegate);
-            invokeMethod(NSMenuItem.class, prefMenuItem, "setAction",
-                    new Object[]{wrapPointer(sel_preferencesMenuItemSelected_)});
+            // Register as a target on the about item.
             aboutMenuItem.setTarget(delegate);
             invokeMethod(NSMenuItem.class, aboutMenuItem, "setAction",
                     new Object[]{wrapPointer(sel_aboutMenuItemSelected_)});
@@ -368,8 +361,6 @@ public class CocoaUIEnhancer extends CocoaUtil {
         if (sel == sel_toolbarButtonClicked_) {
             NSControl source = new_NSControl(arg0);
             delegate.toolbarButtonClicked(source);
-        } else if (sel == sel_preferencesMenuItemSelected_) {
-            showPreferences();
         } else if (sel == sel_aboutMenuItemSelected_) {
             showAbout();
         }
@@ -378,24 +369,7 @@ public class CocoaUIEnhancer extends CocoaUtil {
     }
 
     private static void showAbout() {
-        ResourceBundle resourceBundle = ResourceBundle.getBundle(RESOURCE_BUNDLE);
-        String appName = resourceBundle.getString("CSView.appName");
-        String version = resourceBundle.getString("CSView.version");
-        MessageDialog.openInformation(null, "About " + appName,
-                appName + " v" + version + "\n© Kothar Labs 2016 - 2022\n\n"
-                        + "https://www.kothar.net/csview\n\n"
-                        + "Souce code available under the Apache License Version 2.0\n"
-                        + "Parts under the Eclipse Public License v1.0\n"
-                        + "https://bitbucket.org/mikehouston/csview\n\n"
-                        + "Icon by Honza Dousek - http://jandousek.cz");
-    }
-
-    private static void showPreferences() {
-        System.out.println("Preferences...");
-        PreferenceManager manager = new PreferenceManager();
-        PreferenceDialog dialog = new PreferenceDialog(null, manager);
-        dialog.open();
-        // delegate.runCommand(ActionFactory.PREFERENCES.getCommandId());
+        AboutDialog.showOnActiveShell();
     }
 
 }

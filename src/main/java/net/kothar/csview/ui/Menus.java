@@ -20,14 +20,12 @@ import org.eclipse.swt.events.MenuEvent;
 import org.eclipse.swt.events.MenuListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 
 import net.kothar.csview.ApplicationActions;
 import net.kothar.csview.DocumentActions;
 import net.kothar.csview.ui.update.UpdateNotice;
-import net.kothar.csview.ui.update.UpdateNoticeDialog;
 
 public class Menus {
 
@@ -40,7 +38,6 @@ public class Menus {
         commands = new Commands(actions);
 
         createFileMenu(menuBar);
-        createHelpMenu(menuBar);
 
         if (System.getProperties().containsKey("net.kothar.csview.debug")) {
             createDebugMenu(menuBar);
@@ -58,7 +55,6 @@ public class Menus {
         createSearchMenu(menuBar);
         createSelectionMenu(menuBar);
         createWindowMenu(menuBar);
-        createHelpMenu(menuBar);
 
         if (System.getProperties().containsKey("net.kothar.csview.debug")) {
             createDebugMenu(menuBar);
@@ -163,27 +159,6 @@ public class Menus {
             public void menuHidden(MenuEvent e) {
             }
         });
-
-        return menu;
-    }
-
-    /**
-     * The CSView 2 notice hides itself once it has been read, so keep a permanent way back to it.
-     */
-    private Menu createHelpMenu(Menu menuBar) {
-        if (!UpdateNotice.isSupportedPlatform()) {
-            return null;
-        }
-
-        MenuItem menuItem = new MenuItem(menuBar, SWT.CASCADE);
-        menuItem.setText("Help");
-
-        Menu menu = new Menu(menuBar);
-        menuItem.setMenu(menu);
-
-        MenuItem about = new MenuItem(menu, SWT.NORMAL);
-        about.setText(UpdateNotice.NAME + "...");
-        about.addSelectionListener(select(() -> UpdateNoticeDialog.show(Display.getDefault().getActiveShell())));
 
         return menu;
     }

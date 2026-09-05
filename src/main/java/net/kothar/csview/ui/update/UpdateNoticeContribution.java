@@ -13,6 +13,7 @@
  */
 package net.kothar.csview.ui.update;
 
+import net.kothar.csview.ui.AboutDialog;
 import org.eclipse.jface.action.ControlContribution;
 import org.eclipse.jface.action.IContributionManager;
 import org.eclipse.jface.action.StatusLineLayoutData;
@@ -32,8 +33,9 @@ import org.eclipse.swt.widgets.Shell;
 
 /**
  * A status line item advertising the CSView 2 release: an info icon carrying an unread marker until
- * the user opens it. Clicking the icon shows {@link UpdateNoticeDialog} and removes the item, both
- * from this window and from any other window that happens to be open.
+ * the user opens it. Clicking the icon shows the {@link AboutDialog}, which carries the CSView 2
+ * details, and removes the item, both from this window and from any other window that happens to be
+ * open.
  * <p>
  * The status line rebuilds its controls from scratch on every update, so this item is created and
  * disposed repeatedly over the life of a window; nothing that has to survive an update is held here.
@@ -185,10 +187,9 @@ public class UpdateNoticeContribution extends ControlContribution {
     }
 
     private void showNotice(Shell shell) {
-        // Marking the notice as seen disposes the control we are handling an event for, so let this
-        // event finish before opening the dialog
-        UpdateNotice.markSeen();
-        shell.getDisplay().asyncExec(() -> UpdateNoticeDialog.show(shell));
+        // Opening the dialog marks the notice as seen, which disposes the control we are handling
+        // an event for, so let this event finish first
+        shell.getDisplay().asyncExec(() -> AboutDialog.show(shell));
     }
 
     /**
