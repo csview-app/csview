@@ -20,6 +20,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.program.Program;
@@ -30,8 +31,11 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Link;
 import org.eclipse.swt.widgets.Shell;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
+import java.util.function.Supplier;
 
 /**
  * What CSView is, who wrote it and which version is running, plus - where there is one to point at
@@ -47,6 +51,9 @@ public class AboutDialog extends Dialog {
     private static final String HOME_PAGE = "https://www.kothar.net/csview";
     private static final String SOURCE_URL = "https://github.com/csview-app/csview";
     private static final String ICON_CREDIT_URL = "http://jandousek.cz";
+
+    /** Twice the size it is drawn at, so the halving it gets is an exact one. */
+    private static final String CSVIEW_2_ICON = "/csview2-icon.png";
 
     private static final int ICON_SIZE = 64;
     private static final int TEXT_WIDTH_IN_CHARS = 62;
@@ -97,34 +104,51 @@ public class AboutDialog extends Dialog {
         layout.verticalSpacing = 8;
         content.setLayout(layout);
 
-        addAppIcon(content);
+        addIcon(content, () -> CSView.getAppIcon().getImageData(), 0);
         addApplicationDetails(content);
 
         if (UpdateNotice.isSupportedPlatform()) {
             addSeparator(content);
+            addIcon(content, AboutDialog::csview2Icon, SECTION_PADDING);
             addUpdateNotice(content);
         }
 
         return area;
     }
 
-    private void addAppIcon(Composite parent) {
+    /**
+     * Fill the dialog's icon column. The label is created whatever happens to the image, so that
+     * the text beside it stays in the column it belongs to.
+     *
+     * @param padding the space to leave above the icon, matching the column beside it
+     */
+    private void addIcon(Composite parent, Supplier<ImageData> source, int padding) {
         Label icon = new Label(parent, SWT.NONE);
-        icon.setLayoutData(new GridData(SWT.CENTER, SWT.TOP, false, false));
+
+        GridData data = new GridData(SWT.CENTER, SWT.TOP, false, false);
+        data.verticalIndent = padding;
+        icon.setLayoutData(data);
 
         try {
-            Image scaled = new Image(parent.getDisplay(),
-                    CSView.getAppIcon().getImageData().scaledTo(ICON_SIZE, ICON_SIZE));
+            Image scaled = new Image(parent.getDisplay(), source.get().scaledTo(ICON_SIZE, ICON_SIZE));
             icon.setImage(scaled);
             icon.addDisposeListener(e -> scaled.dispose());
         } catch (RuntimeException e) {
             // The dialog is still perfectly readable without the icon
-            System.out.println("Unable to scale application icon: " + e);
+            System.out.println("Unable to load application icon: " + e);
+        }
+    }
+
+    private static ImageData csview2Icon() {
+        try (InputStream stream = AboutDialog.class.getResourceAsStream(CSVIEW_2_ICON)) {
+            return new ImageData(stream);
+        } catch (IOException e) {
+            throw new IllegalStateException("Unable to read " + CSVIEW_2_ICON, e);
         }
     }
 
     private void addApplicationDetails(Composite parent) {
-        Composite text = column(parent, 1, 0);
+        Composite text = column(parent, 0);
 
         Label title = new Label(text, SWT.NONE);
         title.setText(appName());
@@ -148,7 +172,7 @@ public class AboutDialog extends Dialog {
      * A description of the CSView 2 release, with a link to its App Store page.
      */
     private void addUpdateNotice(Composite parent) {
-        Composite text = column(parent, 2, SECTION_PADDING);
+        Composite text = column(parent, SECTION_PADDING);
 
         Label title = new Label(text, SWT.NONE);
         title.setText(UpdateNotice.NAME);
@@ -179,20 +203,21 @@ public class AboutDialog extends Dialog {
     }
 
     /**
-     * @param horizontalSpan the number of the dialog's two columns to fill: one to sit beside the
-     *                       application icon, two to run the full width beneath it
-     * @param margin         the padding to leave around the column's contents
+     * The column of text that sits beside an icon.
+     *
+     * @param padding the space to leave above the column and below its contents
      */
-    private Composite column(Composite parent, int horizontalSpan, int margin) {
+    private Composite column(Composite parent, int padding) {
         Composite column = new Composite(parent, SWT.NONE);
 
         GridData data = new GridData(SWT.FILL, SWT.TOP, true, false);
-        data.horizontalSpan = horizontalSpan;
+        data.verticalIndent = padding;
         column.setLayoutData(data);
 
         GridLayout layout = new GridLayout(1, false);
-        layout.marginWidth = margin;
-        layout.marginHeight = margin;
+        layout.marginWidth = 0;
+        layout.marginHeight = 0;
+        layout.marginBottom = padding;
         layout.verticalSpacing = 6;
         column.setLayout(layout);
 
