@@ -51,6 +51,9 @@ public class AboutDialog extends Dialog {
     private static final int ICON_SIZE = 64;
     private static final int TEXT_WIDTH_IN_CHARS = 62;
 
+    /** Breathing room around the CSView 2 section, so it reads as a section rather than a footnote. */
+    private static final int SECTION_PADDING = 12;
+
     public AboutDialog(Shell parent) {
         super(parent);
     }
@@ -121,7 +124,7 @@ public class AboutDialog extends Dialog {
     }
 
     private void addApplicationDetails(Composite parent) {
-        Composite text = column(parent, 1);
+        Composite text = column(parent, 1, 0);
 
         Label title = new Label(text, SWT.NONE);
         title.setText(appName());
@@ -145,7 +148,7 @@ public class AboutDialog extends Dialog {
      * A description of the CSView 2 release, with a link to its App Store page.
      */
     private void addUpdateNotice(Composite parent) {
-        Composite text = column(parent, 2);
+        Composite text = column(parent, 2, SECTION_PADDING);
 
         Label title = new Label(text, SWT.NONE);
         title.setText(UpdateNotice.NAME);
@@ -178,8 +181,9 @@ public class AboutDialog extends Dialog {
     /**
      * @param horizontalSpan the number of the dialog's two columns to fill: one to sit beside the
      *                       application icon, two to run the full width beneath it
+     * @param margin         the padding to leave around the column's contents
      */
-    private Composite column(Composite parent, int horizontalSpan) {
+    private Composite column(Composite parent, int horizontalSpan, int margin) {
         Composite column = new Composite(parent, SWT.NONE);
 
         GridData data = new GridData(SWT.FILL, SWT.TOP, true, false);
@@ -187,8 +191,8 @@ public class AboutDialog extends Dialog {
         column.setLayoutData(data);
 
         GridLayout layout = new GridLayout(1, false);
-        layout.marginWidth = 0;
-        layout.marginHeight = 0;
+        layout.marginWidth = margin;
+        layout.marginHeight = margin;
         layout.verticalSpacing = 6;
         column.setLayout(layout);
 
@@ -200,6 +204,8 @@ public class AboutDialog extends Dialog {
 
         GridData data = new GridData(SWT.FILL, SWT.CENTER, true, false);
         data.horizontalSpan = 2;
+        // Matched to the padding below the rule, so the section sits evenly between the two
+        data.verticalIndent = SECTION_PADDING;
         separator.setLayoutData(data);
     }
 
