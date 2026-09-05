@@ -25,6 +25,7 @@ import org.eclipse.swt.widgets.MenuItem;
 
 import net.kothar.csview.ApplicationActions;
 import net.kothar.csview.DocumentActions;
+import net.kothar.csview.ui.update.UpdateNotice;
 
 public class Menus {
 
@@ -37,6 +38,7 @@ public class Menus {
         commands = new Commands(actions);
 
         createFileMenu(menuBar);
+
         if (System.getProperties().containsKey("net.kothar.csview.debug")) {
             createDebugMenu(menuBar);
         }
@@ -176,6 +178,11 @@ public class Menus {
         exception.addSelectionListener(select(() -> {
             throw new RuntimeException("Test exception", new IllegalArgumentException("Internal exception"));
         }));
+
+        // Bring back the CSView 2 status line notice, to check its first-run appearance
+        MenuItem resetUpdateNotice = new MenuItem(debugMenu, SWT.NORMAL);
+        resetUpdateNotice.setText("Reset update notice");
+        resetUpdateNotice.addSelectionListener(select(UpdateNotice::reset));
 
         // Dump CSV indexes
         if (docActions != null) {

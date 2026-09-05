@@ -1,0 +1,61 @@
+<?xml version="1.0" ?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  jpackage application Info.plist, staged into a per-build resource dir by the Makefile and picked
+  up from there via the jpackage resource dir.
+
+  This is the stock jdk.jpackage Info-lite.plist.template (identical in JDK 23 through 25) with a
+  single edit: the added LSMinimumSystemVersion key. Its value is not fixed here, because the two
+  distribution channels want different floors:
+
+    - App Store builds declare macOS 13. The App Store only accepts a single-architecture macOS
+      build when it is declared for macOS 13 or later, and CSView 1.x is built one architecture at
+      a time.
+    - DMG and Developer ID builds declare the lowest macOS the binaries can actually run on, so
+      the direct download reaches as far back as possible.
+
+  The Makefile substitutes @MIN_SYSTEM_VERSION@ per target; see APPSTORE_MIN_OS and DIRECT_MIN_OS
+  there for the current values and the reasoning behind the floor.
+
+  Keep this in step with the template shipped by whichever JDK builds the app:
+  src/jdk.jpackage/macosx/classes/jdk/jpackage/internal/resources/Info-lite.plist.template
+  The DEPLOY_ placeholders are substituted by jpackage; dropping one drops that key from the
+  bundle.
+-->
+<plist version="1.0">
+ <dict>
+  <key>LSMinimumSystemVersion</key>
+  <string>@MIN_SYSTEM_VERSION@</string>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>English</string>
+  <key>CFBundleAllowMixedLocalizations</key>
+  <true/>
+  <key>CFBundleExecutable</key>
+  <string>DEPLOY_LAUNCHER_NAME</string>
+  <key>CFBundleIconFile</key>
+  <string>DEPLOY_ICON_FILE</string>
+  <key>CFBundleIdentifier</key>
+  <string>DEPLOY_BUNDLE_IDENTIFIER</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>DEPLOY_BUNDLE_NAME</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>DEPLOY_BUNDLE_SHORT_VERSION</string>
+  <key>CFBundleSignature</key>
+  <string>????</string>
+  <!-- See https://developer.apple.com/app-store/categories/ for list of AppStore categories -->
+  <key>LSApplicationCategoryType</key>
+  <string>DEPLOY_APP_CATEGORY</string>
+  <key>CFBundleVersion</key>
+  <string>DEPLOY_BUNDLE_CFBUNDLE_VERSION</string>
+  <key>NSHumanReadableCopyright</key>
+  <string>DEPLOY_BUNDLE_COPYRIGHT</string>DEPLOY_FILE_ASSOCIATIONS
+  <key>NSHighResolutionCapable</key>
+  <string>true</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>The application DEPLOY_LAUNCHER_NAME is requesting access to the microphone.</string>
+ </dict>
+</plist>

@@ -3,17 +3,21 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>net.kothar</groupId>
     <artifactId>csview</artifactId>
-    <version>1.3.8</version>
+    <version>1.3.9</version>
     <name>CSView</name>
 
     <properties>
-        <maven.compiler.source>23</maven.compiler.source>
-        <maven.compiler.target>23</maven.compiler.target>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
+
+        <build-helper.version>3.6.1</build-helper.version>
 
         <!-- https://mvnrepository.com/artifact/org.eclipse.platform/org.eclipse.jface -->
-        <jface.version>3.35.100</jface.version>
+        <jface.version>3.39.100</jface.version>
         <!-- https://mvnrepository.com/artifact/org.eclipse.platform/org.eclipse.swt.cocoa.macosx.x86_64 -->
-        <swt.version>3.128.0</swt.version>
+        <swt.version>3.134.0</swt.version>
+        <!-- https://mvnrepository.com/artifact/org.eclipse.platform/org.eclipse.swt.svg -->
+        <swt.svg.version>3.133.0</swt.svg.version>
     </properties>
 
     <dependencies>
@@ -21,6 +25,15 @@
             <groupId>org.eclipse.platform</groupId>
             <artifactId>org.eclipse.jface</artifactId>
             <version>${jface.version}</version>
+        </dependency>
+
+        <!-- From JFace 3.38 the built-in icons (including the status line's stop button) are
+             SVG, and SWT refuses to load them unless a rasterizer is registered. This fragment
+             provides one; without it, opening any window with a status line throws. -->
+        <dependency>
+            <groupId>org.eclipse.platform</groupId>
+            <artifactId>org.eclipse.swt.svg</artifactId>
+            <version>${swt.svg.version}</version>
         </dependency>
 
         <dependency>
@@ -37,29 +50,32 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
-            <version>1.8</version>
+            <version>1.14.1</version>
         </dependency>
         <dependency>
             <groupId>io.reactivex.rxjava3</groupId>
             <artifactId>rxjava</artifactId>
-            <version>3.1.4</version>
+            <version>3.1.12</version>
         </dependency>
 
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>32.0.1-jre</version>
+            <version>33.7.1-jre</version>
+        </dependency>
+
+        <!-- Nullness annotations. Guava used to pull in jsr305 for these; from 33.x it ships
+             jspecify instead, so declare it rather than relying on Guava's transitive. -->
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+            <version>1.0.1</version>
         </dependency>
 
         <dependency>
-            <groupId>commons-logging</groupId>
-            <artifactId>commons-logging</artifactId>
-            <version>1.2</version>
-        </dependency>
-        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.12.0</version>
+            <version>3.20.0</version>
         </dependency>
         <dependency>
             <groupId>com.ibm.icu</groupId>
@@ -85,12 +101,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.16.0</version>
             </plugin>
             <plugin>
                 <groupId>com.amashchenko.maven.plugin</groupId>
                 <artifactId>gitflow-maven-plugin</artifactId>
-                <version>1.12.0</version>
+                <version>1.21.0</version>
                 <configuration>
                     <!-- optional configuration -->
                 </configuration>
@@ -107,6 +123,16 @@
                         <manifest>
                             <mainClass>${csview.mainClass}</mainClass>
                         </manifest>
+                        <manifestEntries>
+                            <!-- From SWT 3.134, org.eclipse.swt.internal.C calls
+                                 Platform.exitIfNotLoadable() on startup, which compares these two
+                                 attributes against the running platform and calls System.exit(1)
+                                 if they do not match. Shading SWT into an uber jar drops the
+                                 fragment's own manifest, so the values are restated here per
+                                 profile. -->
+                            <SWT-OS>${swt.os}</SWT-OS>
+                            <SWT-Arch>${swt.arch}</SWT-Arch>
+                        </manifestEntries>
                     </archive>
                 </configuration>
                 <executions>
@@ -131,6 +157,7 @@
 
             <properties>
                 <csview.mainClass>net.kothar.csview.cocoa.MacLoader</csview.mainClass>
+                <swt.os>macosx</swt.os>
             </properties>
 
             <build>
@@ -138,7 +165,7 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>build-helper-maven-plugin</artifactId>
-                        <version>3.0.0</version>
+                        <version>${build-helper.version}</version>
                         <executions>
                             <execution>
                                 <phase>generate-sources</phase>
@@ -156,7 +183,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <version>2.19.1</version>
+                        <version>3.6.0</version>
                         <configuration>
                             <argLine>-XstartOnFirstThread</argLine>
                         </configuration>
@@ -172,6 +199,10 @@
                     <arch>x86_64</arch>
                 </os>
             </activation>
+
+            <properties>
+                <swt.arch>x86_64</swt.arch>
+            </properties>
 
             <dependencies>
                 <dependency>
@@ -189,6 +220,10 @@
                     <arch>aarch64</arch>
                 </os>
             </activation>
+
+            <properties>
+                <swt.arch>aarch64</swt.arch>
+            </properties>
 
             <dependencies>
                 <dependency>
@@ -215,6 +250,7 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>${build-helper.version}</version>
                         <executions>
                             <execution>
                                 <phase>generate-sources</phase>
@@ -249,6 +285,11 @@
                     <arch>amd64</arch>
                 </os>
             </activation>
+
+            <properties>
+                <swt.os>win32</swt.os>
+                <swt.arch>x86_64</swt.arch>
+            </properties>
 
             <dependencies>
                 <dependency>
@@ -290,6 +331,11 @@
                     <name>Linux</name>
                 </os>
             </activation>
+
+            <properties>
+                <swt.os>linux</swt.os>
+                <swt.arch>x86_64</swt.arch>
+            </properties>
 
             <dependencies>
                 <dependency>
