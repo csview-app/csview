@@ -21,6 +21,7 @@ import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
+import org.eclipse.swt.graphics.ImageDataProvider;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.program.Program;
@@ -35,7 +36,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
-import java.util.function.Supplier;
+import java.util.function.IntFunction;
 
 /**
  * What CSView is, who wrote it and which version is running, plus - where there is one to point at
@@ -52,8 +53,9 @@ public class AboutDialog extends Dialog {
     private static final String SOURCE_URL = "https://github.com/csview-app/csview";
     private static final String ICON_CREDIT_URL = "http://jandousek.cz";
 
-    /** Twice the size it is drawn at, so the halving it gets is an exact one. */
+    /** The CSView 2 icon, at the size it is drawn and again for screens that can use twice that. */
     private static final String CSVIEW_2_ICON = "/csview2-icon.png";
+    private static final String CSVIEW_2_ICON_2X = "/csview2-icon@2x.png";
 
     private static final int ICON_SIZE = 64;
     private static final int TEXT_WIDTH_IN_CHARS = 62;
@@ -104,7 +106,7 @@ public class AboutDialog extends Dialog {
         layout.verticalSpacing = 8;
         content.setLayout(layout);
 
-        addIcon(content, () -> CSView.getAppIcon().getImageData(), 0);
+        addIcon(content, size -> CSView.getAppIcon().getImageData().scaledTo(size, size), 0);
         addApplicationDetails(content);
 
         if (UpdateNotice.isSupportedPlatform()) {
@@ -120,9 +122,12 @@ public class AboutDialog extends Dialog {
      * Fill the dialog's icon column. The label is created whatever happens to the image, so that
      * the text beside it stays in the column it belongs to.
      *
+     * @param source  the icon, at a size in pixels: asked for again at every zoom the screen it is
+     *                shown on uses, so that a HiDPI screen gets its own pixels rather than
+     *                {@link #ICON_SIZE} of them magnified
      * @param padding the space to leave above the icon, matching the column beside it
      */
-    private void addIcon(Composite parent, Supplier<ImageData> source, int padding) {
+    private void addIcon(Composite parent, IntFunction<ImageData> source, int padding) {
         Label icon = new Label(parent, SWT.NONE);
 
         GridData data = new GridData(SWT.CENTER, SWT.TOP, false, false);
@@ -130,20 +135,29 @@ public class AboutDialog extends Dialog {
         icon.setLayoutData(data);
 
         try {
-            Image scaled = new Image(parent.getDisplay(), source.get().scaledTo(ICON_SIZE, ICON_SIZE));
-            icon.setImage(scaled);
-            icon.addDisposeListener(e -> scaled.dispose());
+            Image image = new Image(parent.getDisplay(),
+                    (ImageDataProvider) zoom -> source.apply(ICON_SIZE * zoom / 100));
+            icon.setImage(image);
+            icon.addDisposeListener(e -> image.dispose());
         } catch (RuntimeException e) {
             // The dialog is still perfectly readable without the icon
             System.out.println("Unable to load application icon: " + e);
         }
     }
 
-    private static ImageData csview2Icon() {
-        try (InputStream stream = AboutDialog.class.getResourceAsStream(CSVIEW_2_ICON)) {
+    /**
+     * @param size the width and height wanted, in pixels
+     */
+    private static ImageData csview2Icon(int size) {
+        ImageData icon = readIcon(size > ICON_SIZE ? CSVIEW_2_ICON_2X : CSVIEW_2_ICON);
+        return icon.width == size ? icon : icon.scaledTo(size, size);
+    }
+
+    private static ImageData readIcon(String resource) {
+        try (InputStream stream = AboutDialog.class.getResourceAsStream(resource)) {
             return new ImageData(stream);
         } catch (IOException e) {
-            throw new IllegalStateException("Unable to read " + CSVIEW_2_ICON, e);
+            throw new IllegalStateException("Unable to read " + resource, e);
         }
     }
 
@@ -175,7 +189,7 @@ public class AboutDialog extends Dialog {
         Composite text = column(parent, SECTION_PADDING);
 
         Label title = new Label(text, SWT.NONE);
-        title.setText(UpdateNotice.NAME);
+        title.setText(UpdateNotice.HEADLINE);
         title.setFont(titleFont(text));
 
         paragraph(text, "CSView 2 is a ground-up rewrite of CSView as a native macOS app, and is "

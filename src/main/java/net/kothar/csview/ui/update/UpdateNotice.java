@@ -42,6 +42,8 @@ import java.util.prefs.Preferences;
 public class UpdateNotice {
 
     public static final String NAME = "CSView 2 for macOS";
+    /** The name plus the news, for anywhere the release is being announced rather than referred to. */
+    public static final String HEADLINE = NAME + " - now available";
     public static final String APP_STORE_URL = "https://apps.apple.com/us/app/csview-2/id1540184805";
     public static final String REQUIREMENTS = "\u00a31.99 one-time purchase \u00b7 macOS 12 or later \u00b7 Apple Silicon and Intel";
 
