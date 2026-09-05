@@ -4,7 +4,6 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.graphics.Cursor;
 import org.eclipse.swt.graphics.GC;
-import org.eclipse.swt.graphics.Point;
 
 public class ColResizeAction implements MouseAction {
 
@@ -23,34 +22,14 @@ public class ColResizeAction implements MouseAction {
 
 	@Override
 	public void mouseDoubleClick(MouseEvent e) {
-		GC gc = new GC(e.display);
-		int desiredSize = 5;
+		int firstRow = firstVisibleRow();
+		int desiredSize;
 
-		int horizontalCellPadding = grid.getHorizontalCellPadding();
-		if (grid.colLabelProvider != null) {
-			String label = grid.colLabelProvider.getText(column);
-			Point extent = gc.stringExtent(label);
-			desiredSize = extent.x + horizontalCellPadding * 2;
-		}
-		
-		int yOffset = grid.getYOffset();
-		int row = grid.rows.getItemAt(yOffset);
-		int y = grid.rows.getPosition(row);
-		int height = grid.canvas.getBounds().height;
-		int rowCount = grid.rows.getCount();
-		
-		while (y - yOffset < height) {
-			String label = grid.getLabel(column, row);
-			Point extent = gc.stringExtent(label);
-			
-			int labelSize = extent.x + horizontalCellPadding * 2;
-			if (labelSize > desiredSize) {
-				desiredSize = labelSize;
-			}
-			
-			if (++row >= rowCount)
-				break;
-			y = grid.rows.getPosition(row);
+		GC gc = new GC(grid.canvas);
+		try {
+			desiredSize = grid.measureColumn(gc, column, firstRow, visibleRows(firstRow));
+		} finally {
+			gc.dispose();
 		}
 
 		if (desiredSize > MAX_COL_WIDTH) {
@@ -58,6 +37,33 @@ public class ColResizeAction implements MouseAction {
         }
 		
 		grid.setColumnSize(column, desiredSize);
+	}
+
+	/** The topmost row on screen, or 0 while there is nothing to show. */
+	private int firstVisibleRow() {
+		int yOffset = grid.getYOffset();
+		if (grid.rows.getCount() == 0 || yOffset >= grid.rows.getTotal()) {
+			return 0;
+		}
+
+		return grid.rows.getItemAt(yOffset);
+	}
+
+	/**
+	 * Counts the rows on screen from {@code firstRow} down, so a double click fits the column to
+	 * what the reader can actually see rather than to the whole file.
+	 */
+	private int visibleRows(int firstRow) {
+		int yOffset = grid.getYOffset();
+		int height = grid.canvas.getBounds().height;
+		int rowCount = grid.rows.getCount();
+
+		int row = firstRow;
+		while (row < rowCount && grid.rows.getPosition(row) - yOffset < height) {
+			row++;
+		}
+
+		return row - firstRow;
 	}
 
 	@Override

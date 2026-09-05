@@ -7,6 +7,7 @@ import com.google.common.cache.RemovalNotification;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -44,6 +45,18 @@ public class Grid extends Composite {
   public static final int DEFAULT = -1;
   static final int SCROLL_FACTOR = 6;
   static final int TILE_ROWS = 10;
+
+  /** Columns after these are left at their default width when sizing columns to their content. */
+  public static final int AUTO_SIZE_MAX_COLS = 20;
+  /** Rows sampled from the top of the content when sizing columns to their content. */
+  public static final int AUTO_SIZE_MAX_ROWS = 100;
+
+  /** Narrowest column {@link #autoSizeColumns()} will produce, so empty columns stay grabbable. */
+  static final int AUTO_SIZE_MIN_COL_WIDTH = 24;
+  /** Widest column {@link #autoSizeColumns()} will produce, so one long cell can't fill the window. */
+  static final int AUTO_SIZE_MAX_COL_WIDTH = 500;
+  /** Narrowest column a measurement can ask for. */
+  static final int MIN_COL_WIDTH = 5;
 
   Canvas canvas;
   Theme theme = new DefaultTheme(this);
@@ -89,6 +102,11 @@ public class Grid extends Composite {
 
   private Point origin = new Point(0, 0);
   private AtomicBoolean scrolling = new AtomicBoolean(false);
+
+  /** Columns the user has sized themselves, which auto-sizing must not move. */
+  private final BitSet fixedColumns = new BitSet();
+  private int autoSizedCols = 0;
+  private int autoSizedRows = 0;
 
   public Grid(Composite parent, int style) {
     super(parent, style);
@@ -803,6 +821,10 @@ public class Grid extends Composite {
     return cols.getCount();
   }
 
+  public int getColumnSize(int column) {
+    return cols.getSize(column);
+  }
+
   public void addCol(int width) {
     if (width == DEFAULT) {
       // TODO derive from font metrics
@@ -928,12 +950,116 @@ public class Grid extends Composite {
 
   }
 
+  /**
+   * Sets a column's width on the user's behalf: the column is pinned at that width, and later
+   * calls to {@link #autoSizeColumns()} leave it alone.
+   */
   public void setColumnSize(int column, int newSize) {
+    fixedColumns.set(column);
+    resizeColumn(column, newSize);
+  }
+
+  private void resizeColumn(int column, int newSize) {
     cols.setSize(column, newSize);
     updateHorizontalScroll();
 
     tileCache.asMap().keySet().removeIf(p -> p.x == column);
     canvas.redraw();
+  }
+
+  /**
+   * Sizes the leading columns to fit their content.
+   * <p>
+   * Only the first {@value #AUTO_SIZE_MAX_COLS} columns are measured, over at most the first
+   * {@value #AUTO_SIZE_MAX_ROWS} rows, so that opening a wide file - or one still being scanned -
+   * stays cheap. Columns the user has sized themselves are left where they put them, and the
+   * sample is only measured again once more of it has arrived, so the widths settle as a scan
+   * progresses rather than shifting under the reader on every update.
+   */
+  public void autoSizeColumns() {
+    if (isDisposed() || canvas.isDisposed() || contentProvider == null || labelProvider == null) {
+      return;
+    }
+
+    int colCount = Math.min(cols.getCount(), AUTO_SIZE_MAX_COLS);
+    int rowCount = Math.min(rows.getCount(), AUTO_SIZE_MAX_ROWS);
+    if (colCount <= autoSizedCols && rowCount <= autoSizedRows) {
+      return;
+    }
+
+    autoSizedCols = colCount;
+    autoSizedRows = rowCount;
+
+    GC gc = new GC(canvas);
+    try {
+      for (int column = 0; column < colCount; column++) {
+        if (fixedColumns.get(column)) {
+          continue;
+        }
+
+        int size = Math.max(AUTO_SIZE_MIN_COL_WIDTH,
+            Math.min(measureColumn(gc, column, 0, rowCount), AUTO_SIZE_MAX_COL_WIDTH));
+        if (size != cols.getSize(column)) {
+          resizeColumn(column, size);
+        }
+      }
+    } finally {
+      gc.dispose();
+    }
+  }
+
+  /**
+   * Forgets every column width, including the ones the user set, ready for content whose columns
+   * mean something else entirely - a new delimiter, say. The next {@link #autoSizeColumns()} then
+   * sizes them from scratch.
+   */
+  public void resetColumnSizes() {
+    fixedColumns.clear();
+    autoSizedCols = 0;
+    autoSizedRows = 0;
+
+    int count = cols.getCount();
+    cols = new SizeTree(getRowHeaderSize());
+    cols.setCount(count);
+
+    redrawTiles();
+    updateHorizontalScroll();
+  }
+
+  /**
+   * Measures the width a column needs to show its content in full.
+   *
+   * @param gc measures with the font the cells are drawn in
+   * @param column the column to measure
+   * @param firstRow the first row of the sample
+   * @param rowCount how many rows to sample, starting at {@code firstRow}
+   * @return the width needed for the column header and the widest sampled cell
+   */
+  int measureColumn(GC gc, int column, int firstRow, int rowCount) {
+    int padding = getHorizontalCellPadding() * 2;
+    int desiredSize = MIN_COL_WIDTH;
+
+    if (colLabelProvider != null) {
+      String header = colLabelProvider.getText(column);
+      if (header != null && !header.isEmpty()) {
+        desiredSize = gc.stringExtent(header).x + padding;
+      }
+    }
+
+    int lastRow = Math.min(rows.getCount(), firstRow + rowCount);
+    for (int row = Math.max(0, firstRow); row < lastRow; row++) {
+      String label = getLabel(column, row);
+      if (label == null || label.isEmpty()) {
+        continue;
+      }
+
+      int labelSize = gc.stringExtent(label).x + padding;
+      if (labelSize > desiredSize) {
+        desiredSize = labelSize;
+      }
+    }
+
+    return desiredSize;
   }
 
   private String getLabel(int col, int row, Object element) throws ExecutionException {
