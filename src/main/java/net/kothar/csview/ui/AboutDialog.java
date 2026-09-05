@@ -45,7 +45,7 @@ public class AboutDialog extends Dialog {
     private static final String RESOURCE_BUNDLE = "net.kothar.csview.Messages";
 
     private static final String HOME_PAGE = "https://www.kothar.net/csview";
-    private static final String SOURCE_URL = "https://bitbucket.org/mikehouston/csview";
+    private static final String SOURCE_URL = "https://github.com/csview-app/csview";
     private static final String ICON_CREDIT_URL = "http://jandousek.cz";
 
     private static final int ICON_SIZE = 64;
