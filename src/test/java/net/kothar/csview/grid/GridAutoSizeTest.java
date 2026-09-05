@@ -154,6 +154,26 @@ public class GridAutoSizeTest {
     }
 
     @Test
+    public void sizesAgainAfterTheColumnCountCollapsesAndReturns() {
+        labels.put(new Point(2, 3), WIDE);
+        grid.autoSizeColumns();
+
+        // A scan announces the column count as it finds it, and can hand back a lower count than
+        // the one already sized. The tree drops the widths of the columns that go and returns the
+        // rest at the default, so what was measured before the drop no longer describes the grid.
+        int columns = grid.getColCount();
+        grid.setCols(0);
+        grid.setCols(columns);
+        grid.refresh();
+        grid.autoSizeColumns();
+
+        assertTrue("A column of wide content should be wider than one of narrow content",
+                grid.getColumnSize(2) > grid.getColumnSize(1));
+        assertTrue("A column of narrow content should not be left at the default width",
+                grid.getColumnSize(1) < defaultColumnWidth());
+    }
+
+    @Test
     public void startsOverWhenTheColumnsChangeMeaning() {
         grid.setColumnSize(1, 300);
         labels.put(new Point(2, 3), WIDE);

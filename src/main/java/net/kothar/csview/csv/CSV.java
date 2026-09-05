@@ -204,7 +204,12 @@ public class CSV {
 
                 if (previousCols > maxColumns) {
                     maxColumns = previousCols;
-                    notifyColumnsChanged(previousCols);
+                    // The first row has no row before it, so previousCols is 0 there. Announcing
+                    // that told the grid the file had no columns, which threw away every column
+                    // width before the real count arrived a moment later.
+                    if (previousCols > 0) {
+                        notifyColumnsChanged(previousCols);
+                    }
                 }
 
                 addRow(cell);

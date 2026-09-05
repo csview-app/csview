@@ -1,8 +1,11 @@
 package net.kothar.csview.ui;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import net.kothar.csview.ProgressListener;
@@ -36,6 +39,8 @@ public class CSVAutoSizeTest {
     private Grid grid;
     private CSV csv;
 
+    private final List<Integer> announcedColumnCounts = new ArrayList<>();
+
     @Before
     public void openContent() throws Exception {
         shell = new Shell();
@@ -63,6 +68,7 @@ public class CSVAutoSizeTest {
 
             @Override
             public void columnsChanged(int columns) {
+                announcedColumnCounts.add(columns);
             }
         });
         scanned.get(10, TimeUnit.SECONDS);
@@ -94,5 +100,17 @@ public class CSVAutoSizeTest {
                 grid.getColumnSize(1) > grid.getColumnSize(2));
         assertTrue("Narrow columns should not be left at the default width",
                 grid.getColumnSize(2) < grid.getRowHeaderSize());
+    }
+
+    /**
+     * A scan used to announce the count of the row before the first one - zero - which told the
+     * grid the file had no columns at all and threw away every width measured so far.
+     */
+    @Test
+    public void neverAnnouncesAFileWithNoColumns() {
+        assertFalse("A scan should not report a column count of zero",
+                announcedColumnCounts.contains(0));
+        assertEquals(Integer.valueOf(csv.getColCount()),
+                announcedColumnCounts.get(announcedColumnCounts.size() - 1));
     }
 }

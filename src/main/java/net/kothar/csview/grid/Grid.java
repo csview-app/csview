@@ -921,6 +921,19 @@ public class Grid extends Composite {
   }
 
   public void setCols(int count) {
+    if (count < cols.getCount()) {
+      // Dropping columns drops their widths, and the tree hands the survivors back at the default
+      // width, so nothing measured so far can be trusted: let autoSizeColumns() measure again.
+      // A scan that finds a wider row than any before it only ever grows the count, so this costs
+      // nothing on the usual path.
+      autoSizedCols = 0;
+      autoSizedRows = 0;
+      if (count < fixedColumns.length()) {
+        // Those columns no longer exist; the width the reader gave them went with them.
+        fixedColumns.clear(count, fixedColumns.length());
+      }
+    }
+
     cols.setCount(count);
 //    refresh();
   }
