@@ -356,6 +356,11 @@
                             <mainClass>net.kothar.csview.SingleInstanceLoader</mainClass>
                             <bundleJre>true</bundleJre>
                             <jrePath>${project.build.directory}/runtime</jrePath>
+                            <!-- Otherwise the launcher changes into the app's folder before Java
+                                 starts, so "CSView.exe data.csv" looked for data.csv there. The
+                                 launcher finds the bundled jre and jar relative to the .exe, and
+                                 the app loads its own resources from the classpath. -->
+                            <useResourcesAsWorkingDir>false</useResourcesAsWorkingDir>
                             <createZipball>true</createZipball>
                             <winConfig>
                             <icoFile>package/windows/CSView.ico</icoFile>
