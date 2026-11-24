@@ -15,7 +15,7 @@ public class SingleInstanceLoader extends BaseLoader {
 
 	private static final InstanceChannel instances = InstanceChannel.forCurrentUser();
 
-	private int openDocuments = 0;
+	private DocumentWindows windows;
 
 	public static void main(String[] args) {
 		// The running instance has its own working directory, so relative paths are resolved here.
@@ -34,6 +34,7 @@ public class SingleInstanceLoader extends BaseLoader {
 	public void start(String[] args) {
 
 		super.start(args);
+		windows = new DocumentWindows(display);
 
 		try {
 			instances.listen(this::openFromAnotherLaunch);
@@ -51,7 +52,7 @@ public class SingleInstanceLoader extends BaseLoader {
 		
 		if (args.length == 0) {
 			if (!new Commands(this).openFile()) {
-				if (openDocuments == 0) {
+				if (windows.count() == 0) {
 					return false;
 				}
 			}
@@ -77,8 +78,6 @@ public class SingleInstanceLoader extends BaseLoader {
 
 	@Override
 	public void openFile(File file) {
-		openDocuments++;
-		
 		CSView csView = new CSView(file);
 
 		csView.addMenuBar();
@@ -89,11 +88,7 @@ public class SingleInstanceLoader extends BaseLoader {
 		Menu menu = csView.getMenuBarManager().getMenu();
 		new Menus(this, csView, menu);
 
-		csView.getShell().addDisposeListener(e -> {
-			if (--openDocuments == 0) {
-				e.display.dispose();
-			}
-		});
+		windows.track(csView.getShell());
 	}
 
 }

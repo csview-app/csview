@@ -17,6 +17,7 @@ import com.ibm.icu.text.CharsetDetector;
 import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.subjects.PublishSubject;
 import net.kothar.csview.DocumentActions;
+import net.kothar.csview.DocumentWindows;
 import net.kothar.csview.ProgressListener;
 import net.kothar.csview.csv.CSV;
 import net.kothar.csview.csv.ProgressManager;
@@ -92,7 +93,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
         CSView csView = new CSView(args);
         csView.open();
 
-        csView.getShell().addDisposeListener(e -> display.dispose());
+        new DocumentWindows(display).track(csView.getShell());
 
         while (!display.isDisposed()) {
             if (!display.readAndDispatch()) {
