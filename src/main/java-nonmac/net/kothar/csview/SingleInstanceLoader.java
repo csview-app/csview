@@ -25,7 +25,9 @@ public class SingleInstanceLoader extends BaseLoader {
 			return;
 		}
 
-		new SingleInstanceLoader().start(args);
+		// Absolute here too, so the first window's title and Window menu entry show the full path
+		// as the windows opened by later launches do.
+		new SingleInstanceLoader().start(paths.toArray(String[]::new));
 	}
 
 	@Override
