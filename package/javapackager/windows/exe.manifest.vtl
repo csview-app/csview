@@ -27,4 +27,14 @@
 			<supportedOS Id="{e2011457-1546-43c5-a5fe-008deee3d3f0}" />
 		</application>
 	</compatibility>
+	<!-- The one change from javapackager 1.7.6's own template. Its Launch4j launcher uses the
+	     Windows "ANSI" calls, which can only represent the system code page, so it could not find
+	     its jre in a folder named outside that code page (日本 on an English system), and turned
+	     such file names into "??.csv" before Java saw them. This makes those calls use UTF-8 on
+	     Windows 10 1903 and later. -->
+	<asmv3:application>
+		<asmv3:windowsSettings>
+			<activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
+		</asmv3:windowsSettings>
+	</asmv3:application>
 </assembly>
