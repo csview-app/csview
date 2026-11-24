@@ -225,8 +225,26 @@ public class InstanceChannelTest {
         assertTrue(channel.send(List.of("C:\\data\\first.csv")));
     }
 
+    @Test
+    public void rewritesAnEmptyListOnWindows() throws Exception {
+        assumeNotNull(Files.getFileAttributeView(base, AclFileAttributeView.class));
+        assumeTrue(Files.getFileAttributeView(base, PosixFileAttributeView.class) == null);
+
+        UserPrincipal me = channel.currentUser();
+
+        // Java reads a null DACL, which admits everyone, as this same empty list.
+        Files.createDirectory(directory);
+        Files.getFileAttributeView(directory, AclFileAttributeView.class).setAcl(List.of());
+        listen();
+
+        assertOnlyAllows(me, directory);
+        assertTrue(channel.send(List.of("C:\\data\\first.csv")));
+    }
+
     private static void assertOnlyAllows(UserPrincipal me, Path path) throws IOException {
         List<AclEntry> acl = Files.getFileAttributeView(path, AclFileAttributeView.class, LinkOption.NOFOLLOW_LINKS).getAcl();
+        assertTrue(path + " has no access control entries, so it may admit everyone",
+                acl.stream().anyMatch(entry -> entry.type() == AclEntryType.ALLOW && entry.principal().equals(me)));
         for (AclEntry entry : acl) {
             if (entry.type() == AclEntryType.ALLOW) {
                 assertEquals(path + " admits " + entry.principal().getName(), me, entry.principal());

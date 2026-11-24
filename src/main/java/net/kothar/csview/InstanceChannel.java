@@ -261,7 +261,10 @@ public class InstanceChannel {
         AclFileAttributeView acl = Files.getFileAttributeView(directory, AclFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
         if (acl != null) {
             requireOwner(acl.getOwner(), me);
-            boolean onlyMe = acl.getAcl().stream()
+            // Java reads a null DACL, which lets everyone in, as an empty list, as it does an empty
+            // DACL, which lets no one in; either way the list is rewritten.
+            List<AclEntry> entries = acl.getAcl();
+            boolean onlyMe = !entries.isEmpty() && entries.stream()
                     .filter(entry -> entry.type() == AclEntryType.ALLOW)
                     .allMatch(entry -> entry.principal().equals(me));
             if (!onlyMe) {
