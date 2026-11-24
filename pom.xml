@@ -337,6 +337,18 @@
                                     <arg value="--output"/>
                                     <arg value="${project.build.directory}/runtime"/>
                                 </exec>
+                                <!-- The JDK's launchers use the system code page, so they could not
+                                     start from, or pass on, names outside it. See the script. -->
+                                <exec executable="powershell.exe" failonerror="true">
+                                    <arg value="-NoProfile"/>
+                                    <arg value="-NonInteractive"/>
+                                    <arg value="-ExecutionPolicy"/>
+                                    <arg value="Bypass"/>
+                                    <arg value="-File"/>
+                                    <arg value="${project.basedir}/package/windows/use-utf8-code-page.ps1"/>
+                                    <arg value="${project.build.directory}/runtime/bin/java.exe"/>
+                                    <arg value="${project.build.directory}/runtime/bin/javaw.exe"/>
+                                </exec>
                             </target>
                         </configuration>
                     </execution>
