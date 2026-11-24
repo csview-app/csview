@@ -1,0 +1,208 @@
+package net.kothar.csview;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeNotNull;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.StandardProtocolFamily;
+import java.net.UnixDomainSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
+public class InstanceChannelTest {
+
+    private static final Duration TIMEOUT = Duration.ofMillis(500);
+
+    private Path base;
+    private Path directory;
+    private InstanceChannel channel;
+    private final BlockingQueue<List<String>> received = new LinkedBlockingQueue<>();
+    private final List<Closeable> toClose = new ArrayList<>();
+
+    @Before
+    public void setUp() throws IOException {
+        // Kept short: a Unix socket path is limited to around 100 bytes.
+        base = Files.createTempDirectory("ic");
+        directory = base.resolve("csview");
+        channel = new InstanceChannel(directory, TIMEOUT);
+    }
+
+    @After
+    public void tearDown() throws IOException {
+        for (Closeable closeable : toClose) {
+            closeable.close();
+        }
+        try (var paths = Files.walk(base)) {
+            paths.sorted(Collections.reverseOrder()).forEach(path -> path.toFile().delete());
+        }
+    }
+
+    private void listen() throws IOException {
+        toClose.add(channel.listen(received::add));
+    }
+
+    @Test
+    public void handsPathsToTheRunningInstance() throws Exception {
+        listen();
+
+        List<String> paths = List.of("/data/first.csv", "/data/naïve \u2603 second.tsv");
+        assertTrue(channel.send(paths));
+        assertEquals(paths, received.poll(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void handsOverALaunchWithNoFiles() throws Exception {
+        listen();
+
+        assertTrue(channel.send(List.of()));
+        assertEquals(List.of(), received.poll(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void reportsNoInstanceWhenNothingIsListening() {
+        assertFalse(channel.send(List.of("/data/first.csv")));
+    }
+
+    @Test
+    public void reportsNoInstanceForASocketLeftByACrash() throws Exception {
+        Files.createDirectories(directory);
+        ServerSocketChannel crashed = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+        crashed.bind(UnixDomainSocketAddress.of(channel.socketPath()));
+        crashed.close();
+        assertTrue(Files.exists(channel.socketPath()));
+
+        assertFalse(channel.send(List.of("/data/first.csv")));
+
+        // And the next instance to start takes the socket over.
+        listen();
+        assertTrue(channel.send(List.of("/data/first.csv")));
+    }
+
+    @Test
+    public void refusesMoreFilesThanARequestMayCarry() throws Exception {
+        listen();
+
+        List<String> tooMany = Collections.nCopies(InstanceChannel.MAX_PATHS + 1, "/data/first.csv");
+        assertFalse(channel.send(tooMany));
+        assertNull(received.poll(TIMEOUT.toMillis() * 2, TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    public void ignoresAnythingThatIsNotARequestAndKeepsListening() throws Exception {
+        listen();
+
+        try (SocketChannel stranger = SocketChannel.open(UnixDomainSocketAddress.of(channel.socketPath()))) {
+            stranger.write(ByteBuffer.wrap("GET / HTTP/1.1\r\n\r\n".getBytes()));
+            ByteBuffer reply = ByteBuffer.allocate(1);
+            assertEquals("connection should close unanswered", -1, stranger.read(reply));
+        }
+        assertNull(received.poll(100, TimeUnit.MILLISECONDS));
+
+        assertTrue(channel.send(List.of("/data/first.csv")));
+        assertEquals(List.of("/data/first.csv"), received.poll(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void aStalledLaunchDoesNotHoldUpTheNext() throws Exception {
+        listen();
+
+        try (SocketChannel stalled = SocketChannel.open(UnixDomainSocketAddress.of(channel.socketPath()))) {
+            long start = System.nanoTime();
+            assertTrue(channel.send(List.of("/data/first.csv")));
+            assertTrue("the second launch waited on the first",
+                    System.nanoTime() - start < TIMEOUT.toNanos());
+        }
+    }
+
+    @Test
+    public void givesUpOnAnInstanceThatNeverAnswers() throws Exception {
+        Files.createDirectories(directory);
+        try (ServerSocketChannel silent = ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
+            silent.bind(UnixDomainSocketAddress.of(channel.socketPath()));
+
+            long start = System.nanoTime();
+            assertFalse(channel.send(List.of("/data/first.csv")));
+            assertTrue("send should give up after its timeout",
+                    System.nanoTime() - start < TIMEOUT.toNanos() * 4);
+        }
+    }
+
+    @Test
+    public void keepsTheSocketDirectoryToItsOwner() throws Exception {
+        assumeNotNull(Files.getFileAttributeView(base, PosixFileAttributeView.class));
+
+        // Earlier versions created the directory with the default umask.
+        Files.createDirectory(directory, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxr-xr-x")));
+        listen();
+
+        assertEquals("rwx------", PosixFilePermissions.toString(Files.getPosixFilePermissions(directory)));
+    }
+
+    @Test
+    public void refusesASocketDirectoryThatIsALink() throws Exception {
+        assumeNotNull(Files.getFileAttributeView(base, PosixFileAttributeView.class));
+
+        Path elsewhere = Files.createDirectory(base.resolve("elsewhere"));
+        Files.createSymbolicLink(directory, elsewhere);
+
+        try {
+            listen();
+            throw new AssertionError("listened through a symbolic link");
+        } catch (IOException expected) {
+        }
+        assertFalse(Files.exists(elsewhere.resolve("instance.sock")));
+    }
+
+    @Test
+    public void readsBackWhatItWrites() throws IOException {
+        List<String> paths = List.of("C:\\Users\\me\\data.csv", "", "/tmp/x".repeat(1000));
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        InstanceChannel.writeRequest(new DataOutputStream(bytes), paths);
+
+        assertEquals(paths, InstanceChannel.readRequest(new DataInputStream(new ByteArrayInputStream(bytes.toByteArray()))));
+    }
+
+    @Test(expected = IOException.class)
+    public void rejectsANegativeCount() throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(bytes);
+        out.writeInt(InstanceChannel.MAGIC);
+        out.writeInt(-1);
+
+        InstanceChannel.readRequest(new DataInputStream(new ByteArrayInputStream(bytes.toByteArray())));
+    }
+
+    @Test(expected = IOException.class)
+    public void rejectsACountOverTheLimit() throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(bytes);
+        out.writeInt(InstanceChannel.MAGIC);
+        out.writeInt(Integer.MAX_VALUE);
+
+        InstanceChannel.readRequest(new DataInputStream(new ByteArrayInputStream(bytes.toByteArray())));
+    }
+}

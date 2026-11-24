@@ -1,21 +1,11 @@
 package net.kothar.csview;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.Arrays;
+import java.util.List;
 
-import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Menu;
-import org.freedesktop.BaseDirectory;
 
 import net.kothar.csview.ui.CSView;
 import net.kothar.csview.ui.Commands;
@@ -23,13 +13,14 @@ import net.kothar.csview.ui.Menus;
 
 public class SingleInstanceLoader extends BaseLoader {
 
-	private static String runtimeDir = BaseDirectory.get(BaseDirectory.XDG_RUNTIME_DIR);
-	private static String portfile = runtimeDir + "/net.kothar.csview/open.port";
+	private static final InstanceChannel instances = InstanceChannel.forCurrentUser();
 
 	private int openDocuments = 0;
 
 	public static void main(String[] args) {
-		if (tryOpen(args)) {
+		// The running instance has its own working directory, so relative paths are resolved here.
+		List<String> paths = Arrays.stream(args).map(arg -> new File(arg).getAbsolutePath()).toList();
+		if (instances.send(paths)) {
 			System.out.println("Opened in single process");
 			return;
 		}
@@ -42,9 +33,11 @@ public class SingleInstanceLoader extends BaseLoader {
 
 		super.start(args);
 
-        Thread listener = new Thread(this::listen);
-        listener.setDaemon(true);
-        listener.start();
+		try {
+			instances.listen(this::openFromAnotherLaunch);
+		} catch (IOException e) {
+			System.err.println("Later launches will open in their own process: " + e);
+		}
 
 		if (open(args)) {
 			displayLoop();
@@ -74,66 +67,10 @@ public class SingleInstanceLoader extends BaseLoader {
 		return true;
 	}
 
-	private static boolean tryOpen(String[] args) {
-		if (!new File(portfile).exists()) {
-			return false;
-		}
-
-		try (DataInputStream stream = new DataInputStream(new FileInputStream(portfile))) {
-			int port = stream.readInt();
-
-			try (Socket socket = new Socket("127.0.0.1", port)) {
-				ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
-				DataInputStream input = new DataInputStream(socket.getInputStream());
-
-				output.writeObject(args);
-				int read = input.read();
-				if (read == 1) {
-					return true;
-				}
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		return false;
-	}
-
-	private void listen() {
-
-		try (ServerSocket server = new ServerSocket()) {
-			server.bind(new InetSocketAddress("127.0.0.1", 0));
-
-			File file = new File(portfile);
-			file.getParentFile().mkdirs();
-			file.deleteOnExit();
-			try (DataOutputStream portStream = new DataOutputStream(new FileOutputStream(portfile))) {
-				portStream.writeInt(server.getLocalPort());
-			}
-
-			// Listen for new connections
-			for (;;) {
-				try (Socket socket = server.accept()) {
-					ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
-					DataOutputStream output = new DataOutputStream(socket.getOutputStream());
-
-					Object request = input.readObject();
-					if (request instanceof String[]) {
-						open((String[]) request);
-						output.write(1);
-					} else {
-						output.write(0);
-					}
-
-					input.read();
-				} catch (ClassNotFoundException e) {
-					e.printStackTrace();
-				}
-			}
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	private void openFromAnotherLaunch(List<String> paths) {
+		// This arrives on the channel's thread, and SWT only lets the UI thread open windows or the
+		// file dialog (which a launch with no files asks for).
+		display.asyncExec(() -> open(paths.toArray(String[]::new)));
 	}
 
 	@Override
