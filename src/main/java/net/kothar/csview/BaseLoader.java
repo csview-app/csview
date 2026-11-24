@@ -68,9 +68,29 @@ public abstract class BaseLoader implements ApplicationActions {
     }
 
     protected void displayLoop() {
+        runUntilDisposed(display);
+    }
+
+    /**
+     * Runs the event loop until the display is disposed.
+     *
+     * <p>On Windows a sent WM_ENDSESSION (the session ending, or an installer's Restart Manager
+     * closing the application) is handled inside readAndDispatch, by disposing the display, and
+     * SWT 3.134 then reads the message it has already released and throws a NullPointerException
+     * from Display.filterMessage. Left to the uncaught exception handler, that opened an
+     * "Unexpected error" dialog which kept the process alive, so an installer could not replace
+     * it. An exception from a display that is already disposed is that, and is ignored.
+     */
+    public static void runUntilDisposed(Display display) {
         while (!display.isDisposed()) {
-            if (!display.readAndDispatch()) {
-                display.sleep();
+            try {
+                if (!display.readAndDispatch()) {
+                    display.sleep();
+                }
+            } catch (RuntimeException e) {
+                if (!display.isDisposed()) {
+                    throw e;
+                }
             }
         }
     }

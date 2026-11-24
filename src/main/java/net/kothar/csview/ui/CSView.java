@@ -16,6 +16,7 @@ package net.kothar.csview.ui;
 import com.ibm.icu.text.CharsetDetector;
 import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.subjects.PublishSubject;
+import net.kothar.csview.BaseLoader;
 import net.kothar.csview.DocumentActions;
 import net.kothar.csview.DocumentWindows;
 import net.kothar.csview.ProgressListener;
@@ -95,12 +96,7 @@ public class CSView extends ApplicationWindow implements DocumentActions {
 
         new DocumentWindows(display).track(csView.getShell());
 
-        while (!display.isDisposed()) {
-            if (!display.readAndDispatch()) {
-                display.sleep();
-            }
-        }
-
+        BaseLoader.runUntilDisposed(display);
     }
 
     public CSView() {
@@ -419,6 +415,9 @@ public class CSView extends ApplicationWindow implements DocumentActions {
     }
 
     private void refreshAll() {
+        if (isClosing()) {
+            return;
+        }
         refreshTableSize();
         grid.refresh();
         grid.checkMaxScroll();
@@ -541,12 +540,25 @@ public class CSView extends ApplicationWindow implements DocumentActions {
     }
 
     public void refreshTableSize() {
+        if (isClosing()) {
+            return;
+        }
         grid.setRows(csv.getRowCount());
         grid.setCols(csv.getColCount());
         grid.refresh();
         grid.autoSizeColumns();
         rowCountStatus.setText(String.format("Rows: %,d", csv.getRowCount()));
         colCountStatus.setText(String.format("Columns: %,d", csv.getColCount()));
+    }
+
+    /**
+     * Whether this window is gone or going. The scan queues refreshes from its own thread, and one
+     * can run after the window has started closing - Display.release() runs queued work while it
+     * disposes the windows - when its grid or status labels are already disposed.
+     */
+    private boolean isClosing() {
+        Shell shell = getShell();
+        return shell == null || shell.isDisposed() || grid == null || grid.isDisposed();
     }
 
     private void updateFormat(CSVFormat newFormat) {
