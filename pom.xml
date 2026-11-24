@@ -18,6 +18,14 @@
         <swt.version>3.134.0</swt.version>
         <!-- https://mvnrepository.com/artifact/org.eclipse.platform/org.eclipse.swt.svg -->
         <swt.svg.version>3.133.0</swt.svg.version>
+
+        <!-- The Java modules in the runtime bundled with the app, on macOS (read by the Makefile)
+             and Windows (the win64 profile below). jdk.charsets carries Shift_JIS, Big5, EUC-JP,
+             EUC-KR, ISO-2022-*, windows-1256 and ISO-8859-6/8: CharsetDetector offers all of
+             them, and without the module a file detected as one of them shows every cell empty.
+             jdk.localedata is left out on purpose; it would only localise the thousands
+             separators in row numbers and counts, and costs about 26 MB. -->
+        <runtime.modules>java.base,java.compiler,java.desktop,java.logging,java.sql,java.xml,jdk.unsupported,jdk.charsets</runtime.modules>
     </properties>
 
     <dependencies>
@@ -301,6 +309,39 @@
 
             <build>
             <plugins>
+            <!-- From JDK 24 a JDK may ship without its jmods directory, and Temurin 25 does.
+                 javapackager only builds a runtime itself from jmods, so it is handed one made
+                 here with jlink, which can link from the running JDK's own modules instead.
+                 Declared before javapackager, so it runs first in the package phase. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>jlink-runtime</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <!-- jlink will not write over an existing runtime. -->
+                                <delete dir="${project.build.directory}/runtime"/>
+                                <exec executable="${java.home}/bin/jlink.exe" failonerror="true">
+                                    <arg value="--add-modules"/>
+                                    <arg value="${runtime.modules}"/>
+                                    <arg value="--strip-debug"/>
+                                    <arg value="--no-header-files"/>
+                                    <arg value="--no-man-pages"/>
+                                    <arg value="--output"/>
+                                    <arg value="${project.build.directory}/runtime"/>
+                                </exec>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>io.github.fvarrui</groupId>
                 <artifactId>javapackager</artifactId>
@@ -314,7 +355,7 @@
                         <configuration>
                             <mainClass>net.kothar.csview.SingleInstanceLoader</mainClass>
                             <bundleJre>true</bundleJre>
-                            <customizedJre>false</customizedJre>
+                            <jrePath>${project.build.directory}/runtime</jrePath>
                             <createZipball>true</createZipball>
                             <winConfig>
                             <icoFile>package/windows/CSView.ico</icoFile>

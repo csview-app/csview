@@ -1,5 +1,9 @@
 APP_NAME = CSView
-VERSION := $(shell mvn -q -Dexec.executable="echo" -Dexec.args='$${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
+# Read from the pom in one Maven run, since each costs a couple of seconds: the version, and the
+# modules for the bundled runtime, which the Windows build also uses.
+POM_VALUES := $(shell mvn -q -Dexec.executable="echo" -Dexec.args='$${project.version} $${runtime.modules}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
+VERSION := $(word 1,$(POM_VALUES))
+RUNTIME_MODULES := $(word 2,$(POM_VALUES))
 USER_NAME = Michael Houston (D5HSL8R3CY)
 APP_KEY = Developer ID Application: $(USER_NAME)
 INSTALLER_KEY = Developer ID Installer: $(USER_NAME)
@@ -235,7 +239,7 @@ $(APP_BUNDLE): package/macosx/CSView.icns $(ARCH_JAR)
 		--mac-entitlements package/macosx/CSView.entitlements \
 		--file-associations package/macosx/csv-files.properties \
 		--file-associations package/macosx/tsv-files.properties \
-		--add-modules java.base,java.compiler,java.desktop,java.logging,java.sql,java.xml,jdk.unsupported
+		--add-modules $(RUNTIME_MODULES)
 
 appstore: $(APPSTORE_PKG)
 
@@ -282,7 +286,7 @@ $(APPSTORE_PKG): package/macosx/CSView.icns $(ARCH_JAR)
 		--mac-entitlements package/macosx/CSView.entitlements \
 		--file-associations package/macosx/csv-files.properties \
 		--file-associations package/macosx/tsv-files.properties \
-		--add-modules java.base,java.compiler,java.desktop,java.logging,java.sql,java.xml,jdk.unsupported
+		--add-modules $(RUNTIME_MODULES)
 	mv $(JPACKAGE_PKG) $@
 
 dmg: $(APP_DMG)
