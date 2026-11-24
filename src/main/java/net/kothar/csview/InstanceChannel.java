@@ -7,6 +7,7 @@ import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.net.StandardProtocolFamily;
 import java.net.UnixDomainSocketAddress;
@@ -17,13 +18,23 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.attribute.AclEntry;
+import java.nio.file.attribute.AclEntryFlag;
+import java.nio.file.attribute.AclEntryPermission;
+import java.nio.file.attribute.AclEntryType;
+import java.nio.file.attribute.AclFileAttributeView;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileOwnerAttributeView;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.UserPrincipal;
+import java.nio.file.attribute.UserPrincipalLookupService;
+import java.nio.file.attribute.UserPrincipalNotFoundException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -204,6 +215,13 @@ public class InstanceChannel {
                 Files.createDirectory(directory, PosixFilePermissions.asFileAttribute(OWNER_ONLY));
             } else {
                 Files.createDirectory(directory);
+                // An elevated administrator's new files can belong to the Administrators group
+                // rather than to them, which checkDirectory would refuse. The creator may always
+                // give a new directory to itself.
+                FileOwnerAttributeView owner = Files.getFileAttributeView(directory, FileOwnerAttributeView.class, LinkOption.NOFOLLOW_LINKS);
+                if (owner != null) {
+                    owner.setOwner(currentUser());
+                }
             }
         } catch (FileAlreadyExistsException e) {
             // Checked below.
@@ -213,33 +231,75 @@ public class InstanceChannel {
 
     /**
      * Refuses a socket directory that someone else could have put there or could reach into: it
-     * must be a real directory, not a link, and belong to this user. Its permissions are narrowed
-     * to the owner alone, which also tightens the directory earlier versions created with the
-     * default umask.
-     *
-     * <p>Windows has no POSIX permissions to check; the directory lies under the user's own
-     * {@code %LOCALAPPDATA%}, which other users cannot open.
+     * must be a plain directory, not a link, junction or other reparse point, and belong to this
+     * user. Its permissions are then narrowed to the owner alone: on Linux and macOS the mode
+     * becomes rwx------, which also tightens the directory earlier versions created with the
+     * default umask; on Windows the access control list becomes a single entry for the owner,
+     * replacing what the directory inherited. The socket file inherits that list when it is
+     * created, and Windows only lets a process connect to a Unix socket it can write to.
      */
     private void checkDirectory() throws IOException {
-        PosixFileAttributeView view = Files.getFileAttributeView(directory, PosixFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
-        if (view == null) {
+        // NOFOLLOW_LINKS only makes Java report symbolic links as links. A Windows junction still
+        // reads as a directory, but also as "other", as every reparse point does.
+        BasicFileAttributes attributes = Files.readAttributes(directory, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        if (!attributes.isDirectory() || attributes.isSymbolicLink() || attributes.isOther()) {
+            throw new IOException(directory + " is not a plain directory");
+        }
+
+        UserPrincipal me = currentUser();
+
+        PosixFileAttributeView posix = Files.getFileAttributeView(directory, PosixFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
+        if (posix != null) {
+            PosixFileAttributes posixAttributes = posix.readAttributes();
+            requireOwner(posixAttributes.owner(), me);
+            if (!posixAttributes.permissions().equals(OWNER_ONLY)) {
+                posix.setPermissions(OWNER_ONLY);
+            }
             return;
         }
 
-        PosixFileAttributes attributes = view.readAttributes();
-        if (!attributes.isDirectory()) {
-            throw new IOException(directory + " is not a directory");
+        AclFileAttributeView acl = Files.getFileAttributeView(directory, AclFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
+        if (acl != null) {
+            requireOwner(acl.getOwner(), me);
+            boolean onlyMe = acl.getAcl().stream()
+                    .filter(entry -> entry.type() == AclEntryType.ALLOW)
+                    .allMatch(entry -> entry.principal().equals(me));
+            if (!onlyMe) {
+                acl.setAcl(List.of(AclEntry.newBuilder()
+                        .setType(AclEntryType.ALLOW)
+                        .setPrincipal(me)
+                        .setPermissions(EnumSet.allOf(AclEntryPermission.class))
+                        .setFlags(AclEntryFlag.FILE_INHERIT, AclEntryFlag.DIRECTORY_INHERIT)
+                        .build()));
+            }
+            return;
         }
 
-        UserPrincipal me = directory.getFileSystem().getUserPrincipalLookupService()
-                .lookupPrincipalByName(System.getProperty("user.name"));
-        if (!attributes.owner().equals(me)) {
-            throw new IOException(directory + " belongs to " + attributes.owner().getName() + ", not " + me.getName());
-        }
+        throw new IOException("Cannot tell who may open " + directory);
+    }
 
-        if (!attributes.permissions().equals(OWNER_ONLY)) {
-            view.setPermissions(OWNER_ONLY);
+    private void requireOwner(UserPrincipal owner, UserPrincipal me) throws IOException {
+        if (!owner.equals(me)) {
+            throw new IOException(directory + " belongs to " + owner.getName() + ", not " + me.getName());
         }
+    }
+
+    /**
+     * The user this process runs as. On Windows the name is qualified with its domain, so that a
+     * domain account is not confused with a local account of the same name.
+     */
+    UserPrincipal currentUser() throws IOException {
+        UserPrincipalLookupService lookup = directory.getFileSystem().getUserPrincipalLookupService();
+        String name = System.getProperty("user.name");
+        String domain = System.getenv("USERDOMAIN");
+        if (File.separatorChar == '\\' && domain != null && !domain.isBlank()) {
+            try {
+                return lookup.lookupPrincipalByName(domain + "\\" + name);
+            } catch (UserPrincipalNotFoundException e) {
+                // Fall back to the bare name.
+            }
+        }
+        return lookup.lookupPrincipalByName(name);
     }
 
     /**

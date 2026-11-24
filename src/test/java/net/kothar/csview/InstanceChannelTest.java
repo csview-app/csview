@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -17,10 +18,16 @@ import java.net.UnixDomainSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.attribute.AclEntry;
+import java.nio.file.attribute.AclEntryType;
+import java.nio.file.attribute.AclFileAttributeView;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.nio.file.attribute.UserPrincipal;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -164,17 +171,102 @@ public class InstanceChannelTest {
 
     @Test
     public void refusesASocketDirectoryThatIsALink() throws Exception {
-        assumeNotNull(Files.getFileAttributeView(base, PosixFileAttributeView.class));
-
         Path elsewhere = Files.createDirectory(base.resolve("elsewhere"));
-        Files.createSymbolicLink(directory, elsewhere);
+        try {
+            Files.createSymbolicLink(directory, elsewhere);
+        } catch (FileSystemException | UnsupportedOperationException e) {
+            // Windows only lets administrators, or anyone in Developer Mode, make symbolic links.
+            assumeTrue("cannot create a symbolic link here: " + e, false);
+        }
 
+        assertRefused(elsewhere);
+    }
+
+    @Test
+    public void refusesASocketDirectoryThatIsAJunction() throws Exception {
+        assumeTrue(isWindows());
+
+        // Java can read junctions but not make them; any user may make one with mklink.
+        Path elsewhere = Files.createDirectory(base.resolve("elsewhere"));
+        Process mklink = new ProcessBuilder("cmd", "/c", "mklink", "/J", directory.toString(), elsewhere.toString())
+                .redirectErrorStream(true).start();
+        mklink.getInputStream().readAllBytes();
+        assumeTrue("mklink /J failed", mklink.waitFor() == 0);
+
+        assertRefused(elsewhere);
+    }
+
+    private void assertRefused(Path elsewhere) {
         try {
             listen();
-            throw new AssertionError("listened through a symbolic link");
+            throw new AssertionError("listened through " + directory + ", which leads to " + elsewhere);
         } catch (IOException expected) {
         }
+        assertFalse(channel.send(List.of("/data/first.csv")));
         assertFalse(Files.exists(elsewhere.resolve("instance.sock")));
+    }
+
+    @Test
+    public void keepsTheSocketDirectoryToItsOwnerOnWindows() throws Exception {
+        assumeNotNull(Files.getFileAttributeView(base, AclFileAttributeView.class));
+        assumeTrue(Files.getFileAttributeView(base, PosixFileAttributeView.class) == null);
+
+        UserPrincipal me = channel.currentUser();
+
+        // A directory made without the channel inherits its parent's list, which in a profile
+        // usually also admits SYSTEM and Administrators.
+        Files.createDirectory(directory);
+        listen();
+
+        assertEquals(me, Files.getOwner(directory));
+        assertOnlyAllows(me, directory);
+        // The socket inherits the directory's list when it is created.
+        assertOnlyAllows(me, channel.socketPath());
+        assertTrue(channel.send(List.of("C:\\data\\first.csv")));
+    }
+
+    private static void assertOnlyAllows(UserPrincipal me, Path path) throws IOException {
+        List<AclEntry> acl = Files.getFileAttributeView(path, AclFileAttributeView.class, LinkOption.NOFOLLOW_LINKS).getAcl();
+        for (AclEntry entry : acl) {
+            if (entry.type() == AclEntryType.ALLOW) {
+                assertEquals(path + " admits " + entry.principal().getName(), me, entry.principal());
+            }
+        }
+    }
+
+    @Test
+    public void fallsBackWhenTheSocketPathIsTooLong() throws Exception {
+        // Unix socket paths are limited to about 104 bytes on macOS and 108 on Linux and Windows.
+        InstanceChannel deep = new InstanceChannel(base.resolve("x".repeat(120)), TIMEOUT);
+        try {
+            toClose.add(deep.listen(received::add));
+            throw new AssertionError("bound a socket at " + deep.socketPath());
+        } catch (IOException expected) {
+        }
+        assertFalse(deep.send(List.of("/data/first.csv")));
+    }
+
+    @Test
+    public void worksOrFallsBackInADirectoryWithANonAsciiName() throws Exception {
+        // A user name such as José or 田中 puts characters like these in the socket's path. How
+        // the path is encoded for the socket varies by platform; either it works, or listening
+        // fails cleanly and later launches open their own windows.
+        InstanceChannel accented = new InstanceChannel(base.resolve("José-田中"), TIMEOUT);
+        boolean listening;
+        try {
+            toClose.add(accented.listen(received::add));
+            listening = true;
+        } catch (IOException e) {
+            listening = false;
+        }
+        assertEquals(listening, accented.send(List.of("/data/first.csv")));
+        if (listening) {
+            assertEquals(List.of("/data/first.csv"), received.poll(5, TimeUnit.SECONDS));
+        }
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name").startsWith("Windows");
     }
 
     @Test
