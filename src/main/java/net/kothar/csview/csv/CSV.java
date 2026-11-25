@@ -14,7 +14,13 @@
 package net.kothar.csview.csv;
 
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.MappedByteBuffer;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CoderResult;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.nio.channels.FileChannel.MapMode;
 import java.time.Duration;
 import java.util.*;
@@ -139,13 +145,10 @@ public class CSV {
 
             // Detect charset
             byte[] buffer = new byte[(int) Math.min(1024 * 10, randomAccessFile.length())];
-            this.randomAccessFile.read(buffer, 0, buffer.length);
-            CharsetMatch charsetMatch = new CharsetDetector()
-                    .setText(buffer)
-                    .detect();
-
-            if (charsetMatch != null) {
-                charset = charsetMatch.getName();
+            int sampled = this.randomAccessFile.read(buffer, 0, buffer.length);
+            String detected = detectCharset(buffer, Math.max(sampled, 0), randomAccessFile.length() <= buffer.length);
+            if (detected != null) {
+                charset = detected;
                 System.out.println("Matched charset to " + charset);
             }
 
@@ -161,6 +164,34 @@ public class CSV {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Picks the charset for a file from a sample of its start, or returns null if nothing fits.
+     *
+     * <p>A sample that decodes as UTF-8 is UTF-8. ICU's CharsetDetector has nothing to go on in
+     * plain ASCII, and named such files ISO-8859-2 or another single-byte charset; and other
+     * charsets' text with any bytes above 127 is very rarely valid UTF-8. Anything else is left to
+     * the detector.
+     *
+     * @param wholeFile whether the sample is the entire file; if not, a character cut off at the
+     *                  end of the sample does not count against UTF-8
+     */
+    static String detectCharset(byte[] sample, int length, boolean wholeFile) {
+        CharsetDecoder utf8 = StandardCharsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT);
+        CharBuffer decoded = CharBuffer.allocate(length);
+        ByteBuffer bytes = ByteBuffer.wrap(sample, 0, length);
+        CoderResult result = utf8.decode(bytes, decoded, wholeFile);
+        if (!result.isError() && (!wholeFile || !bytes.hasRemaining())) {
+            return StandardCharsets.UTF_8.name();
+        }
+
+        CharsetMatch match = new CharsetDetector()
+                .setText(Arrays.copyOf(sample, length))
+                .detect();
+        return match == null ? null : match.getName();
     }
 
     public void scan(ProgressListener listener) {
