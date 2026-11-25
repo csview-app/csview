@@ -135,7 +135,7 @@ check-jdk:
 	$(REQUIRE_JDK)
 	@echo "jpackage $(shell "$(JPACKAGER)" --version 2>/dev/null) at $(JPACKAGER)"
 
-icons: package/macosx/CSView.icns package/windows/CSView.ico package/windows/CSView-setup-icon.bmp
+icons: package/macosx/CSView.icns package/windows/CSView.ico
 
 src/main/resources/icon.png: icon.svg
 	mkdir -p `dirname $@`
@@ -171,12 +171,6 @@ package/windows/CSView.ico: icon.svg
 	rsvg-convert -h 16 icon.svg > CSView.icoset/icon_6_16x16.png
 	convert CSView.icoset/* -colors 256 $@
 	rm -r CSView.icoset
-
-package/windows/CSView-setup-icon.bmp: icon.svg
-	mkdir -p `dirname $@`
-	rsvg-convert -h 58 -b white icon.svg > setup-icon.png
-	convert setup-icon.png $@
-	rm setup-icon.png
 
 jar: $(ARCH_JAR)
 
