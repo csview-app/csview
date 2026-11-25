@@ -229,6 +229,14 @@ public class CSV {
             }
 
             @Override
+            public void endOfInput(int lastRowCols) {
+                if (lastRowCols > maxColumns) {
+                    maxColumns = lastRowCols;
+                    notifyColumnsChanged(lastRowCols);
+                }
+            }
+
+            @Override
             public void notifyCompleted() {
                 rows.compact();
                 cells.compact();
@@ -325,6 +333,11 @@ public class CSV {
             byte b1 = 0, b2 = 0;
             boolean quoted = false;
 
+            // A row held back because the line break before it was the last byte read so far.
+            boolean pendingRow = false;
+            long pendingCell = 0, pendingPos = 0;
+            int pendingRowNumber = 0, pendingCols = 0;
+
             while (len > 0) {
 
                 CompletableFuture<Integer> nextBuffer = null;
@@ -341,6 +354,13 @@ public class CSV {
                             return 0;
                         }
                     });
+                }
+
+                // The previous buffer ended with a line break, and more has followed it.
+                if (pendingRow) {
+                    handler.newCell(pendingCell, pendingRowNumber, pendingCols, pendingPos);
+                    handler.newRow(pendingCell, pendingRowNumber, pendingCols, pendingPos);
+                    pendingRow = false;
                 }
 
                 // Look for a line terminator
@@ -373,8 +393,19 @@ public class CSV {
                             cell++;
                             col++;
                             row++;
-                            handler.newCell(cell, row, col, pos + i + 1);
-                            handler.newRow(cell, row, col, pos + i + 1);
+                            if (i + 1 < len) {
+                                handler.newCell(cell, row, col, pos + i + 1);
+                                handler.newRow(cell, row, col, pos + i + 1);
+                            } else {
+                                // The last byte read so far. The row it would start only
+                                // exists if more follows: a file's final line break ends its
+                                // last row rather than starting an empty one.
+                                pendingRow = true;
+                                pendingCell = cell;
+                                pendingRowNumber = row;
+                                pendingCols = col;
+                                pendingPos = pos + i + 1;
+                            }
                             col = 0;
                         } else if (b1 == '\r') {
                             cell++;
@@ -408,6 +439,9 @@ public class CSV {
                     }
                 }
             }
+            // A row still held back followed the file's final line break, and is dropped. Either
+            // way the last row's width has not been reported, since no row started after it.
+            handler.endOfInput(pendingRow ? pendingCols : col + 1);
             handler.notifyCompleted();
 
         } catch (Exception e) {
