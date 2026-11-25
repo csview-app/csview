@@ -393,8 +393,11 @@
                                  launcher finds the bundled jre and jar relative to the .exe, and
                                  the app loads its own resources from the classpath. -->
                             <useResourcesAsWorkingDir>false</useResourcesAsWorkingDir>
-                            <!-- Templates here replace javapackager's own of the same name; see
-                                 windows/exe.manifest.vtl for why. -->
+                            <!-- Templates here replace javapackager's own of the same name:
+                                 windows/exe.manifest.vtl (UTF-8 code page for the launcher) and
+                                 windows/iss.vtl (version and copyright for the setup .exe). Each
+                                 says what it changes. -->
+
                             <assetsDir>${project.basedir}/package/javapackager</assetsDir>
                             <createZipball>true</createZipball>
                             <winConfig>
