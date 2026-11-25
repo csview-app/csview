@@ -397,7 +397,6 @@
                                  windows/exe.manifest.vtl (UTF-8 code page for the launcher) and
                                  windows/iss.vtl (version and copyright for the setup .exe). Each
                                  says what it changes. -->
-
                             <assetsDir>${project.basedir}/package/javapackager</assetsDir>
                             <createZipball>true</createZipball>
                             <winConfig>
