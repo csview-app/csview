@@ -5,6 +5,12 @@
     <artifactId>csview</artifactId>
     <version>1.3.9</version>
     <name>CSView</name>
+    <!-- javapackager takes the Windows publisher from here; without it the installer and the
+         .exe's version information said "ACME", javapackager's default. -->
+    <organization>
+        <name>Kothar Labs</name>
+        <url>https://kothar.net/csview</url>
+    </organization>
 
     <properties>
         <maven.compiler.source>25</maven.compiler.source>
@@ -18,6 +24,14 @@
         <swt.version>3.134.0</swt.version>
         <!-- https://mvnrepository.com/artifact/org.eclipse.platform/org.eclipse.swt.svg -->
         <swt.svg.version>3.133.0</swt.svg.version>
+
+        <!-- The Java modules in the runtime bundled with the app, on macOS (read by the Makefile)
+             and Windows (the win64 profile below). jdk.charsets carries Shift_JIS, Big5, EUC-JP,
+             EUC-KR, ISO-2022-*, windows-1256 and ISO-8859-6/8: CharsetDetector offers all of
+             them, and without the module a file detected as one of them shows every cell empty.
+             jdk.localedata is left out on purpose; it would only localise the thousands
+             separators in row numbers and counts, and costs about 26 MB. -->
+        <runtime.modules>java.base,java.compiler,java.desktop,java.logging,java.sql,java.xml,jdk.unsupported,jdk.charsets</runtime.modules>
     </properties>
 
     <dependencies>
@@ -301,6 +315,65 @@
 
             <build>
             <plugins>
+            <!-- Sets parsedVersion.* for the four-part Windows version numbers below. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>${build-helper.version}</version>
+                <executions>
+                    <execution>
+                        <id>parse-version</id>
+                        <goals>
+                            <goal>parse-version</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- From JDK 24 a JDK may ship without its jmods directory, and Temurin 25 does.
+                 javapackager only builds a runtime itself from jmods, so it is handed one made
+                 here with jlink, which can link from the running JDK's own modules instead.
+                 Declared before javapackager, so it runs first in the package phase. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>jlink-runtime</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <!-- jlink will not write over an existing runtime. -->
+                                <delete dir="${project.build.directory}/runtime"/>
+                                <exec executable="${java.home}/bin/jlink.exe" failonerror="true">
+                                    <arg value="--add-modules"/>
+                                    <arg value="${runtime.modules}"/>
+                                    <arg value="--strip-debug"/>
+                                    <arg value="--no-header-files"/>
+                                    <arg value="--no-man-pages"/>
+                                    <arg value="--output"/>
+                                    <arg value="${project.build.directory}/runtime"/>
+                                </exec>
+                                <!-- The JDK's launchers use the system code page, so they could not
+                                     start from, or pass on, names outside it. See the script. -->
+                                <exec executable="powershell.exe" failonerror="true">
+                                    <arg value="-NoProfile"/>
+                                    <arg value="-NonInteractive"/>
+                                    <arg value="-ExecutionPolicy"/>
+                                    <arg value="Bypass"/>
+                                    <arg value="-File"/>
+                                    <arg value="${project.basedir}/package/windows/use-utf8-code-page.ps1"/>
+                                    <arg value="${project.build.directory}/runtime/bin/java.exe"/>
+                                    <arg value="${project.build.directory}/runtime/bin/javaw.exe"/>
+                                </exec>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>io.github.fvarrui</groupId>
                 <artifactId>javapackager</artifactId>
@@ -314,10 +387,29 @@
                         <configuration>
                             <mainClass>net.kothar.csview.SingleInstanceLoader</mainClass>
                             <bundleJre>true</bundleJre>
-                            <customizedJre>false</customizedJre>
+                            <jrePath>${project.build.directory}/runtime</jrePath>
+                            <!-- Otherwise the launcher changes into the app's folder before Java
+                                 starts, so "CSView.exe data.csv" looked for data.csv there. The
+                                 launcher finds the bundled jre and jar relative to the .exe, and
+                                 the app loads its own resources from the classpath. -->
+                            <useResourcesAsWorkingDir>false</useResourcesAsWorkingDir>
+                            <!-- Templates here replace javapackager's own of the same name:
+                                 windows/exe.manifest.vtl (UTF-8 code page for the launcher) and
+                                 windows/iss.vtl (version and copyright for the setup .exe). Each
+                                 says what it changes. -->
+                            <assetsDir>${project.basedir}/package/javapackager</assetsDir>
                             <createZipball>true</createZipball>
                             <winConfig>
-                            <icoFile>package/windows/CSView.ico</icoFile>
+                                <icoFile>package/windows/CSView.ico</icoFile>
+                                <!-- Windows version numbers have four numeric parts, so
+                                     javapackager left these at 1.0.0.0; parse-version below
+                                     splits the project version for them. -->
+                                <fileVersion>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}.0</fileVersion>
+                                <productVersion>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}.0</productVersion>
+                                <copyright>Copyright (C) 2016 - 2026 Kothar Labs</copyright>
+                                <!-- Releases ship the Inno Setup installer. The MSI needs WiX on
+                                     the PATH, and only logged an error without it. -->
+                                <generateMsi>false</generateMsi>
                             </winConfig>
                         </configuration>
                     </execution>

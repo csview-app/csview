@@ -1,5 +1,9 @@
 APP_NAME = CSView
-VERSION := $(shell mvn -q -Dexec.executable="echo" -Dexec.args='$${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
+# Read from the pom in one Maven run, since each costs a couple of seconds: the version, and the
+# modules for the bundled runtime, which the Windows build also uses.
+POM_VALUES := $(shell mvn -q -Dexec.executable="echo" -Dexec.args='$${project.version} $${runtime.modules}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
+VERSION := $(word 1,$(POM_VALUES))
+RUNTIME_MODULES := $(word 2,$(POM_VALUES))
 USER_NAME = Michael Houston (D5HSL8R3CY)
 APP_KEY = Developer ID Application: $(USER_NAME)
 INSTALLER_KEY = Developer ID Installer: $(USER_NAME)
@@ -12,7 +16,6 @@ APPSTORE_CREDS = --username "michael@overuse.org" --password "@keychain:ac_notar
 # minimum macOS versions; stage_mac_resources below copies this directory and substitutes the
 # version, and jpackage is pointed at the staged copy.
 MAC_RESOURCES = package/macosx
-STAGED_RESOURCES = target/package-resources
 
 # The App Store only accepts a single-architecture macOS build when it is declared for macOS 13 or
 # later, and CSView 1.x is built one architecture at a time.
@@ -23,7 +26,7 @@ APPSTORE_MIN_OS = 13.0
 # architectures, the bundled Temurin runtime and the jpackage launcher - carries an LC_BUILD_VERSION
 # minos of 11.0, so Big Sur is as far back as this build can reach. (CSView once declared 10.7.4;
 # that was several SWT and JDK generations ago.) Verify after a JDK or SWT bump with:
-#   vtool -show-build bundles/CSView.app/Contents/MacOS/CSView
+#   vtool -show-build bundles/<arch>/CSView.app/Contents/MacOS/CSView
 DIRECT_MIN_OS = 11.0
 
 # Stage the macOS resource directory for one minimum-OS target.
@@ -36,34 +39,73 @@ define stage_mac_resources
 	sed -e 's/@MIN_SYSTEM_VERSION@/$(2)/' $(MAC_RESOURCES)/Info.plist.template > $(1)/Info.plist
 endef
 
-APP_BUNDLE = bundles/$(APP_NAME).app
 JAR_FILE = csview-$(VERSION)-jar-with-dependencies.jar
 ARCH = $(shell . "$(JAVA_HOME)/release" 2>/dev/null && echo $$OS_ARCH)
+
+# Each architecture builds into its own directories, so an arm64 and an Intel build can sit side
+# by side rather than the second replacing the first. A bundle has to be called CSView.app, so the
+# architecture goes in its directory; the single-file artifacts below carry it in their names.
+#   target/$(ARCH)/input      the jar jpackage packages, with that architecture's SWT natives
+#   target/$(ARCH)/resources  the staged macOS resources, one directory per distribution channel
+#   target/$(ARCH)/jpackage   where jpackage writes a pkg or DMG before it is renamed into bundles/
+#   bundles/$(ARCH)/          the app bundle
+BUILD_DIR = target/$(ARCH)
+APP_INPUT = $(BUILD_DIR)/input
+ARCH_JAR = $(APP_INPUT)/$(JAR_FILE)
+STAGED_RESOURCES = $(BUILD_DIR)/resources
+JPACKAGE_OUT = $(BUILD_DIR)/jpackage
+APP_BUNDLE = bundles/$(ARCH)/$(APP_NAME).app
+APP_ZIP = bundles/CSView-$(VERSION)-$(ARCH).zip
 
 # The two pkg artifacts are different things and must not share a filename: one is the App Store
 # submission, the other the Developer ID installer for direct download. They were both
 # bundles/CSView-$(VERSION).pkg, which made them a single make target with two recipes - make kept
 # the App Store one and silently discarded the other, so the Developer ID pkg could never be built.
 # jpackage names its own output, so the App Store pkg is renamed after the fact, the way the DMG is.
-APPSTORE_PKG = bundles/CSView-$(VERSION)-appstore.pkg
+APPSTORE_PKG = bundles/CSView-$(VERSION)-$(ARCH)-appstore.pkg
 APP_PKG = bundles/CSView-$(VERSION)-$(ARCH).pkg
 APP_DMG = bundles/CSView-$(VERSION)-$(ARCH).dmg
 
 # What jpackage writes before it is renamed to the arch- or channel-qualified name above.
-JPACKAGE_PKG = bundles/CSView-$(VERSION).pkg
-JPACKAGE_DMG = bundles/CSView-$(VERSION).dmg
+JPACKAGE_PKG = $(JPACKAGE_OUT)/CSView-$(VERSION).pkg
+JPACKAGE_DMG = $(JPACKAGE_OUT)/CSView-$(VERSION).dmg
 
 # jpackage ships inside the JDK, so locate a JDK rather than trusting whatever
 # `jpackage` happens to be on the PATH (version managers install shims that fail
 # unless a version is selected for this directory). An explicit JAVA_HOME wins;
 # otherwise ask macOS for a JDK matching the release the pom compiles against.
+#
+# java_home picks the newest matching JDK whatever the architecture, even under Rosetta, so it is
+# asked for one matching the architecture make is running as. `arch -x86_64 make app` therefore
+# builds an Intel bundle on Apple silicon, given an x86_64 JDK installed alongside the arm64 one.
 JAVA_VERSION = 25
-JAVA_HOME ?= $(shell /usr/libexec/java_home -v $(JAVA_VERSION) 2>/dev/null)
+HOST_ARCH := $(shell uname -m)
+JAVA_HOME ?= $(shell /usr/libexec/java_home -a $(HOST_ARCH) -v $(JAVA_VERSION) 2>/dev/null)
 JPACKAGER = $(JAVA_HOME)/bin/jpackage
+
+# Maven must run on the same JDK: the pom picks the SWT natives (and the SWT-Arch manifest entry)
+# from the architecture of the JVM running the build, and jpackage bundles a runtime cut from its
+# own JDK. Left unexported, mvn falls back to whatever JDK its launcher finds, which on Apple
+# silicon is arm64, and an Intel bundle would ship the arm64 SWT natives.
+export JAVA_HOME
+
+# The oldest runtime a release may bundle. jpackage copies its own JDK into the app, so building
+# with an older update installed would ship that update's vulnerabilities. 25.0.5.1 carries the
+# fix for CVE-2026-114938 (the x86-64 Base64 decode intrinsic). For a test build on an older
+# update, override it: make MIN_JAVA_RUNTIME=25.0.5 app
+MIN_JAVA_RUNTIME = 25.0.5.1
+JAVA_RUNTIME = $(shell . "$(JAVA_HOME)/release" 2>/dev/null && echo $${JAVA_RUNTIME_VERSION%%[+-]*})
 
 # Prefix for any recipe that shells out to the JDK, so a missing toolchain fails
 # with an explanation rather than "/bin/jpackage: No such file or directory".
-REQUIRE_JDK = @test -x "$(JPACKAGER)" || $(MISSING_JDK)
+REQUIRE_JDK = @test -x "$(JPACKAGER)" || $(MISSING_JDK); $(CHECK_JDK_UPDATE)
+
+define CHECK_JDK_UPDATE
+if [ "$$(printf '%s\n%s\n' "$(MIN_JAVA_RUNTIME)" "$(JAVA_RUNTIME)" | sort -V | head -n 1)" != "$(MIN_JAVA_RUNTIME)" ]; then \
+	echo "JDK at '$(JAVA_HOME)' is $(JAVA_RUNTIME); a release needs $(MIN_JAVA_RUNTIME) or later."; \
+	echo "Install a newer JDK $(JAVA_VERSION), or for a test build: make MIN_JAVA_RUNTIME=$(JAVA_RUNTIME) <target>"; \
+	exit 1; fi
+endef
 
 define MISSING_JDK
 { \
@@ -87,12 +129,13 @@ toolchain:
 	@echo "JAVA_HOME = $(JAVA_HOME)"
 	@echo "JPACKAGER = $(JPACKAGER)"
 	@echo "ARCH      = $(ARCH)"
+	@echo "RUNTIME   = $(JAVA_RUNTIME) (release minimum $(MIN_JAVA_RUNTIME))"
 
 check-jdk:
 	$(REQUIRE_JDK)
 	@echo "jpackage $(shell "$(JPACKAGER)" --version 2>/dev/null) at $(JPACKAGER)"
 
-icons: package/macosx/CSView.icns package/windows/CSView.ico package/windows/CSView-setup-icon.bmp
+icons: package/macosx/CSView.icns package/windows/CSView.ico
 
 src/main/resources/icon.png: icon.svg
 	mkdir -p `dirname $@`
@@ -129,16 +172,20 @@ package/windows/CSView.ico: icon.svg
 	convert CSView.icoset/* -colors 256 $@
 	rm -r CSView.icoset
 
-package/windows/CSView-setup-icon.bmp: icon.svg
-	mkdir -p `dirname $@`
-	rsvg-convert -h 58 -b white icon.svg > setup-icon.png
-	convert setup-icon.png $@
-	rm setup-icon.png
+jar: $(ARCH_JAR)
 
-jar: target/$(JAR_FILE)
-
-target/$(JAR_FILE): $(SOURCES)
+# Maven always writes target/$(JAR_FILE), whichever architecture it built for, so each
+# architecture keeps its own copy for jpackage. The manifest check catches a jar built by a JVM of
+# the other architecture, which would otherwise ship SWT natives that cannot load.
+$(ARCH_JAR): $(SOURCES) pom.xml
+	$(REQUIRE_JDK)
 	mvn package
+	@unzip -p target/$(JAR_FILE) META-INF/MANIFEST.MF | grep -q "^SWT-Arch: $(ARCH)" || { \
+		echo "target/$(JAR_FILE) holds SWT for another architecture than $(ARCH)."; \
+		echo "Is mvn running on the JDK at $(JAVA_HOME)?"; exit 1; }
+	rm -rf $(APP_INPUT)
+	mkdir -p $(APP_INPUT)
+	cp target/$(JAR_FILE) $@
 
 sandbox: $(APP_BUNDLE)
 	codesign --entitlements package/macosx/CSView.entitlements  -f -s "$(APP_KEY)" $(APP_BUNDLE)
@@ -156,31 +203,28 @@ sign $(APP_BUNDLE).signed: $(APP_BUNDLE)
 		done
 	touch $(APP_BUNDLE).signed
 
-deps: target/$(JAR_FILE)
-	jdeps --list-deps target/$(JAR_FILE)
+deps: $(ARCH_JAR)
+	jdeps --list-deps $(ARCH_JAR)
 
 app: $(APP_BUNDLE)
 
 # jpackage refuses to write an app image over an existing one ("Application destination directory
 # ... already exists"), so clear the previous bundle rather than leaving the build to fail. The
 # same rm also stops a failed build leaving the last version's bundle in place looking current.
-$(APP_BUNDLE): package/macosx/CSView.icns target/$(JAR_FILE)
+$(APP_BUNDLE): package/macosx/CSView.icns $(ARCH_JAR)
 	$(REQUIRE_JDK)
 	rm -rf $@
-	rm -rf package/app
-	mkdir -p package/app
-	cp target/$(JAR_FILE) package/app
 	$(call stage_mac_resources,$(STAGED_RESOURCES)/direct,$(DIRECT_MIN_OS))
 	$(JPACKAGER) -n CSView \
 		--type app-image \
-		--input package/app \
+		--input $(APP_INPUT) \
 		--main-class net.kothar.csview.cocoa.MacLoader \
 		--main-jar $(JAR_FILE) \
 		--java-options "-XstartOnFirstThread" \
 		--app-version $(VERSION) \
 		--description "Fast viewer for CSV files" \
 		--vendor "Kothar Labs" \
-		--dest bundles \
+		--dest $(dir $(APP_BUNDLE)) \
 		--icon package/macosx/CSView.icns \
 		--resource-dir $(STAGED_RESOURCES)/direct \
 		--mac-package-name CSView \
@@ -189,7 +233,7 @@ $(APP_BUNDLE): package/macosx/CSView.icns target/$(JAR_FILE)
 		--mac-entitlements package/macosx/CSView.entitlements \
 		--file-associations package/macosx/csv-files.properties \
 		--file-associations package/macosx/tsv-files.properties \
-		--add-modules java.base,java.compiler,java.desktop,java.logging,java.sql,java.xml,jdk.unsupported
+		--add-modules $(RUNTIME_MODULES)
 
 appstore: $(APPSTORE_PKG)
 
@@ -209,24 +253,22 @@ $(APP_PKG): $(APP_BUNDLE)
 # bundle declares a different LSMinimumSystemVersion and is signed with the App Store identities
 # under --mac-app-store. It used to depend on $(APP_BUNDLE) anyway, which built a bundle that was
 # then thrown away.
-$(APPSTORE_PKG): package/macosx/CSView.icns target/$(JAR_FILE)
+$(APPSTORE_PKG): package/macosx/CSView.icns $(ARCH_JAR)
 	$(REQUIRE_JDK)
-	rm -f $@ $(JPACKAGE_PKG)
-	rm -rf package/app
-	mkdir -p package/app
-	cp target/$(JAR_FILE) package/app
+	rm -f $@
+	rm -rf $(JPACKAGE_OUT)
 	$(call stage_mac_resources,$(STAGED_RESOURCES)/appstore,$(APPSTORE_MIN_OS))
 	$(JPACKAGER) -n CSView \
 		--verbose \
 		--type pkg \
-		--input package/app \
+		--input $(APP_INPUT) \
 		--main-class net.kothar.csview.cocoa.MacLoader \
 		--main-jar $(JAR_FILE) \
 		--java-options "-XstartOnFirstThread" \
 		--app-version $(VERSION) \
 		--description "Fast viewer for CSV files" \
 		--vendor "Kothar Labs" \
-		--dest bundles \
+		--dest $(JPACKAGE_OUT) \
 		--icon package/macosx/CSView.icns \
 		--resource-dir $(STAGED_RESOURCES)/appstore \
 		--mac-app-store \
@@ -238,7 +280,7 @@ $(APPSTORE_PKG): package/macosx/CSView.icns target/$(JAR_FILE)
 		--mac-entitlements package/macosx/CSView.entitlements \
 		--file-associations package/macosx/csv-files.properties \
 		--file-associations package/macosx/tsv-files.properties \
-		--add-modules java.base,java.compiler,java.desktop,java.logging,java.sql,java.xml,jdk.unsupported
+		--add-modules $(RUNTIME_MODULES)
 	mv $(JPACKAGE_PKG) $@
 
 dmg: $(APP_DMG)
@@ -250,24 +292,25 @@ dmg: $(APP_DMG)
 # already baked into the bundle. --app-version here only names the output file.
 $(APP_DMG): $(APP_BUNDLE)
 	$(REQUIRE_JDK)
-	rm -f $@ $(JPACKAGE_DMG)
+	rm -f $@
+	rm -rf $(JPACKAGE_OUT)
 	$(call stage_mac_resources,$(STAGED_RESOURCES)/direct,$(DIRECT_MIN_OS))
 	$(JPACKAGER) -n CSView \
 		--verbose \
 		--type dmg \
 		--app-image $(APP_BUNDLE) \
 		--app-version $(VERSION) \
-		--dest bundles \
+		--dest $(JPACKAGE_OUT) \
 		--resource-dir $(STAGED_RESOURCES)/direct \
 		--mac-sign \
 		--mac-signing-key-user-name "$(USER_NAME)"
 	mv $(JPACKAGE_DMG) $@
 
-zip: $(APP_BUNDLE).zip
+zip: $(APP_ZIP)
 
-$(APP_BUNDLE).zip: $(APP_BUNDLE).signed
+$(APP_ZIP): $(APP_BUNDLE).signed
 	rm -f $@
-	cd `dirname $(APP_BUNDLE)` && zip -r -D `basename $@` `basename $(APP_BUNDLE)`
+	cd $(dir $(APP_BUNDLE)) && zip -r -D $(abspath $@) $(APP_NAME).app
 
 notarize-dmg $(APP_DMG).notarized: $(APP_DMG)
 	 xcrun altool --notarize-app --primary-bundle-id net.kothar.csview \
@@ -296,9 +339,10 @@ clean:
 	# sqlite3 "~/Library/Application Support/com.apple.TCC/Tcc.db" 'delete from access where client like "%CSView%"'
 	mvn clean
 	rm -f *.log
-	rm -rf $(APP_BUNDLE) $(APP_BUNDLE).zip $(APP_BUNDLE).signed package/app
-	rm -f $(APPSTORE_PKG) $(APP_PKG) $(APP_DMG) $(JPACKAGE_PKG) $(JPACKAGE_DMG)
-	rm -f $(APP_DMG).notarized $(APP_DMG).stapled
+	rm -rf bundles/*/$(APP_NAME).app bundles/*/$(APP_NAME).app.signed
+	rm -f bundles/CSView-$(VERSION)-*
+	# Where earlier versions of this Makefile put the bundle and jpackage's input.
+	rm -rf bundles/$(APP_NAME).app bundles/$(APP_NAME).app.zip bundles/$(APP_NAME).app.signed package/app
 
 # Clears every packaged artifact, including older versions left over from previous releases.
 clean-bundles:

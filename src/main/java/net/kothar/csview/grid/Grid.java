@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import net.kothar.csview.Timer;
 import net.kothar.csview.adt.SizeTree;
 import org.apache.commons.lang3.StringEscapeUtils;
@@ -1003,8 +1004,7 @@ public class Grid extends Composite {
     autoSizedCols = colCount;
     autoSizedRows = rowCount;
 
-    GC gc = new GC(canvas);
-    try {
+    withTileGC(gc -> {
       for (int column = 0; column < colCount; column++) {
         if (fixedColumns.get(column)) {
           continue;
@@ -1016,8 +1016,25 @@ public class Grid extends Composite {
           resizeColumn(column, size);
         }
       }
+      return null;
+    });
+  }
+
+  /**
+   * Runs {@code measure} with a GC set up as the tiles' are when cells are drawn: on an image,
+   * with the tiles' scaling transform. Measuring on the canvas instead gave widths that did not
+   * match the drawn text on Windows, where a transform moves a GC from GDI to GDI+, which lays
+   * text out differently: columns of Japanese text came out too narrow for it.
+   */
+  <T> T withTileGC(Function<GC, T> measure) {
+    Image image = new Image(canvas.getDisplay(), 1, 1);
+    GC gc = new GC(image);
+    try {
+      gc.setTransform(tileTransform);
+      return measure.apply(gc);
     } finally {
       gc.dispose();
+      image.dispose();
     }
   }
 

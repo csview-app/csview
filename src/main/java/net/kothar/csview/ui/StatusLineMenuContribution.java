@@ -76,7 +76,8 @@ public class StatusLineMenuContribution extends ControlContribution {
 			return;
 		
 		this.text = text;
-		if (label != null) {
+		// The label goes before its window does, and a queued refresh can arrive in between.
+		if (label != null && !label.isDisposed()) {
 			label.setText(text);
 			IContributionManager parent = getParent();
 			if (parent != null)

@@ -3,7 +3,6 @@ package net.kothar.csview.grid;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.graphics.Cursor;
-import org.eclipse.swt.graphics.GC;
 
 public class ColResizeAction implements MouseAction {
 
@@ -25,12 +24,8 @@ public class ColResizeAction implements MouseAction {
 		int firstRow = firstVisibleRow();
 		int desiredSize;
 
-		GC gc = new GC(grid.canvas);
-		try {
-			desiredSize = grid.measureColumn(gc, column, firstRow, visibleRows(firstRow));
-		} finally {
-			gc.dispose();
-		}
+		int rowCount = visibleRows(firstRow);
+		desiredSize = grid.withTileGC(gc -> grid.measureColumn(gc, column, firstRow, rowCount));
 
 		if (desiredSize > MAX_COL_WIDTH) {
 		    desiredSize = MAX_COL_WIDTH;
